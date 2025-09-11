@@ -1,5 +1,12 @@
 [workspace]
 resolver = "3"
-members = [ "crates/allay-backend","crates/allay-cli", "crates/allay-md-parser"]
+members = ["crates/allay-backend", "crates/allay-cli", "crates/allay-md-parser"]
 
 [workspace.dependencies]
+axum = "0.8.4"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9.5"
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.11"
