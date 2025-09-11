@@ -6,10 +6,12 @@ use axum::routing::get;
 use axum::{Router, serve};
 use std::sync::LazyLock;
 
+const CONFIG_FILE: &str = "allay.toml";
+
 static CONFIG: LazyLock<BackendConfig> = LazyLock::new(|| {
-    let config_file_exists = std::path::Path::new("config.toml").exists();
+    let config_file_exists = std::path::Path::new(CONFIG_FILE).exists();
     if config_file_exists {
-        BackendConfig::from_config_file("config.toml").unwrap_or_default()
+        BackendConfig::from_config_file(CONFIG_FILE).unwrap_or_default()
     } else {
         BackendConfig::default()
     }
