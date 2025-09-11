@@ -38,7 +38,7 @@ pub static RENDER_PATTERN: LazyLock<Regex> =
 pub enum TemplateCommand {
     /// Create a variable in current scope
     ///
-    /// Example:
+    /// # Example:
     /// ```html
     /// {- set $var .value -}
     /// {: $var :} <!-- use the variable -->
@@ -48,7 +48,7 @@ pub enum TemplateCommand {
     /// Return a variable from current scope
     /// Can usually be omitted, as variables are automatically resolved
     /// 
-    /// Example:
+    /// # Example:
     /// ```html
     /// {: get $var :}
     /// {: $var :} <!-- equivalent to above -->
@@ -82,7 +82,7 @@ pub enum TemplateCommand {
     /// With block, to enter a child scope
     /// If the scope does not exist, it will be skipped
     ///
-    /// Example:
+    /// # Example:
     /// ```html
     /// {- with .author -}
     /// <p>{: .name :}</p>
@@ -94,7 +94,7 @@ pub enum TemplateCommand {
     /// If the condition is not null and true, the content will be rendered
     /// Otherwise, it will be skipped
     ///
-    /// Example:
+    /// # Example:
     /// ```html
     /// {- if .is_admin -}
     /// <p>Admin</p>
@@ -104,7 +104,7 @@ pub enum TemplateCommand {
 
     /// Else block, to provide an alternative content for if block
     ///
-    /// Example: 
+    /// # Example: 
     /// ```html
     /// {- if .is_admin -} 
     /// <p>Admin</p>
@@ -120,7 +120,7 @@ pub enum TemplateCommand {
     /// Return the parameter passed to the scope, start from 0
     /// If the parameter does not exist, skip it
     /// 
-    /// Example:
+    /// # Example:
     /// ```html
     /// <div class="say">{: param 0 :}</div>
     /// ```
@@ -132,7 +132,7 @@ pub enum TemplateCommand {
     /// If the scope is not provided, use the current scope
     /// Other parameters can be passed to the included template and accessed by PARAM
     /// 
-    /// Example:
+    /// # Example:
     /// ```html
     /// {- include "header.html" -} <!-- use current scope -->
     /// {- include "article/post.html" .post "My Post" -} <!-- pass .post as scope, "My Post" as param 0 -->

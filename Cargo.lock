@@ -26,7 +26,6 @@ dependencies = [
 name = "allay-md-parser"
 version = "0.1.0"
 dependencies = [
- "lazy_static",
  "pulldown-cmark",
  "regex",
 ]
@@ -45,12 +44,6 @@ checksum = "cfe4fbac503b8d1f88e6676011885f34b7174f46e59956bba534ba83abded4df"
 dependencies = [
  "unicode-width",
 ]
-
-[[package]]
-name = "lazy_static"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "memchr"
