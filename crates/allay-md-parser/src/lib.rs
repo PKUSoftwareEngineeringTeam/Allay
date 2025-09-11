@@ -211,7 +211,7 @@ pub static SHORTCODE_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{\{(\w+)\}\}").unwrap());
 
 /// The inner content of a shortcode
-pub const INNER: &'static str = ".Inner";
+pub const INNER: &str = ".Inner";
 pub const CLOSURE_END: char = '/';
 
 /// The shortcode for markdown
