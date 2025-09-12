@@ -25,10 +25,10 @@ impl TemplateVariable {
 }
 /// The regex pattern for commands
 pub static COMMAND_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{-(\w+)-\}").unwrap());
+    LazyLock::new(|| Regex::new(r"\{-(\w+)-}").unwrap());
 /// The regex pattern for rendering an expression
 pub static RENDER_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{:(\w+):\}").unwrap());
+    LazyLock::new(|| Regex::new(r"\{:(\w+):}").unwrap());
 
 /// Magic commands for template
 /// 
@@ -208,7 +208,7 @@ pub struct MarkdownMeta {}
 /// The shortcode pattern for commands
 /// TODO: make it support parameters
 pub static SHORTCODE_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{<(\w+)>\}").unwrap());
+    LazyLock::new(|| Regex::new(r"\{<(\w+)>}").unwrap());
 
 /// The inner content of a shortcode
 pub const INNER: &str = "inner";
