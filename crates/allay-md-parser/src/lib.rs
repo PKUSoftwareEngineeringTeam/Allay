@@ -25,10 +25,10 @@ impl TemplateVariable {
 }
 /// The regex pattern for commands
 pub static COMMAND_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{-(\w+)-\}").unwrap());
+    LazyLock::new(|| Regex::new(r"\{-(\w+)-}").unwrap());
 /// The regex pattern for rendering an expression
 pub static RENDER_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{:(\w+):\}").unwrap());
+    LazyLock::new(|| Regex::new(r"\{:(\w+):}").unwrap());
 
 /// Magic commands for template
 /// 
@@ -208,10 +208,10 @@ pub struct MarkdownMeta {}
 /// The shortcode pattern for commands
 /// TODO: make it support parameters
 pub static SHORTCODE_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{\{(\w+)\}\}").unwrap());
+    LazyLock::new(|| Regex::new(r"\{<(\w+)>}").unwrap());
 
 /// The inner content of a shortcode
-pub const INNER: &str = ".Inner";
+pub const INNER: &str = "inner";
 pub const CLOSURE_END: char = '/';
 
 /// The shortcode for markdown
@@ -223,15 +223,15 @@ pub const CLOSURE_END: char = '/';
 ///
 /// 1. Shortcode: note (self-closing)
 ///    - template: `<img src="note.png" alt="note" />`
-///    - markdown: "{{ note }}"
+///    - markdown: "{< note >}"
 ///    - rendered: `<img src="note.png" alt="note" />`
 /// 2. Shortcode: closure (with inner content)
-///    - template: `<div class="closure">{: .Inner :}</div>`
-///    - markdown: {{ closure }} text {{ /closure }}"
+///    - template: `<div class="closure">{: .inner :}</div>`
+///    - markdown: {< closure >} text {< /closure >}"
 ///    - rendered: `<div class="closure">text</div>`
 /// 3. Shortcode: say (with parameter)
-///    - template: `<div class="say">{- Param 0 -}</div>`
-///    - markdown: "{{say "hello"}}" or "{{say hello}}"
+///    - template: `<div class="say">{- param 0 -}</div>`
+///    - markdown: "{< say "hello" >}" or "{< say hello >}"
 ///    - rendered: `<div class="say">hello</div>`
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
