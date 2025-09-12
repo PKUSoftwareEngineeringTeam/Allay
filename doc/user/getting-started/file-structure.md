@@ -4,11 +4,11 @@ Your blog directory should look like this:
 
 ```
 .
-|── static              # Static files which can be directly accessed
-├── content             # Your markdown files go here
-├── public              # Generated static files will be placed here
-├── themes              # Themes directory
-└── allay.toml          # The configuration file of your blog
+├── allay.toml      # The configuration file of your blog
+├── content         # Your markdown files go here
+├── public          # Generated static files will be placed here
+├── static          # Static files which can be directly accessed
+└── themes          # Themes directory
 ```
 
 - `static/`: This directory contains static files such as images and PDF files. These files will be copied directly to the `public/` directory during the build process and can be accessed directly via URLs.

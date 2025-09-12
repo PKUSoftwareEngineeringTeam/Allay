@@ -3,19 +3,17 @@
 Your theme should be organized in a specific directory structure to ensure that the Allay Engine can properly locate and apply your custom styles. Below is the required structure for your theme files:
 
 ```
-my_custom_theme/
-├── assets/   # Directory for images, fonts, css files, javascript files, etc.
-├── i18n/   # Directory for localization files
-├── pages/   # Directory for the pages
-|      ├ index.html # The main page template
-|      ├ 404.html   # The 404 error page template
-|      ├ page.html  # The template for regular pages
-|      └ ...   # Other custom pages
-├── templates/   # Directory for HTML templates
-|      ├ shortcodes  # Subdirectory for shortcodes
-|      └ ...   # Other template files
-├── allay.toml   # Configuration file for the theme (Optional)
-└── theme.toml   # Metadata for the theme
+.
+├── allay.toml   # Optional configuration file for the theme
+├── assets       # Directory for images, fonts, CSS files, JavaScript files, etc.
+├── i18n         # Directory for localization files
+├── pages        # Directory for the pages
+│   ├── 404.html        # The 404 error page template
+│   ├── index.html      # The main page template
+│   └── page.html       # The template for regular pages
+├── templates   # Directory for HTML templates
+│   └── shortcodes      # Subdirectory for shortcodes
+└── theme.toml  # Metadata for the theme
 ```
 
 The `allay.toml` file is optional, but recommended if you want to provide default configuration parameters for users of your theme.
