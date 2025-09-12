@@ -1,8 +1,7 @@
-use allay_base::config::GlobalConfigs;
+use allay_cli::{cli_execute, cli_start, logger_init};
 
 fn main() {
-    GlobalConfigs::init().unwrap();
-
-    // execute commands based on CLI input
-    // let cli = GlobalConfigs::cli();
+    logger_init();
+    cli_start();
+    cli_execute();
 }

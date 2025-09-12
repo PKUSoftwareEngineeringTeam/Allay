@@ -1,4 +1,6 @@
-pub use clap::{Args, Parser, Subcommand};
+pub use clap::Parser;
+use clap::{Args, Subcommand};
+use std::sync::OnceLock;
 
 // NOTE: The doc comments here will be used by clap for the CLI help messages
 
@@ -9,21 +11,26 @@ pub use clap::{Args, Parser, Subcommand};
 #[command(propagate_version = true)]
 pub struct AllayCLI {
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
-    verbose: u8,
+    pub verbose: u8,
 
     #[command(subcommand)]
-    command: Commands,
+    pub command: Commands,
 }
+
+pub static CLI_CONFIG: OnceLock<AllayCLI> = OnceLock::new();
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Initialize a new Allay site in the current directory
-    Init,
+    Init(InitArgs),
     /// Build all the contents and publish it to the output directory
     Build(BuildArgs),
     /// Start the embedded server to preview the site
     Server(ServerArgs),
 }
+
+#[derive(Args, Debug)]
+pub struct InitArgs {}
 
 #[derive(Args, Debug)]
 pub struct BuildArgs {}
