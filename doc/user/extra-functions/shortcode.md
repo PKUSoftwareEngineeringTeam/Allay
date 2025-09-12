@@ -55,3 +55,9 @@ You should define all your shortcodes in the `templates/shortcodes` directory. E
     ```md
     {< say "Hello, World!" >}
     ```
+
+    or more easily without quotes if the parameter is a single word:
+
+    ```md
+    {< say Hello >}
+    ```
