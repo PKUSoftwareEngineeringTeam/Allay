@@ -1,5 +1,3 @@
 [workspace]
 resolver = "3"
-members = [ "crates/allay-backend","crates/allay-cli", "crates/allay-md-parser"]
-
-[workspace.dependencies]
+members = [ "crates/allay-backend","crates/allay-cli", "crates/allay-md-parser", "crates/allay-base"]
