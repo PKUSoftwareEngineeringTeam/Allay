@@ -28,7 +28,7 @@ Addition            ::= Multiplication { AddOp Multiplication };
 Multiplication      ::= Unary { MulOp Unary };
 Unary               ::= [NotOp | AddOp] Primary;
 Field               ::= TopLevel? GetField {GetField};
-BoolLiteral         ::= 'true' | 'false';
+BoolLiteral         ::= '#t' | '#f';
 Primary             ::= Field | TopLevel | Number | String | BoolLiteral | '(' Expression ')';
 
 ShortCode           ::= SingleShortCode | BlockShortCode;
