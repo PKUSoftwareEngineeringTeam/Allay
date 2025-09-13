@@ -24,7 +24,7 @@ pub enum FileError {
     Walkdir(#[from] walkdir::Error),
 }
 
-pub type FileResult<T> = std::result::Result<T, FileError>;
+pub type FileResult<T> = Result<T, FileError>;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FileInfo {

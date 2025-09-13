@@ -36,7 +36,7 @@ pub enum AllayDataError {
     InvalidOperation(String),
 }
 
-pub type DataResult<T> = std::result::Result<T, AllayDataError>;
+pub type DataResult<T> = Result<T, AllayDataError>;
 
 pub type AllayList = Vec<AllayData>;
 pub type AllayObject = HashMap<String, AllayData>;
