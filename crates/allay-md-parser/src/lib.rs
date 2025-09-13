@@ -6,12 +6,12 @@ use std::{collections::HashMap, sync::LazyLock};
 use pulldown_cmark::{Parser, html};
 use regex::Regex;
 
-/// The type of a template variable
+/// The type of template variable
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemplateVariable {
     String(String), // should support string concat
     Integer(i64),   // should support integer operations (+, -, *, /, %)
-    Boolean(bool),  // should support boolean operations (&, |, !)
+    Boolean(bool),  // should support boolean operations (&&, ||, !)
     List(Vec<TemplateVariable>),
     Map(HashMap<String, TemplateVariable>),
     Null,
@@ -172,10 +172,10 @@ pub enum TemplateCommand {
 pub struct TemplateScope {}
 
 /// The root scope for template
-pub const GLOABL_SCOPE: TemplateScope = TemplateScope {};
+pub const GLOBAL_SCOPE: TemplateScope = TemplateScope {};
 
 /// The metadata for markdown, usually in YAML/TOML format
-/// It should totally configurable by user
+/// It should be totally configurable by user
 /// This content WILL BE RENDERED as HTML element if needed
 ///
 /// # Example
