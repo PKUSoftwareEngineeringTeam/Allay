@@ -1,0 +1,54 @@
+This file contains the AST for the Allay template language.
+
+```
+Template            ::= {Control};
+Control             ::= Text | ShortCode | Command | Substitution;
+
+Text                ::= /[^{}-]+/;
+
+Identifier          ::= /[a-zA-Z_][a-zA-Z0-9_]*/;
+UserVariable        ::= '$' Identifier;
+ScoprVariable       ::= '.' Identifier;
+Variable            ::= UserVariable | ScoprVariable;
+Number              ::= /[0-9]+/;
+String              ::= /"([^"\\]|\\.)*"/;
+AddOp               ::= '+' | '-';
+MulOp               ::= '*' | '/' | '%';
+ComparisonOp        ::= '==' | '!=' | '<' | '<=' | '>' | '>=' ;
+AndOp               ::= '&&';
+OrOp                ::= '||';
+NotOp               ::= '!';
+
+Expression          ::= LogicOr;
+LogicOr             ::= LogicAnd { OrOp LogicAnd };
+LogicAnd            ::= Comparison { AndOp Comparison };
+Comparison          ::= Addition [ ComparisonOp Addition ];
+Addition            ::= Multiplication { AddOp Multiplication };
+Multiplication      ::= Unary { MulOp Unary };
+Unary               ::= [NotOp | AddOp] Primary;
+GetField            ::= Variable '.' Identifier;
+Primary             ::= GetField | Number | String | Variable | '(' Expression ')';
+
+ShortCode           ::= SingleShortCode | BlockShortCode;
+SingleShortCode     ::= '{<' Identifier {Param} '/>}';
+BlockShortCode      ::= '{<' Identifier {Param} '>}' Template '{</' Identifier '>}';
+Param               ::= /[^\s/>]+/;
+
+Command             ::= SetCommand | ForCommand | WithCommand | IfCommand | IncludeCommand;
+
+StartForCommand     ::= '{-' 'for' Variable [',' Variable] ':' Expression '-}';
+StartWithCommand    ::= '{-' 'with' Expression '-}';
+StartIfCommand      ::= '{-' 'if' Expression '-}';
+ElseCommand         ::= '{-' 'else' '-}';
+EndCommand          ::= '{-' 'end' '-}';
+
+SetCommand          ::= '{-' 'set' Variable Expression '-}';
+ForCommand          ::= StartForCommand Template EndCommand;
+WithCommand         ::= StartWithCommand Template EndCommand;
+IfCommand           ::= StartIfCommand Template {ElseCommand Template} EndCommand;
+
+Substitution        ::= GetSubstitution | ExprSubstitution | ParamSubstitution;
+GetSubstitution     ::= '{:' 'get' Variable ':}';
+ExprSubstitution    ::= '{:' Expression ':}';
+ParamSubstitution   ::= '{:' 'param' Number ':}';
+```
