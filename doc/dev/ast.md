@@ -35,19 +35,19 @@ BlockShortCode      ::= '{<' Identifier {Expression} '>}' Template '{</' Identif
 
 Command             ::= SetCommand | ForCommand | WithCommand | IfCommand | IncludeCommand;
 
-StartForCommand     ::= '{-' 'for' Variable [',' Variable] ':' Expression '-}';
+StartForCommand     ::= '{-' 'for' UserVariable [',' UserVariable] ':' Expression '-}';
 StartWithCommand    ::= '{-' 'with' Expression '-}';
 StartIfCommand      ::= '{-' 'if' Expression '-}';
 ElseCommand         ::= '{-' 'else' '-}';
 EndCommand          ::= '{-' 'end' '-}';
 
-SetCommand          ::= '{-' 'set' Variable Expression '-}';
+SetCommand          ::= '{-' 'set' UserVariable Expression '-}';
 ForCommand          ::= StartForCommand Template EndCommand;
 WithCommand         ::= StartWithCommand Template EndCommand;
 IfCommand           ::= StartIfCommand Template {ElseCommand Template} EndCommand;
 
 Substitution        ::= GetSubstitution | ExprSubstitution | ParamSubstitution;
-GetSubstitution     ::= '{:' 'get' Variable ':}';
+GetSubstitution     ::= '{:' 'get' Expression ':}';
 ExprSubstitution    ::= '{:' Expression ':}';
 ParamSubstitution   ::= '{:' 'param' Number ':}';
 ```
