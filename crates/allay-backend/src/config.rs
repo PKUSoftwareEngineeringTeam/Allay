@@ -18,7 +18,7 @@ pub struct BackendConfig {
     /// Server port, default is 3000
     #[serde(default = "default_port")]
     pub port: u16,
-    /// Server host, default is `0.0.0.0`
+    /// Server host, default is `127.0.0.1`
     #[serde(default = "default_host")]
     pub host: String,
     /// Path to static files, default is `./static`
