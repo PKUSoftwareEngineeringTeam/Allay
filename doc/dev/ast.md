@@ -45,6 +45,7 @@ SetCommand          ::= '{-' 'set' UserVariable Expression '-}';
 ForCommand          ::= StartForCommand Template EndCommand;
 WithCommand         ::= StartWithCommand Template EndCommand;
 IfCommand           ::= StartIfCommand Template {ElseCommand Template} EndCommand;
+IncludeCommand      ::= '{-' 'include' String {Expression} '-}';
 
 Substitution        ::= GetSubstitution | ExprSubstitution | ParamSubstitution;
 GetSubstitution     ::= '{:' 'get' Expression ':}';
