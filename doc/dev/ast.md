@@ -8,8 +8,8 @@ Text                ::= /[^{}-]+/;
 
 Identifier          ::= /[a-zA-Z_][a-zA-Z0-9_]*/;
 UserVariable        ::= '$' Identifier;
-ScoprVariable       ::= '.' Identifier;
-Variable            ::= UserVariable | ScoprVariable;
+ScopeVariable       ::= '.' Identifier;
+Variable            ::= UserVariable | ScopeVariable;
 Number              ::= /[0-9]+/;
 String              ::= /"([^"\\]|\\.)*"/;
 AddOp               ::= '+' | '-';
