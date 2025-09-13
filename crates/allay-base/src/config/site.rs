@@ -1,4 +1,4 @@
-use std::{path::Path, sync::OnceLock};
+use std::{path::Path, sync::LazyLock};
 
 use crate::{
     costants::CONFIG_FILE,
@@ -13,25 +13,18 @@ description = "A brief description of your site."
 author = "Your Name"
 [params]"#;
 
-pub static SITE_CONFIG: OnceLock<AllayObject> = OnceLock::new();
+pub static SITE_CONFIG: LazyLock<AllayObject> = LazyLock::new(|| load_site_config());
 
 pub fn config_exists() -> bool {
     Path::new(CONFIG_FILE).exists()
 }
 
-pub fn load_site_config() {
+fn load_site_config() -> AllayObject {
     if let Ok(config) = read_file(workspace(CONFIG_FILE)) {
         if let Ok(config) = AllayData::from_toml(&config.content) {
-            SITE_CONFIG.set(config).ok();
-            return;
+            return config;
         }
     }
 
-    tracing::warn!(
-        "Failed to load config from {}. Using default config.",
-        CONFIG_FILE
-    );
-    SITE_CONFIG
-        .set(AllayData::from_toml(DEFAULT_SITE_CONFIG).expect("Failed to parse default config"))
-        .ok();
+    AllayData::from_toml(DEFAULT_SITE_CONFIG).expect("Failed to parse default config")
 }

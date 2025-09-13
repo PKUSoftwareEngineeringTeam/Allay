@@ -1,6 +1,5 @@
-use allay_cli::{cli_execute, cli_start};
+use allay_cli::cli_execute;
 
-fn main() {
-    cli_start();
-    cli_execute();
+fn main() -> anyhow::Result<()> {
+    cli_execute()
 }

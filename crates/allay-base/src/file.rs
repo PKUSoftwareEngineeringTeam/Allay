@@ -50,12 +50,16 @@ pub struct FileContent {
 }
 
 pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
+    workspace_sub(path, "")
+}
+
+pub fn workspace_sub<P: AsRef<Path>, Q: AsRef<Path>>(path: P, sub: Q) -> PathBuf {
     let path = path.as_ref();
     if path.is_absolute() {
         return path.to_path_buf();
     }
     let current_dir = std::env::current_dir().expect("Failed to get current directory");
-    current_dir.join(path)
+    current_dir.join(sub).join(path)
 }
 
 pub fn walk_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<FileInfo>> {

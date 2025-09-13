@@ -5,31 +5,35 @@ use allay_base::{
     file,
 };
 
-pub fn cli_start() {
-    CLI_CONFIG.set(AllayCLI::parse()).expect("Duplicate initialization");
-}
-
-pub fn cli_execute() {
-    let cli = CLI_CONFIG.get().expect("CLI not initialized");
-    match &cli.command {
+pub fn cli_execute() -> anyhow::Result<()> {
+    match &CLI_CONFIG.command {
+        Commands::New(args) => new(args),
         Commands::Init(args) => init(args),
         Commands::Build(args) => build(args),
         Commands::Server(args) => server(args),
     }
 }
 
-fn init(_args: &InitArgs) {
-    file::create_dir(file::workspace(CONTENT_DIR)).unwrap();
-    file::create_dir(file::workspace(OUTPUT_DIR)).unwrap();
-    file::create_dir(file::workspace(THEMES_DIR)).unwrap();
-    file::create_dir(file::workspace(STATIC_DIR)).unwrap();
-    file::write_file(file::workspace(CONFIG_FILE), DEFAULT_SITE_CONFIG).unwrap()
+fn new(args: &NewArgs) -> anyhow::Result<()> {
+    let dir = &args.dir;
+    file::create_dir_recursively(file::workspace(dir))?;
+
+    file::create_dir(file::workspace_sub(CONTENT_DIR, dir))?;
+    file::create_dir(file::workspace_sub(OUTPUT_DIR, dir))?;
+    file::create_dir(file::workspace_sub(THEMES_DIR, dir))?;
+    file::create_dir(file::workspace_sub(STATIC_DIR, dir))?;
+    file::write_file(file::workspace_sub(CONFIG_FILE, dir), DEFAULT_SITE_CONFIG)?;
+    Ok(())
 }
 
-fn build(_args: &BuildArgs) {
-    load_site_config();
+fn init(_args: &InitArgs) -> anyhow::Result<()> {
+    new(&NewArgs { dir: ".".into() })
 }
 
-fn server(_args: &ServerArgs) {
-    load_site_config();
+fn build(_args: &BuildArgs) -> anyhow::Result<()> {
+    Ok(())
+}
+
+fn server(_args: &ServerArgs) -> anyhow::Result<()> {
+    Ok(())
 }
