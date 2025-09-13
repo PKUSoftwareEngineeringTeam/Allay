@@ -7,7 +7,7 @@ Shortcodes are a powerful feature in Allay that allows you to embed dynamic cont
 You should define all your shortcodes in the `templates/shortcodes` directory. Each shortcode should be a separate HTML file. You can then use these shortcodes in your markdown files by using the following syntax:
 
 ```
-{< shortcode_name params... >}
+{< shortcode_name params... />}
 ```
 
 - For example, let's define a `note` shortcode to display a note icon:
@@ -21,7 +21,7 @@ You should define all your shortcodes in the `templates/shortcodes` directory. E
     You can then use this shortcode in your markdown files like this:
 
     ```md
-    Here is a note: {< note >}
+    Here is a note: {< note />}
     ```
 
 - You may need a block shortcode that wraps around some inner content. For example, a `closure` shortcode to create a styled div:
@@ -37,7 +37,7 @@ You should define all your shortcodes in the `templates/shortcodes` directory. E
     ```md
     {< closure >}
     This is some important content.
-    {< /closure >}
+    {</ closure >}
     ```
 
     The inner content will be placed where `{: .inner :}` is specified in the template.
@@ -47,7 +47,7 @@ You should define all your shortcodes in the `templates/shortcodes` directory. E
     `templates/shortcodes/say.html`:
 
     ```html
-    <div class="say">{- Param 0 -}</div>
+    <div class="say">{- param 0 -}</div>
     ```
 
     You can use this shortcode with a parameter like this:
