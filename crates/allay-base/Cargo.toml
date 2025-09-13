@@ -1,0 +1,16 @@
+[package]
+name = "allay-base"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+walkdir = "2.5.0"
+clap = { version = "4.5.47", features = ["derive", "env"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.22.0"
