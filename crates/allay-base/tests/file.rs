@@ -32,11 +32,7 @@ fn test_walk_dir() {
     let files = walk_dir(test_dir.path()).unwrap();
 
     assert_eq!(files.len(), 3);
-    assert!(
-        files
-            .iter()
-            .any(|f| f.relative_path().to_str().unwrap() == "subdir/test3.md")
-    );
+    assert!(files.iter().any(|f| f.relative_path().to_str().unwrap() == "subdir/test3.md"));
     assert!(files.iter().any(|f| f.extension == Some("rs".to_string())));
 }
 

@@ -37,10 +37,7 @@ pub struct FileInfo {
 
 impl FileInfo {
     pub fn relative_path(&self) -> PathBuf {
-        self.path
-            .strip_prefix(&self.root)
-            .unwrap_or(&self.path)
-            .to_path_buf()
+        self.path.strip_prefix(&self.root).unwrap_or(&self.path).to_path_buf()
     }
 }
 
@@ -71,11 +68,7 @@ pub fn walk_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<FileInfo>> {
             continue;
         }
 
-        let extension = entry
-            .path()
-            .extension()
-            .and_then(OsStr::to_str)
-            .map(|s| s.to_string());
+        let extension = entry.path().extension().and_then(OsStr::to_str).map(|s| s.to_string());
 
         file_infos.push(FileInfo {
             root: dir_path.to_path_buf(),

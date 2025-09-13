@@ -24,14 +24,12 @@ impl TemplateVariable {
     }
 }
 /// The regex pattern for commands
-pub static COMMAND_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{-(\w+)-}").unwrap());
+pub static COMMAND_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{-(\w+)-}").unwrap());
 /// The regex pattern for rendering an expression
-pub static RENDER_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\{:(\w+):}").unwrap());
+pub static RENDER_PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{:(\w+):}").unwrap());
 
 /// Magic commands for template
-/// 
+///
 /// These are keywords for template engine to process the template
 /// Which means that user cannot use these keywords as variable names
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,7 +45,7 @@ pub enum TemplateCommand {
 
     /// Return a variable from current scope
     /// Can usually be omitted, as variables are automatically resolved
-    /// 
+    ///
     /// # Example:
     /// ```html
     /// {: get $var :}
@@ -104,9 +102,9 @@ pub enum TemplateCommand {
 
     /// Else block, to provide an alternative content for if block
     ///
-    /// # Example: 
+    /// # Example:
     /// ```html
-    /// {- if .is_admin -} 
+    /// {- if .is_admin -}
     /// <p>Admin</p>
     /// {- else -}
     /// <p>User</p>
@@ -119,7 +117,7 @@ pub enum TemplateCommand {
 
     /// Return the parameter passed to the scope, start from 0
     /// If the parameter does not exist, skip it
-    /// 
+    ///
     /// # Example:
     /// ```html
     /// <div class="say">{: param 0 :}</div>
@@ -131,13 +129,13 @@ pub enum TemplateCommand {
     /// The second parameter is the scope to pass to the included template
     /// If the scope is not provided, use the current scope
     /// Other parameters can be passed to the included template and accessed by PARAM
-    /// 
+    ///
     /// # Example:
     /// ```html
     /// {- include "header.html" -} <!-- use current scope -->
     /// {- include "article/post.html" .post "My Post" -} <!-- pass .post as scope, "My Post" as param 0 -->
     /// ```
-    INCLUDE
+    INCLUDE,
 }
 
 /// The variable scope for template, organized as a tree like json object

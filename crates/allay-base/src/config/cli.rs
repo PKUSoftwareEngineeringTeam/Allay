@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 // NOTE: The doc comments here will be used by clap for the CLI help messages
 
-/// An easy but configurable blog engine
+/// An easy and configurable blog engine
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 #[command(long_about = "Named after the Minecraft 'Allay' mob")]

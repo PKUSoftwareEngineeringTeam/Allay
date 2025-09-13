@@ -67,12 +67,7 @@ key4:
     assert_eq!(data.get("key2").unwrap().as_int()?, 42);
     assert_eq!(data.get("key3").unwrap().as_list()?.len(), 3);
     assert_eq!(
-        data.get("key4")
-            .unwrap()
-            .as_obj()?
-            .get("subkey1")
-            .unwrap()
-            .as_string()?,
+        data.get("key4").unwrap().as_obj()?.get("subkey1").unwrap().as_string()?,
         "subvalue1"
     );
 
@@ -92,12 +87,7 @@ subkey2 = 100
     assert_eq!(data.get("key1").unwrap().as_string()?, "value1");
     assert_eq!(data.get("key2").unwrap().as_list()?.len(), 3);
     assert_eq!(
-        data.get("key3")
-            .unwrap()
-            .as_obj()?
-            .get("subkey1")
-            .unwrap()
-            .as_string()?,
+        data.get("key3").unwrap().as_obj()?.get("subkey1").unwrap().as_string()?,
         "subvalue1"
     );
     Ok(())
