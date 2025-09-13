@@ -7,9 +7,10 @@ Control             ::= Text | ShortCode | Command | Substitution;
 Text                ::= /[^{}-]+/;
 
 Identifier          ::= /[a-zA-Z_][a-zA-Z0-9_]*/;
-UserVariable        ::= '$' Identifier;
-ScopeVariable       ::= '.' Identifier;
-Variable            ::= UserVariable | ScopeVariable;
+Variable            ::= '$' Identifier;
+GetField            ::= '.' Identifier;
+this                ::= 'this';
+TopLevel            ::= Variable | this;
 Number              ::= /[0-9]+/;
 String              ::= /"([^"\\]|\\.)*"/;
 AddOp               ::= '+' | '-';
@@ -26,8 +27,9 @@ Comparison          ::= Addition [ ComparisonOp Addition ];
 Addition            ::= Multiplication { AddOp Multiplication };
 Multiplication      ::= Unary { MulOp Unary };
 Unary               ::= [NotOp | AddOp] Primary;
-GetField            ::= Variable '.' Identifier;
-Primary             ::= GetField | Number | String | Variable | '(' Expression ')';
+Field               ::= TopLevel? GetField {GetField};
+BoolLiteral         ::= 'true' | 'false';
+Primary             ::= Field | TopLevel | Number | String | BoolLiteral | '(' Expression ')';
 
 ShortCode           ::= SingleShortCode | BlockShortCode;
 SingleShortCode     ::= '{<' Identifier {Expression} '/>}';
