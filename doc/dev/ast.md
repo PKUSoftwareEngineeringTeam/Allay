@@ -30,9 +30,8 @@ GetField            ::= Variable '.' Identifier;
 Primary             ::= GetField | Number | String | Variable | '(' Expression ')';
 
 ShortCode           ::= SingleShortCode | BlockShortCode;
-SingleShortCode     ::= '{<' Identifier {Param} '/>}';
-BlockShortCode      ::= '{<' Identifier {Param} '>}' Template '{</' Identifier '>}';
-Param               ::= /[^\s/>]+/;
+SingleShortCode     ::= '{<' Identifier {Expression} '/>}';
+BlockShortCode      ::= '{<' Identifier {Expression} '>}' Template '{</' Identifier '>}';
 
 Command             ::= SetCommand | ForCommand | WithCommand | IfCommand | IncludeCommand;
 
