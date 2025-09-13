@@ -11,23 +11,23 @@ Unless the "url" field is specified in the front-matter, the url of the page wil
 For example, given the following file structure:
 
 ```
-content/
+content
 ├── about.md
-├── blog/
+├── blog
 │   ├── index.md
 │   └── first-post.md
-└── projects/
+└── projects
     └── project1.md
 ```
 
 The generated HTML in `public` will be:
 
 ```
-public/
+public
 ├── about.html          # from about.md
-├── blog/
+├── blog
 │   ├── index.html      # from blog/index.md
 │   └── first-post.html # from blog/first-post.md
-└── projects/
+└── projects
     └── project1.html   # from projects/project1.md
 ```

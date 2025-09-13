@@ -1,4 +1,4 @@
-use allay_md_parser::AllayMdParser;
+use allay_parser::AllayMdParser;
 
 #[test]
 fn test_basic() {
