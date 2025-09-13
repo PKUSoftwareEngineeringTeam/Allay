@@ -1,7 +1,7 @@
 use allay_base::{
     config::cli::*,
     config::site::*,
-    costants::{CONFIG_FILE, CONTENT_DIR, OUTPUT_DIR, STATIC_DIR, THEMES_DIR},
+    constants::{CONFIG_FILE, CONTENT_DIR, OUTPUT_DIR, STATIC_DIR, THEMES_DIR},
     file,
 };
 

@@ -1,7 +1,7 @@
 use std::{path::Path, sync::LazyLock};
 
 use crate::{
-    costants::CONFIG_FILE,
+    constants::CONFIG_FILE,
     data::{AllayData, AllayObject},
     file::{read_file, workspace},
 };

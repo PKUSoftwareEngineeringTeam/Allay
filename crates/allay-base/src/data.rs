@@ -69,7 +69,7 @@ impl AllayData {
         match data {
             AllayData::Object(obj) => Ok(obj),
             _ => Err(AllayDataError::TypeConversion(
-                "YAML root is not a object".to_string(),
+                "YAML root is not an object".to_string(),
             )),
         }
     }
@@ -168,7 +168,7 @@ impl AllayData {
         if let AllayData::Object(obj) = self {
             Ok(obj)
         } else {
-            Err(AllayDataError::TypeConversion("not a object".to_string()))
+            Err(AllayDataError::TypeConversion("not an object".to_string()))
         }
     }
 
@@ -184,7 +184,7 @@ impl AllayData {
         if let AllayData::Object(obj) = self {
             Ok(obj)
         } else {
-            Err(AllayDataError::TypeConversion("not a object".to_string()))
+            Err(AllayDataError::TypeConversion("not an object".to_string()))
         }
     }
 }
