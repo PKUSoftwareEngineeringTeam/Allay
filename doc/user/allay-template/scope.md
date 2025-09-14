@@ -4,7 +4,7 @@ Each html file in the `templates` directory has its own variable scope. Use `{: 
 
 ### Child Scope
 
-For simplicity, Allay provide `with` directive to create a child scope. You can use `with` to switch the current scope to a child object.
+For simplicity, Allay provide `with` directive to create a child scope.
 
 Take an example. If the current variable scope is like:
 
@@ -29,7 +29,7 @@ Then the following two snippets are equivalent:
 
 ### Global Scope
 
-Allay will parse your configuration file, i.e. `allay.toml`'s `Param`, and pass its content to the global scope. You can access any configuration variable in your templates by the `CONFIG` field of `GLOBAL` object:
+Allay will parse your configuration file, i.e. `allay.toml`'s `Param`, and pass its content to the global scope. You can access any configuration variable in your templates by the `param` field of `site` object:
 
 `allay.toml`:
 
@@ -41,7 +41,7 @@ footer = "Axolotl Theme, 2025"
 `footer.html`:
 
 ```html
-{: GLOBAL.CONFIG.footer :}
+{: site.param.footer :}
 ```
 
 ### Markdown Page Scope
@@ -71,8 +71,8 @@ Hello, this is a test page.
 <p>{: .date :}</p>
 <p>{: .description :}</p>
 <ul>
-    {- for tag in .tags -}
-    <li>{: tag :}</li>
+    {- for $tag in .tags -}
+    <li>{: $tag :}</li>
     {- end -}
 </ul>
 <div>
