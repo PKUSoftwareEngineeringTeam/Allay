@@ -84,7 +84,7 @@ pub fn read_file_info<P: AsRef<Path>>(file_path: P) -> FileResult<fs::Metadata> 
 pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     let file_path = file_path.as_ref();
 
-    if file_exists(file_path) {
+    if !file_exists(file_path) {
         return Err(FileError::FileNotFound(file_path.to_path_buf()));
     }
 
