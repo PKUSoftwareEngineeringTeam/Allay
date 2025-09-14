@@ -1,4 +1,4 @@
-use std::{path::Path, sync::LazyLock};
+use std::sync::LazyLock;
 
 use crate::{
     data::{AllayData, AllayObject},
@@ -15,10 +15,6 @@ author = "Your Name"
 [params]"#;
 
 pub static SITE_CONFIG: LazyLock<AllayObject> = LazyLock::new(load_site_config);
-
-pub fn config_exists() -> bool {
-    Path::new(SITE_CONFIG_FILE).exists()
-}
 
 fn load_site_config() -> AllayObject {
     if let Ok(config) = read_file(workspace(SITE_CONFIG_FILE))

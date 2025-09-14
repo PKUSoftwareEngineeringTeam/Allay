@@ -1,4 +1,4 @@
-use allay_base::config::{CLI_CONFIG, CLICommand, GLOBAL_CONFIG, LOG_CONFIG};
+use allay_base::config::{CLI_CONFIG, CLICommand, ENVRIONMENT, LOG_CONFIG};
 use allay_base::file;
 use anyhow::Ok;
 use std::io;
@@ -31,8 +31,6 @@ pub fn init_root() -> anyhow::Result<()> {
 }
 
 pub fn init_logger() -> anyhow::Result<()> {
-    let to_stdout = GLOBAL_CONFIG.is_dev();
-
     let log_dir = &LOG_CONFIG.dir;
     file::create_dir_if_not_exists(file::workspace(log_dir))?;
 
@@ -42,7 +40,7 @@ pub fn init_logger() -> anyhow::Result<()> {
         .with_thread_ids(true)
         .with_thread_names(true);
 
-    if to_stdout {
+    if ENVRIONMENT.is_dev() {
         tracing_subscriber::fmt()
             .with_max_level(Level::TRACE)
             .with_writer(io::stdout)

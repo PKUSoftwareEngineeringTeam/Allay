@@ -2,7 +2,6 @@ name = "Allay"
 description = "A simple static site generator in Rust"
 version = "0.1.0"
 repository = "https://github.com/PKUSoftwareEngineeringTeam/Allay"
-env = "production"
 
 [content]
 dir = "contents"
