@@ -3,7 +3,7 @@ resolver = "3"
 members = [
     "crates/allay-backend",
     "crates/allay-cli",
-    "crates/allay-parser",
+    "crates/allay-compiler",
     "crates/allay-base",
     "crates/allay-theme",
 ]
