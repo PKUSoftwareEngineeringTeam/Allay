@@ -65,7 +65,7 @@ fn clone_default_theme(url: &str) -> anyhow::Result<()> {
 
     let target_dir = file::workspace(&theme_config.dir).join(&theme_config.default.name);
 
-    if target_dir.exists() {
+    if file::dir_exists(&target_dir) {
         println!("⚠️  Theme directory already exists at: {:?}", target_dir);
         return Ok(());
     }
