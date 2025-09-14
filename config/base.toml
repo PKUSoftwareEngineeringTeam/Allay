@@ -1,0 +1,26 @@
+name = "Allay"
+description = "A simple static site generator in Rust"
+version = "0.1.0"
+repository = "https://github.com/PKUSoftwareEngineeringTeam/Allay"
+env = "production"
+
+[content]
+dir = "contents"
+
+[publish]
+dir = "public"
+
+[statics]
+dir = "static"
+
+[template]
+dir = "templates"
+
+[theme]
+dir = "themes"
+[theme.default]
+name = "Axolotl"
+repository = "https://github.com/PKUSoftwareEngineeringTeam/Axolotl"
+
+[log]
+dir = "logs"

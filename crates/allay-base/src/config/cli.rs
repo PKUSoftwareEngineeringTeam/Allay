@@ -10,17 +10,23 @@ use std::sync::LazyLock;
 #[command(long_about = "Named after the Minecraft 'Allay' mob")]
 #[command(propagate_version = true)]
 pub struct AllayCLI {
+    /// Increase output verbosity (use -vv for more, up to -vvv)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     pub verbose: u8,
 
+    /// Specify the root directory of the Allay site (default: current directory)
+    #[arg(short, long, global = true)]
+    pub root: Option<String>,
+
+    /// Subcommand to execute
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: CLICommand,
 }
 
 pub static CLI_CONFIG: LazyLock<AllayCLI> = LazyLock::new(AllayCLI::parse);
 
 #[derive(Subcommand, Debug)]
-pub enum Commands {
+pub enum CLICommand {
     /// Create a new Allay site in the specified directory
     New(NewArgs),
     /// Initialize a new Allay site in the current directory

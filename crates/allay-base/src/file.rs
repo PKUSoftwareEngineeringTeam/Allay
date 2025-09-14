@@ -3,7 +3,9 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use thiserror::Error;
+use tracing::warn;
 use walkdir::WalkDir;
 
 #[derive(Error, Debug)]
@@ -49,17 +51,29 @@ pub struct FileContent {
     pub line_count: usize,
 }
 
-pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
-    workspace_sub(path, "")
+static ROOT: OnceLock<PathBuf> = OnceLock::new();
+
+pub fn set_root<P: AsRef<Path>>(path: P) {
+    if ROOT.get().is_some() {
+        warn!("Root directory is already set. Ignoring subsequent set_root call.");
+        return;
+    }
+    let path = path.as_ref().to_path_buf();
+    ROOT.set(path).ok();
 }
 
-pub fn workspace_sub<P: AsRef<Path>, Q: AsRef<Path>>(path: P, sub: Q) -> PathBuf {
-    let path = path.as_ref();
-    if path.is_absolute() {
-        return path.to_path_buf();
+pub fn root() -> PathBuf {
+    if ROOT.get().is_none() {
+        ROOT.set(".".into()).ok();
     }
-    let current_dir = std::env::current_dir().expect("Failed to get current directory");
-    current_dir.join(sub).join(path)
+    ROOT.get().unwrap().clone()
+}
+
+pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
+    if ROOT.get().is_none() {
+        ROOT.set(".".into()).ok();
+    }
+    ROOT.get().unwrap().join(path)
 }
 
 pub fn walk_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<FileInfo>> {
@@ -111,9 +125,22 @@ pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     })
 }
 
+pub fn dirty_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<bool> {
+    let dir = dir_path.as_ref();
+    Ok(dir.exists() && dir.is_dir() && dir.read_dir()?.next().is_some())
+}
+
 pub fn create_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
     let dir_path = dir_path.as_ref();
     fs::create_dir(dir_path)?;
+    Ok(())
+}
+
+pub fn create_dir_if_not_exists<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
+    let dir_path = dir_path.as_ref();
+    if !dir_path.exists() {
+        fs::create_dir(dir_path)?;
+    }
     Ok(())
 }
 
@@ -144,5 +171,29 @@ pub fn write_file<P: AsRef<Path>>(file_path: P, content: &str) -> FileResult<()>
         create_dir_recursively(parent)?;
     }
     fs::write(file_path, content)?;
+    Ok(())
+}
+
+pub fn remove_file<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
+    let file_path = file_path.as_ref();
+    if file_path.exists() && file_path.is_file() {
+        fs::remove_file(file_path)?;
+    }
+    Ok(())
+}
+
+pub fn remove_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
+    let dir_path = dir_path.as_ref();
+    if dir_path.exists() && dir_path.is_dir() {
+        fs::remove_dir(dir_path)?;
+    }
+    Ok(())
+}
+
+pub fn remove_dir_recursively<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
+    let dir_path = dir_path.as_ref();
+    if dir_path.exists() && dir_path.is_dir() {
+        fs::remove_dir_all(dir_path)?;
+    }
     Ok(())
 }

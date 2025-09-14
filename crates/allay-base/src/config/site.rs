@@ -1,10 +1,11 @@
 use std::{path::Path, sync::LazyLock};
 
 use crate::{
-    constants::CONFIG_FILE,
     data::{AllayData, AllayObject},
     file::{read_file, workspace},
 };
+
+pub const SITE_CONFIG_FILE: &str = "allay.toml";
 
 pub const DEFAULT_SITE_CONFIG: &str = r#"# Default Allay site configuration
 baseUrl = "http://your-site.com/"
@@ -16,11 +17,11 @@ author = "Your Name"
 pub static SITE_CONFIG: LazyLock<AllayObject> = LazyLock::new(load_site_config);
 
 pub fn config_exists() -> bool {
-    Path::new(CONFIG_FILE).exists()
+    Path::new(SITE_CONFIG_FILE).exists()
 }
 
 fn load_site_config() -> AllayObject {
-    if let Ok(config) = read_file(workspace(CONFIG_FILE))
+    if let Ok(config) = read_file(workspace(SITE_CONFIG_FILE))
         && let Ok(config) = AllayData::from_toml(&config.content)
     {
         return config;
