@@ -4,20 +4,22 @@ use git2::{FetchOptions, RemoteCallbacks, build::RepoBuilder};
 use std::path::Path;
 use tracing::{info, instrument};
 
+/// CLI Init Command
 pub fn init(_args: &InitArgs) -> anyhow::Result<()> {
     new(&NewArgs { dir: ".".into() })
 }
 
+/// CLI New Command
 #[instrument(name = "initializing the site", skip(_args))]
 pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
     file::create_dir_recursively(file::root())?;
 
     let dirs = [
-        &CONTENT_CONFIG.dir,
-        &PUBLISH_CONFIG.dir,
-        &TEMPLATE_CONFIG.dir,
-        &THEME_CONFIG.dir,
-        &STATIC_CONFIG.dir,
+        &ALLAY_CONFIG.content.dir,
+        &ALLAY_CONFIG.publish.dir,
+        &ALLAY_CONFIG.template.dir,
+        &ALLAY_CONFIG.theme.dir,
+        &ALLAY_CONFIG.statics.dir,
     ];
 
     for dir_name in dirs {
@@ -26,7 +28,7 @@ pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
 
     file::write_file(file::workspace(SITE_CONFIG_FILE), DEFAULT_SITE_CONFIG)?;
 
-    if !THEME_CONFIG.default.repository.is_empty() {
+    if !ALLAY_CONFIG.theme.default.repository.is_empty() {
         ask_to_clone_default_theme()?;
     }
 
@@ -39,7 +41,7 @@ pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
 }
 
 fn ask_to_clone_default_theme() -> anyhow::Result<()> {
-    let theme_url = &THEME_CONFIG.default.repository;
+    let theme_url = &ALLAY_CONFIG.theme.default.repository;
 
     let should_clone = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
@@ -50,7 +52,7 @@ fn ask_to_clone_default_theme() -> anyhow::Result<()> {
         .interact()?;
 
     if should_clone {
-        clone_default_theme()?;
+        clone_default_theme(theme_url)?;
     } else {
         println!("⚠️  Skipping theme cloning as per user choice.");
     }
@@ -58,24 +60,19 @@ fn ask_to_clone_default_theme() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn clone_default_theme() -> anyhow::Result<()> {
-    let theme_url = &THEME_CONFIG.default.repository;
+fn clone_default_theme(url: &str) -> anyhow::Result<()> {
+    let theme_config = &ALLAY_CONFIG.theme;
 
-    if theme_url.is_empty() {
-        println!("⚠️  No default theme URL configured");
-        return Ok(());
-    }
-
-    let target_dir = file::workspace(&THEME_CONFIG.dir).join(&THEME_CONFIG.default.name);
+    let target_dir = file::workspace(&theme_config.dir).join(&theme_config.default.name);
 
     if target_dir.exists() {
         println!("⚠️  Theme directory already exists at: {:?}", target_dir);
         return Ok(());
     }
 
-    println!("🌐 Cloning theme from: {}", theme_url);
+    println!("🌐 Cloning theme from: {}", url);
 
-    match clone_repository_with_progress(theme_url, &target_dir) {
+    match clone_repository_with_progress(url, &target_dir) {
         Ok(_) => {
             println!("✅ Default theme cloned successfully to: {:?}", target_dir);
             Ok(())

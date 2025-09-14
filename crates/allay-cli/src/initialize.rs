@@ -1,10 +1,11 @@
-use allay_base::config::{CLI_CONFIG, CLICommand, ENVRIONMENT, LOG_CONFIG};
+use allay_base::config::{ALLAY_CONFIG, CLI_CONFIG, CLICommand, ENVRIONMENT};
 use allay_base::file;
 use anyhow::Ok;
 use std::io;
 use tracing::{Level, info_span};
 use tracing_subscriber::fmt::format::{FmtSpan, format};
 
+/// Initialization routine for the CLI application
 pub fn initialize() -> anyhow::Result<()> {
     init_root()?;
     init_logger()?;
@@ -15,7 +16,8 @@ pub fn initialize() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn init_root() -> anyhow::Result<()> {
+/// Initialize the root directory based on CLI arguments
+fn init_root() -> anyhow::Result<()> {
     if let CLICommand::New(args) = &CLI_CONFIG.command {
         let dir = &args.dir;
         if file::dirty_dir(dir)? {
@@ -30,8 +32,9 @@ pub fn init_root() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn init_logger() -> anyhow::Result<()> {
-    let log_dir = &LOG_CONFIG.dir;
+/// Initialize the global logger
+fn init_logger() -> anyhow::Result<()> {
+    let log_dir = &ALLAY_CONFIG.log.dir;
     file::create_dir_if_not_exists(file::workspace(log_dir))?;
 
     let format = format()

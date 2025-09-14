@@ -8,12 +8,12 @@ pub struct AllayConfig {
     pub description: String,
     pub version: String,
     pub repository: String,
-    content: ContentConfig,
-    publish: PublishConfig,
-    statics: StaticConfig,
-    template: TemplateConfig,
-    theme: ThemeConfig,
-    log: LogConfig,
+    pub content: ContentConfig,
+    pub publish: PublishConfig,
+    pub statics: StaticConfig,
+    pub template: TemplateConfig,
+    pub theme: ThemeConfig,
+    pub log: LogConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -94,9 +94,3 @@ fn load_allay_config() -> AllayConfig {
 // Configs exposed
 pub static ENVRIONMENT: LazyLock<Environment> = LazyLock::new(get_environment);
 pub static ALLAY_CONFIG: LazyLock<AllayConfig> = LazyLock::new(load_allay_config);
-pub static CONTENT_CONFIG: LazyLock<&ContentConfig> = LazyLock::new(|| &ALLAY_CONFIG.content);
-pub static PUBLISH_CONFIG: LazyLock<&PublishConfig> = LazyLock::new(|| &ALLAY_CONFIG.publish);
-pub static STATIC_CONFIG: LazyLock<&StaticConfig> = LazyLock::new(|| &ALLAY_CONFIG.statics);
-pub static TEMPLATE_CONFIG: LazyLock<&TemplateConfig> = LazyLock::new(|| &ALLAY_CONFIG.template);
-pub static THEME_CONFIG: LazyLock<&ThemeConfig> = LazyLock::new(|| &ALLAY_CONFIG.theme);
-pub static LOG_CONFIG: LazyLock<&LogConfig> = LazyLock::new(|| &ALLAY_CONFIG.log);
