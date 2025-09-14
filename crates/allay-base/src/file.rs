@@ -3,7 +3,9 @@ use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use thiserror::Error;
+use tracing::{info, warn};
 use walkdir::WalkDir;
 
 #[derive(Error, Debug)]
@@ -49,19 +51,33 @@ pub struct FileContent {
     pub line_count: usize,
 }
 
-pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
-    workspace_sub(path, "")
-}
+static ROOT: OnceLock<PathBuf> = OnceLock::new();
 
-pub fn workspace_sub<P: AsRef<Path>, Q: AsRef<Path>>(path: P, sub: Q) -> PathBuf {
-    let path = path.as_ref();
-    if path.is_absolute() {
-        return path.to_path_buf();
+/// Set the root directory for the site
+pub fn set_root<P: AsRef<Path>>(path: P) {
+    if ROOT.get().is_some() {
+        warn!("Root directory is already set. Ignoring subsequent set_root call.");
+        return;
     }
-    let current_dir = std::env::current_dir().expect("Failed to get current directory");
-    current_dir.join(sub).join(path)
+    let path = path.as_ref().to_path_buf();
+    ROOT.set(path).ok();
 }
 
+/// Get the root directory for the site
+pub fn root() -> PathBuf {
+    if ROOT.get().is_none() {
+        info!("Root directory is not set. Defaulting to current directory.");
+        ROOT.set(".".into()).ok();
+    }
+    ROOT.get().unwrap().clone()
+}
+
+/// Get the actual workspace path by of the given path
+pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
+    root().join(path)
+}
+
+/// Recursively walk a directory and return a list of FileInfo
 pub fn walk_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<FileInfo>> {
     let dir_path = dir_path.as_ref();
     let mut file_infos = Vec::new();
@@ -86,6 +102,7 @@ pub fn walk_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<FileInfo>> {
     Ok(file_infos)
 }
 
+/// Read the entire content of a file
 pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     let file_path = file_path.as_ref();
 
@@ -111,24 +128,43 @@ pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     })
 }
 
+/// Check if a directory is dirty (not empty)
+pub fn dirty_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<bool> {
+    let dir = dir_path.as_ref();
+    Ok(dir.exists() && dir.is_dir() && dir.read_dir()?.next().is_some())
+}
+
+/// Create a directory
 pub fn create_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
     let dir_path = dir_path.as_ref();
     fs::create_dir(dir_path)?;
     Ok(())
 }
 
+/// Create a directory if it does not exist
+pub fn create_dir_if_not_exists<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
+    let dir_path = dir_path.as_ref();
+    if !dir_path.exists() {
+        fs::create_dir(dir_path)?;
+    }
+    Ok(())
+}
+
+/// Create a directory and all its parent components if they are missing
 pub fn create_dir_recursively<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
     let dir_path = dir_path.as_ref();
     fs::create_dir_all(dir_path)?;
     Ok(())
 }
 
+/// Create an empty file
 pub fn create_file<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
     let file_path = file_path.as_ref();
     fs::File::create(file_path)?;
     Ok(())
 }
 
+/// Create an empty file, creating parent directories if necessary
 pub fn create_file_recursively<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
     let file_path = file_path.as_ref();
     if let Some(parent) = file_path.parent() {
@@ -138,11 +174,39 @@ pub fn create_file_recursively<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
     Ok(())
 }
 
+/// Write content to a file, creating parent directories if necessary
 pub fn write_file<P: AsRef<Path>>(file_path: P, content: &str) -> FileResult<()> {
     let file_path = file_path.as_ref();
     if let Some(parent) = file_path.parent() {
         create_dir_recursively(parent)?;
     }
     fs::write(file_path, content)?;
+    Ok(())
+}
+
+/// Remove a file if it exists
+pub fn remove_file<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
+    let file_path = file_path.as_ref();
+    if file_path.exists() && file_path.is_file() {
+        fs::remove_file(file_path)?;
+    }
+    Ok(())
+}
+
+/// Remove an empty directory if it exists
+pub fn remove_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
+    let dir_path = dir_path.as_ref();
+    if dir_path.exists() && dir_path.is_dir() {
+        fs::remove_dir(dir_path)?;
+    }
+    Ok(())
+}
+
+/// Remove a directory and all its contents if it exists
+pub fn remove_dir_recursively<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
+    let dir_path = dir_path.as_ref();
+    if dir_path.exists() && dir_path.is_dir() {
+        fs::remove_dir_all(dir_path)?;
+    }
     Ok(())
 }

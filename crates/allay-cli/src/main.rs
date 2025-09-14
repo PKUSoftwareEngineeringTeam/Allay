@@ -1,5 +1,5 @@
-use allay_cli::cli_execute;
+use allay_cli::execute;
 
 fn main() -> anyhow::Result<()> {
-    cli_execute()
+    execute()
 }
