@@ -5,7 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use thiserror::Error;
-use tracing::warn;
+use tracing::{info, warn};
 use walkdir::WalkDir;
 
 #[derive(Error, Debug)]
@@ -64,6 +64,7 @@ pub fn set_root<P: AsRef<Path>>(path: P) {
 
 pub fn root() -> PathBuf {
     if ROOT.get().is_none() {
+        info!("Root directory is not set. Defaulting to current directory.");
         ROOT.set(".".into()).ok();
     }
     ROOT.get().unwrap().clone()
@@ -71,6 +72,7 @@ pub fn root() -> PathBuf {
 
 pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
     if ROOT.get().is_none() {
+        info!("Root directory is not set. Defaulting to current directory.");
         ROOT.set(".".into()).ok();
     }
     ROOT.get().unwrap().join(path)
