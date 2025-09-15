@@ -8,10 +8,11 @@ Text                ::= /[^{}-]+/;
 
 Identifier          ::= /[a-zA-Z_][a-zA-Z0-9_]*/;
 Variable            ::= '$' Identifier;
-GetField            ::= '.' Identifier;
+GetField            ::= '.' (Identifier | Number);
 this                ::= 'this';
-TopLevel            ::= Variable | this;
-Number              ::= /[0-9]+/;
+param               ::= 'param';
+TopLevel            ::= Variable | this | param;
+Number              ::= /-?[0-9]+/;
 String              ::= /"([^"\\]|\\.)*"/;
 AddOp               ::= '+' | '-';
 MulOp               ::= '*' | '/' | '%';

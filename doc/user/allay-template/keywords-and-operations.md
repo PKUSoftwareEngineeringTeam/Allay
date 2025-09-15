@@ -83,7 +83,7 @@ You can also access the index of the current item by providing a second variable
 `param` directive is used to return the parameter passed to the scope, starting from 0. If the parameter does not exist, it will be skipped.
 
 ```html
-<div class="say">{: param 0 :}</div>
+<div class="say">{: param.0 :}</div>
 ```
 
 ### `include`

@@ -9,10 +9,11 @@ text = { (!("{-" | "{<" | "{:" ) ~ ANY)+ }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" )* }
 variable = { "$" ~ identifier }
-get_field = { "." ~ identifier }
+get_field = { "." ~ (identifier | number) }
 this = { "this" }
-top_level = { this | variable }
-number = @{ ASCII_DIGIT+ }
+param = { "param" }
+top_level = { this | variable | param }
+number = @{ "-"? ~ ASCII_DIGIT+ }
 inner_string = @{ ( "\\\"" | !("\"") ~ ANY )* }
 string = ${ "\"" ~ inner_string ~ "\"" }
 add_op = { "+" | "-" }

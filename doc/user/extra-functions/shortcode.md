@@ -47,7 +47,7 @@ You should define all your shortcodes in the `templates/shortcodes` directory. E
     `templates/shortcodes/say.html`:
 
     ```html
-    <div class="say">{- param 0 -}</div>
+    <div class="say">{- param.0 -}</div>
     ```
 
     You can use this shortcode with a parameter like this:

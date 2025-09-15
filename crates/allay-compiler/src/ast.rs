@@ -66,9 +66,8 @@ pub struct IncludeCommand {
     pub parameters: Vec<Expression>,
 }
 
-pub enum Substitution {
-    Expression(Expression),
-    Parameter(i32),
+pub struct Substitution {
+    pub expr: Expression,
 }
 
 pub struct Expression(Or);
@@ -134,10 +133,16 @@ pub enum Primary {
 
 pub enum TopLevel {
     This,
+    Param,
     Variable(String),
+}
+
+pub enum GetField {
+    Index(i32),
+    Name(String),
 }
 
 pub struct Field {
     pub top_level: Option<TopLevel>,
-    pub parts: Vec<String>,
+    pub parts: Vec<GetField>,
 }
