@@ -6,5 +6,5 @@ pub mod publish;
 
 pub fn start() {
     // make clippy happy
-    StaticPublisher::source_root();
+    StaticPublisher::src_root();
 }

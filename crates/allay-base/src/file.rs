@@ -211,11 +211,11 @@ pub fn rename<P: AsRef<Path>>(old: P, new: P) -> FileResult<()> {
     }
 }
 
-pub fn copy<P: AsRef<Path>>(source: P, dest: P) -> FileResult<()> {
-    if source.as_ref().exists() {
-        fs::copy(source, dest)?;
+pub fn copy<P: AsRef<Path>>(src: P, dest: P) -> FileResult<()> {
+    if src.as_ref().exists() {
+        fs::copy(src, dest)?;
         Ok(())
     } else {
-        Err(FileError::FileNotFound(source.as_ref().to_path_buf()))
+        Err(FileError::FileNotFound(src.as_ref().to_path_buf()))
     }
 }

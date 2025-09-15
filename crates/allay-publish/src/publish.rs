@@ -4,7 +4,7 @@ use allay_base::config::ALLAY_CONFIG;
 pub struct StaticPublisher;
 
 impl FileMapper for StaticPublisher {
-    fn source_root() -> String {
+    fn src_root() -> String {
         ALLAY_CONFIG.statics.dir.clone()
     }
 
