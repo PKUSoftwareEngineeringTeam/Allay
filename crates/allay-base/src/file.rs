@@ -1,47 +1,21 @@
 use serde::Serialize;
-use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use thiserror::Error;
 use tracing::{info, warn};
-use walkdir::WalkDir;
 
 #[derive(Error, Debug)]
 pub enum FileError {
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
 
-    #[error("Invalid UTF-8 in file path: {0}")]
-    InvalidUtf8Path(PathBuf),
-
     #[error("File not found: {0}")]
     FileNotFound(PathBuf),
-
-    #[error("Unsupported file type: {0}")]
-    UnsupportedFileType(String),
-
-    #[error("Walkdir error: {0}")]
-    Walkdir(#[from] walkdir::Error),
 }
 
 pub type FileResult<T> = Result<T, FileError>;
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct FileInfo {
-    pub root: PathBuf,
-    pub path: PathBuf,
-    pub size: u64,
-    pub extension: Option<String>,
-    pub modified: Option<std::time::SystemTime>,
-}
-
-impl FileInfo {
-    pub fn relative_path(&self) -> PathBuf {
-        self.path.strip_prefix(&self.root).unwrap_or(&self.path).to_path_buf()
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FileContent {
@@ -77,43 +51,41 @@ pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
     root().join(path)
 }
 
-/// Recursively walk a directory and return a list of FileInfo
-pub fn walk_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<FileInfo>> {
+/// Check if a file exists
+pub fn file_exists<P: AsRef<Path>>(file_path: P) -> bool {
+    let file_path = file_path.as_ref();
+    file_path.exists() && file_path.is_file()
+}
+
+/// Check if a directory exists
+pub fn dir_exists<P: AsRef<Path>>(dir_path: P) -> bool {
     let dir_path = dir_path.as_ref();
-    let mut file_infos = Vec::new();
+    dir_path.exists() && dir_path.is_dir()
+}
 
-    for entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
-        let metadata = entry.metadata()?;
-        if !metadata.is_file() {
-            continue;
-        }
+/// Check if a directory is dirty (not empty)
+pub fn dirty_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<bool> {
+    Ok(dir_exists(dir_path.as_ref()) && dir_path.as_ref().read_dir()?.next().is_some())
+}
 
-        let extension = entry.path().extension().and_then(OsStr::to_str).map(|s| s.to_string());
+/// Read the metadata of a file
+pub fn read_file_info<P: AsRef<Path>>(file_path: P) -> FileResult<fs::Metadata> {
+    let file_path = file_path.as_ref();
 
-        file_infos.push(FileInfo {
-            root: dir_path.to_path_buf(),
-            path: entry.path().to_path_buf(),
-            size: metadata.len(),
-            extension,
-            modified: metadata.modified().ok(),
-        });
+    if !file_exists(file_path) {
+        return Err(FileError::FileNotFound(file_path.to_path_buf()));
     }
 
-    Ok(file_infos)
+    let metadata = fs::metadata(file_path)?;
+    Ok(metadata)
 }
 
 /// Read the entire content of a file
 pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     let file_path = file_path.as_ref();
 
-    if !file_path.exists() {
+    if !file_exists(file_path) {
         return Err(FileError::FileNotFound(file_path.to_path_buf()));
-    }
-
-    if !file_path.is_file() {
-        return Err(FileError::UnsupportedFileType(
-            "Path is not a file".to_string(),
-        ));
     }
 
     let content = fs::read_to_string(file_path)?;
@@ -128,10 +100,16 @@ pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     })
 }
 
-/// Check if a directory is dirty (not empty)
-pub fn dirty_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<bool> {
-    let dir = dir_path.as_ref();
-    Ok(dir.exists() && dir.is_dir() && dir.read_dir()?.next().is_some())
+/// Read the entire content of a file as only a string
+pub fn read_file_string<P: AsRef<Path>>(file_path: P) -> FileResult<String> {
+    let file_path = file_path.as_ref();
+
+    if !file_exists(file_path) {
+        return Err(FileError::FileNotFound(file_path.to_path_buf()));
+    }
+
+    let content = fs::read_to_string(file_path)?;
+    Ok(content)
 }
 
 /// Create a directory
@@ -143,8 +121,7 @@ pub fn create_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
 
 /// Create a directory if it does not exist
 pub fn create_dir_if_not_exists<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
-    let dir_path = dir_path.as_ref();
-    if !dir_path.exists() {
+    if !dir_exists(&dir_path) {
         fs::create_dir(dir_path)?;
     }
     Ok(())
@@ -184,10 +161,24 @@ pub fn write_file<P: AsRef<Path>>(file_path: P, content: &str) -> FileResult<()>
     Ok(())
 }
 
+/// Remove a file or directory if it exists
+pub fn remove<P: AsRef<Path>>(path: P) -> FileResult<()> {
+    let path = path.as_ref();
+    if path.exists() {
+        if path.is_dir() {
+            remove_dir_recursively(path)
+        } else {
+            remove_file(path)
+        }
+    } else {
+        Ok(())
+    }
+}
+
 /// Remove a file if it exists
 pub fn remove_file<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
     let file_path = file_path.as_ref();
-    if file_path.exists() && file_path.is_file() {
+    if file_exists(file_path) {
         fs::remove_file(file_path)?;
     }
     Ok(())
@@ -196,7 +187,7 @@ pub fn remove_file<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
 /// Remove an empty directory if it exists
 pub fn remove_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
     let dir_path = dir_path.as_ref();
-    if dir_path.exists() && dir_path.is_dir() {
+    if dir_exists(dir_path) {
         fs::remove_dir(dir_path)?;
     }
     Ok(())
@@ -205,8 +196,26 @@ pub fn remove_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
 /// Remove a directory and all its contents if it exists
 pub fn remove_dir_recursively<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
     let dir_path = dir_path.as_ref();
-    if dir_path.exists() && dir_path.is_dir() {
+    if dir_exists(dir_path) {
         fs::remove_dir_all(dir_path)?;
     }
     Ok(())
+}
+
+pub fn rename<P: AsRef<Path>>(old: P, new: P) -> FileResult<()> {
+    if old.as_ref().exists() {
+        fs::rename(old, new)?;
+        Ok(())
+    } else {
+        Err(FileError::FileNotFound(old.as_ref().to_path_buf()))
+    }
+}
+
+pub fn copy<P: AsRef<Path>>(src: P, dest: P) -> FileResult<()> {
+    if src.as_ref().exists() {
+        fs::copy(src, dest)?;
+        Ok(())
+    } else {
+        Err(FileError::FileNotFound(src.as_ref().to_path_buf()))
+    }
 }
