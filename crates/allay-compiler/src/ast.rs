@@ -112,9 +112,14 @@ pub enum MulDivOp {
     Modulo,
 }
 
+pub enum UnaryOp {
+    Not,
+    Positive,
+    Negative,
+}
+
 pub enum Unary {
-    Not(Primary),
-    Negate((AddSubOp, Primary)),
+    Unary((UnaryOp, Expression)),
     Primary(Primary),
 }
 
