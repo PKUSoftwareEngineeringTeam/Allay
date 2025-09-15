@@ -1,0 +1,11 @@
+[package]
+name = "allay-compiler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pulldown-cmark = "0.13.0"
+pest = "2.8.2"
+pest_derive = "2.8.2"
+thiserror = { workspace = true }
+allay-base = { path = "../allay-base" }

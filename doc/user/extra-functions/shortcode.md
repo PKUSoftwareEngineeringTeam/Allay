@@ -49,7 +49,7 @@ The inner content will be placed where `{: .inner :}` is specified in the templa
 `shortcodes/say.html`:
 
 ```html
-<div class="say">{- param 0 -}</div>
+<div class="say">{- param.0 -}</div>
 ```
 
 In your markdown:

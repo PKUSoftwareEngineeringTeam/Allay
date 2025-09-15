@@ -9,10 +9,11 @@ text = { (!("{-" | "{<" | "{:" ) ~ ANY)+ }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" )* }
 variable = { "$" ~ identifier }
-get_field = { "." ~ identifier }
+get_field = { "." ~ (identifier | number) }
 this = { "this" }
-top_level = { this | variable }
-number = @{ ASCII_DIGIT+ }
+param = { "param" }
+top_level = { this | variable | param }
+number = @{ "-"? ~ ASCII_DIGIT+ }
 inner_string = @{ ( "\\\"" | !("\"") ~ ANY )* }
 string = ${ "\"" ~ inner_string ~ "\"" }
 add_op = { "+" | "-" }
@@ -45,15 +46,15 @@ command = { set_command | for_command | with_command | if_command | include_comm
 for_pattern = ${ "for" ~ WHITESPACE }
 start_for_command = { "{-" ~ for_pattern ~ variable ~ ("," ~ variable)? ~ ":" ~ expression ~ "-}" }
 with_pattern = ${ "with" ~ WHITESPACE }
-start_with_command = { "{-" ~ with_pattern~ expression ~ "-}" }
+start_with_command = { "{-" ~ with_pattern ~ expression ~ "-}" }
 if_pattern = ${ "if" ~ WHITESPACE }
 start_if_command = { "{-" ~ if_pattern ~ expression ~ "-}" }
 else_command = { "{-" ~ "else" ~ "-}" }
 end_command = { "{-" ~ "end" ~ "-}" }
 
 set_pattern = ${ "set" ~ WHITESPACE }
-set_command = { "{-" ~ set_pattern ~ "=" ~ expression ~ "-}" }
-for_command = { start_for_command ~ template ~ (else_command ~ template)? ~ end_command }
+set_command = { "{-" ~ set_pattern ~ variable ~ "=" ~ expression ~ "-}" }
+for_command = { start_for_command ~ template ~ end_command }
 with_command = { start_with_command ~ template ~ end_command }
 if_command = { start_if_command ~ template ~ (else_command ~ template)? ~ end_command }
 include_pattern = ${ "include" ~ WHITESPACE }
