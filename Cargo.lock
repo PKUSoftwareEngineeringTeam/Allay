@@ -38,6 +38,7 @@ dependencies = [
 name = "allay-compiler"
 version = "0.1.0"
 dependencies = [
+ "allay-base",
  "pest",
  "pest_derive",
  "pulldown-cmark",

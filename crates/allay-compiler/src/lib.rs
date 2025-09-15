@@ -9,6 +9,7 @@ pub mod scope;
 
 use crate::error::CompileError;
 use crate::scope::TemplateScope;
+use allay_base::file;
 use pulldown_cmark::{Parser, html};
 use std::path::Path;
 
@@ -30,7 +31,7 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
 ) -> Result<String, CompileError> {
     // read source file, convert to html if source is markdown
     let source_path = source.as_ref();
-    let source_content = std::fs::read_to_string(source_path)?;
+    let source_content = file::read_file_string(source_path)?;
     let ext = source_path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     let mut source_content = if ext == "md" {
