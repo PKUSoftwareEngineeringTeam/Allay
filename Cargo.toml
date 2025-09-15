@@ -5,7 +5,7 @@ members = [
     "crates/allay-cli",
     "crates/allay-compiler",
     "crates/allay-base",
-    "crates/allay-theme",
+    "crates/allay-publish",
 ]
 
 [workspace.dependencies]

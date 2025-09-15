@@ -12,16 +12,15 @@ Your theme should be organized in a specific directory structure to ensure that 
 │   ├── index.html      # The main page template
 │   └── page.html       # The template for regular pages
 ├── templates   # Directory for HTML templates
-│   └── shortcodes      # Subdirectory for shortcodes
-└── theme.toml  # Metadata for the theme
+└── theme-meta.toml  # Metadata for the theme
 ```
 
 The `allay.toml` file is optional, but recommended if you want to provide default configuration parameters for users of your theme.
 
-The `theme.toml` file is essential as it contains metadata about your theme and let it be recognized by the Allay Engine. Here is an example of what the `theme.toml` file might look like:
+The `theme-meta.toml` file is essential as it contains metadata about your theme and let it be recognized by the Allay Engine. Here is an example of what the `theme-meta.toml` file might look like:
 
 ```toml
-# theme.toml template for an Allay theme
+# theme-meta template for an Allay theme
 
 name = "Axolotl"
 license = "GPL-3.0-only"

@@ -1,19 +1,19 @@
-## Keywords and Operations
+## Commands
 
 For code in Allay templates, we use `{- -}` to denote a command block, and `{: :}` to denote an expression block. All expression blocks will be evaluated and replaced by their result.
 
-Allay templates support several keywords and operations to control the flow of the template rendering process.
+Allay templates support several commands to control the flow of the template rendering process.
 
 ### `set`
 
 `set` directive is used to create a variable in the current scope.
 
 ```html
-{- set $var .value -}
+{- set $var .something -}
 {: $var :} <!-- use the variable -->
 ```
 
-The `set` directive assigns the value of `.value` to the variable `$var`, which can then be used later in the template.
+The `set` directive assigns the value of `something` field of current scope variable, i.e. `this`, to the variable `$var`, which can then be used later in the template.
 
 ### `get`
 

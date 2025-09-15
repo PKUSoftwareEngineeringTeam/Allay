@@ -1,4 +1,4 @@
-use allay_base::file::{read_file, walk_dir};
+use allay_base::file::read_file;
 use std::fs::{self, File};
 use std::io::Write;
 use tempfile::tempdir;
@@ -24,16 +24,6 @@ fn create_test_files() -> tempfile::TempDir {
     }
 
     dir
-}
-
-#[test]
-fn test_walk_dir() {
-    let test_dir = create_test_files();
-    let files = walk_dir(test_dir.path()).unwrap();
-
-    assert_eq!(files.len(), 3);
-    assert!(files.iter().any(|f| f.relative_path().to_str().unwrap() == "subdir/test3.md"));
-    assert!(files.iter().any(|f| f.extension == Some("rs".to_string())));
 }
 
 #[test]

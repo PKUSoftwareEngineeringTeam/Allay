@@ -2,62 +2,85 @@
 
 Shortcodes are a powerful feature in Allay that allows you to embed dynamic content within your markdown files. They are similar to macros or functions in programming languages, enabling you to reuse code snippets and pass parameters to customize their behavior.
 
-### Usage
+### Definition
 
-You should define all your shortcodes in the `templates/shortcodes` directory. Each shortcode should be a separate HTML file. You can then use these shortcodes in your markdown files by using the following syntax:
+You should define all your shortcodes in the `shortcodes` directory. Each shortcode will be bound to the HTML/Markdown file with the same name. You can then use these shortcodes in your markdown files by using the following syntax:
 
 ```
-{< shortcode_name params... />}
+{< shortcode_name params... >}
 ```
 
-- For example, let's define a `note` shortcode to display a note icon:
+### Examples
 
-    `templates/shortcodes/note.html`:
+#### Self-Closing Shortcodes
 
-    ```html
-    <img src="note.png" alt="note" />
-    ```
+`shortcodes/note.md`:
 
-    You can then use this shortcode in your markdown files like this:
+```md
+![Note](https://img.shields.io/badge/Note-Important-brightgreen)
+```
 
-    ```md
-    Here is a note: {< note />}
-    ```
+In your markdown:
 
-- You may need a block shortcode that wraps around some inner content. For example, a `closure` shortcode to create a styled div:
+```md
+Here is a note badge: {< note />}
+```
 
-    `templates/shortcodes/closure.html`:
+#### Block Shortcodes
 
-    ```html
-    <div class="closure">{: .inner :}</div>
-    ```
+`shortcodes/closure.html`:
 
-    You can use this shortcode with inner content like this:
+```html
+<div class="closure">{: .inner :}</div>
+```
 
-    ```md
-    {< closure >}
-    This is some important content.
-    {</ closure >}
-    ```
+In your markdown:
 
-    The inner content will be placed where `{: .inner :}` is specified in the template.
+```md
+{< closure >}
+This is some important content.
+{</ closure >}
+```
 
-- Parameters are also supported. For example, a `say` shortcode that takes a parameter and displays it:
+The inner content will be placed where `{: .inner :}` is specified in the template.
 
-    `templates/shortcodes/say.html`:
+#### Shortcodes with Parameters
 
-    ```html
-    <div class="say">{- param.0 -}</div>
-    ```
+`shortcodes/say.html`:
 
-    You can use this shortcode with a parameter like this:
+```html
+<div class="say">{- param.0 -}</div>
+```
 
-    ```md
-    {< say "Hello, World!" >}
-    ```
+In your markdown:
 
-    or more easily without quotes if the parameter is a single word:
+```md
+{< say "Hello, World!" >}
+```
 
-    ```md
-    {< say Hello >}
-    ```
+### Recursive Shortcodes Template
+
+`shortcodes/warning.html`:
+
+```html
+<div class="warning">
+    {- include "warning-badge" -}
+    <div class="content">{: .inner :}</div>
+</div>
+```
+
+`shortcodes/warning-badge.md`:
+
+```md
+![Warning](https://img.shields.io/badge/Warning-Important-red)
+```
+
+In your markdown:
+
+```md
+{< warning >}
+This is a warning message.
+{</ warning >}
+```
+
+> Shortcode is actually a syntactic sugar for including templates. `{< note "Hello!" />}` is equivalent to `{- include "note" this "Hello" -}`. You can use `include` directly if you prefer.

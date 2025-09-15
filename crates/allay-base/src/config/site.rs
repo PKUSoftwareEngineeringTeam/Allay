@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use crate::{
     data::{AllayData, AllayObject},
-    file::{read_file, workspace},
+    file::{read_file_string, workspace},
 };
 
 pub const SITE_CONFIG_FILE: &str = "allay.toml";
@@ -17,8 +17,8 @@ author = "Your Name"
 pub static SITE_CONFIG: LazyLock<AllayObject> = LazyLock::new(load_site_config);
 
 fn load_site_config() -> AllayObject {
-    if let Ok(config) = read_file(workspace(SITE_CONFIG_FILE))
-        && let Ok(config) = AllayData::from_toml(&config.content)
+    if let Ok(config) = read_file_string(workspace(SITE_CONFIG_FILE))
+        && let Ok(config) = AllayData::from_toml(&config)
     {
         return config;
     }
