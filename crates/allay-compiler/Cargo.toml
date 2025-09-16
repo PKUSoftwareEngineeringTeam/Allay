@@ -7,5 +7,7 @@ edition = "2024"
 pulldown-cmark = "0.13.0"
 pest = "2.8.2"
 pest_derive = "2.8.2"
+itertools = { workspace = true }
 thiserror = { workspace = true }
+
 allay-base = { path = "../allay-base" }

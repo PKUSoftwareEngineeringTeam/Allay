@@ -13,6 +13,11 @@ use allay_base::file;
 use pulldown_cmark::{Parser, html};
 use std::path::Path;
 
+/// The result type for compile operations.
+///
+/// This is a type alias for `Result<T, CompileError>`.
+pub type CompileResult<T> = Result<T, CompileError>;
+
 /// Compile a source file (markdown or html) into HTML string.
 ///
 /// # Arguments
@@ -28,7 +33,7 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     include_dir: Q,
     short_code_dir: R,
     top_level: &TemplateScope,
-) -> Result<String, CompileError> {
+) -> CompileResult<String> {
     // read source file, convert to html if source is markdown
     let source_path = source.as_ref();
     let source_content = file::read_file_string(source_path)?;

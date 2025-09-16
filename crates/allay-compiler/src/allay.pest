@@ -26,7 +26,7 @@ not_op = { "!" }
 expression = { logic_or }
 logic_or = { logic_and ~ (or_op ~ logic_and)* }
 logic_and = { comparison ~ (and_op ~ comparison)* }
-comparison = { addition ~ (comparison_op ~ addition)* }
+comparison = { addition ~ (comparison_op ~ addition)? }
 addition = { multiplication ~ (add_op ~ multiplication)* }
 multiplication = { unary ~ (mul_op ~ unary)* }
 unary = { (not_op | add_op)? ~ primary }
@@ -34,12 +34,10 @@ field = ${ top_level? ~ get_field+ }
 bool_literal = { "#t" | "#f" }
 primary = { field | top_level | number | string | bool_literal | "(" ~ expression ~ ")" }
 
-expression_list = { expression* }
-
 short_code = { single_short_code | block_short_code }
 short_code_pattern = ${ identifier ~ WHITESPACE }
-single_short_code = { "{<" ~ short_code_pattern ~ expression_list ~ "/>}" }
-block_short_code = { "{<" ~ short_code_pattern ~ expression_list ~ ">}" ~ template ~ "{</" ~ identifier ~ ">}" }
+single_short_code = { "{<" ~ short_code_pattern ~ expression* ~ "/>}" }
+block_short_code = { "{<" ~ short_code_pattern ~ expression* ~ ">}" ~ template ~ "{</" ~ identifier ~ ">}" }
 
 command = { set_command | for_command | with_command | if_command | include_command }
 
@@ -58,11 +56,9 @@ for_command = { start_for_command ~ template ~ end_command }
 with_command = { start_with_command ~ template ~ end_command }
 if_command = { start_if_command ~ template ~ (else_command ~ template)? ~ end_command }
 include_pattern = ${ "include" ~ WHITESPACE }
-include_command = { "{-" ~ include_pattern ~ string ~ expression_list ~ "-}" }
+include_command = { "{-" ~ include_pattern ~ string ~ expression* ~ "-}" }
 
-substitution = { get_substitution | expr_substitution | param_substitution }
+substitution = { get_substitution | expr_substitution }
 get_pattern = ${ "get" ~ WHITESPACE }
 get_substitution = { "{:" ~ get_pattern ~ expression ~ ":}" }
 expr_substitution = { "{:" ~ expression ~ ":}" }
-param_pattern = ${ "param" ~ WHITESPACE }
-param_substitution = { "{:" ~ param_pattern ~ number ~ ":}" }
