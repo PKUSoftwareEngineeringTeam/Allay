@@ -1,3 +1,4 @@
+use crate::CompileResult;
 use crate::ast::*;
 use crate::error::CompileError;
 use itertools::Itertools;
@@ -39,24 +40,24 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwarp!(pair.into_inner().next())
 }
 
-trait BuildAST {
+trait ASTBuilder {
     type Output;
 
-    fn build(pair: Pair<Rule>) -> Result<Self::Output, CompileError>;
+    fn build(pair: Pair<Rule>) -> CompileResult<Self::Output>;
 }
 
-impl BuildAST for File {
+impl ASTBuilder for File {
     type Output = File;
 
-    fn build(pair: Pair<Rule>) -> Result<File, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<File> {
         Ok(File(Template::build(single_inner(pair))?))
     }
 }
 
-impl BuildAST for Template {
+impl ASTBuilder for Template {
     type Output = Template;
 
-    fn build(pair: Pair<Rule>) -> Result<Template, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Template> {
         let controls = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
@@ -69,10 +70,10 @@ impl BuildAST for Template {
     }
 }
 
-impl BuildAST for Control {
+impl ASTBuilder for Control {
     type Output = Control;
 
-    fn build(pair: Pair<Rule>) -> Result<Control, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Control> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::text => Ok(Control::Text(inner.as_str().to_string())),
@@ -84,10 +85,10 @@ impl BuildAST for Control {
     }
 }
 
-impl BuildAST for ShortCode {
+impl ASTBuilder for ShortCode {
     type Output = ShortCode;
 
-    fn build(pair: Pair<Rule>) -> Result<ShortCode, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<ShortCode> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::single_short_code => Ok(ShortCode::Single(SingleShortCode::build(inner)?)),
@@ -101,10 +102,10 @@ fn get_inner_str(pair: Pair<Rule>) -> String {
     single_inner(pair).as_str().to_string()
 }
 
-impl BuildAST for SingleShortCode {
+impl ASTBuilder for SingleShortCode {
     type Output = SingleShortCode;
 
-    fn build(pair: Pair<Rule>) -> Result<SingleShortCode, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<SingleShortCode> {
         let mut name = String::new();
         let mut parameters = vec![];
         for inner in pair.into_inner() {
@@ -122,10 +123,10 @@ impl BuildAST for SingleShortCode {
     }
 }
 
-impl BuildAST for BlockShortCode {
+impl ASTBuilder for BlockShortCode {
     type Output = BlockShortCode;
 
-    fn build(pair: Pair<Rule>) -> Result<BlockShortCode, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<BlockShortCode> {
         let mut name = String::new();
         let mut end_name = String::new();
         let mut parameters = vec![];
@@ -161,10 +162,10 @@ impl BuildAST for BlockShortCode {
     }
 }
 
-impl BuildAST for Command {
+impl ASTBuilder for Command {
     type Output = Command;
 
-    fn build(pair: Pair<Rule>) -> Result<Command, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Command> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::set_command => Ok(Command::Set(SetCommand::build(inner)?)),
@@ -177,10 +178,10 @@ impl BuildAST for Command {
     }
 }
 
-impl BuildAST for SetCommand {
+impl ASTBuilder for SetCommand {
     type Output = SetCommand;
 
-    fn build(pair: Pair<Rule>) -> Result<SetCommand, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<SetCommand> {
         let mut name = String::new();
         let mut value = None;
 
@@ -204,10 +205,10 @@ impl BuildAST for SetCommand {
     }
 }
 
-impl BuildAST for ForCommand {
+impl ASTBuilder for ForCommand {
     type Output = ForCommand;
 
-    fn build(pair: Pair<Rule>) -> Result<ForCommand, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<ForCommand> {
         let mut item_name = String::new();
         let mut index_name = None;
         let mut list = None;
@@ -250,10 +251,10 @@ impl BuildAST for ForCommand {
     }
 }
 
-impl BuildAST for WithCommand {
+impl ASTBuilder for WithCommand {
     type Output = WithCommand;
 
-    fn build(pair: Pair<Rule>) -> Result<WithCommand, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<WithCommand> {
         let mut scope = None;
         let mut inner_template = None;
 
@@ -285,10 +286,10 @@ impl BuildAST for WithCommand {
     }
 }
 
-impl BuildAST for IfCommand {
+impl ASTBuilder for IfCommand {
     type Output = IfCommand;
 
-    fn build(pair: Pair<Rule>) -> Result<IfCommand, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<IfCommand> {
         let mut condition = None;
         let mut inner_template = None;
         let mut else_inner_template = None;
@@ -330,10 +331,10 @@ impl BuildAST for IfCommand {
     }
 }
 
-impl BuildAST for IncludeCommand {
+impl ASTBuilder for IncludeCommand {
     type Output = IncludeCommand;
 
-    fn build(pair: Pair<Rule>) -> Result<IncludeCommand, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<IncludeCommand> {
         let mut path = String::new();
         let mut parameters = vec![];
 
@@ -354,10 +355,10 @@ impl BuildAST for IncludeCommand {
     }
 }
 
-impl BuildAST for Substitution {
+impl ASTBuilder for Substitution {
     type Output = Substitution;
 
-    fn build(pair: Pair<Rule>) -> Result<Substitution, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Substitution> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::get_substitution => {
@@ -385,18 +386,18 @@ impl BuildAST for Substitution {
     }
 }
 
-impl BuildAST for Expression {
+impl ASTBuilder for Expression {
     type Output = Expression;
 
-    fn build(pair: Pair<Rule>) -> Result<Expression, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Expression> {
         Ok(Expression(Or::build(single_inner(pair))?))
     }
 }
 
-impl BuildAST for Or {
+impl ASTBuilder for Or {
     type Output = Or;
 
-    fn build(pair: Pair<Rule>) -> Result<Or, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Or> {
         let ands = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
@@ -409,10 +410,10 @@ impl BuildAST for Or {
     }
 }
 
-impl BuildAST for And {
+impl ASTBuilder for And {
     type Output = And;
 
-    fn build(pair: Pair<Rule>) -> Result<And, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<And> {
         let cmps = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
@@ -425,10 +426,10 @@ impl BuildAST for And {
     }
 }
 
-impl BuildAST for Comparison {
+impl ASTBuilder for Comparison {
     type Output = Comparison;
 
-    fn build(pair: Pair<Rule>) -> Result<Comparison, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Comparison> {
         let mut left = None;
         let mut operator = None;
         let mut right = None;
@@ -464,10 +465,10 @@ impl BuildAST for Comparison {
     }
 }
 
-impl BuildAST for AddSub {
+impl ASTBuilder for AddSub {
     type Output = AddSub;
 
-    fn build(pair: Pair<Rule>) -> Result<AddSub, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<AddSub> {
         let mut inner = pair.into_inner();
         let left = MulDiv::build(parser_unwarp!(inner.next()))?;
         let rights = inner
@@ -487,10 +488,10 @@ impl BuildAST for AddSub {
     }
 }
 
-impl BuildAST for MulDiv {
+impl ASTBuilder for MulDiv {
     type Output = MulDiv;
 
-    fn build(pair: Pair<Rule>) -> Result<MulDiv, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<MulDiv> {
         let mut inner = pair.into_inner();
         let left = Unary::build(parser_unwarp!(inner.next()))?;
         let rights = inner
@@ -511,10 +512,10 @@ impl BuildAST for MulDiv {
     }
 }
 
-impl BuildAST for Unary {
+impl ASTBuilder for Unary {
     type Output = Unary;
 
-    fn build(pair: Pair<Rule>) -> Result<Unary, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Unary> {
         let mut inner = pair.into_inner();
         if inner.len() == 1 {
             Ok(Unary::Primary(Primary::build(inner.next().unwrap())?))
@@ -533,10 +534,10 @@ impl BuildAST for Unary {
     }
 }
 
-impl BuildAST for Primary {
+impl ASTBuilder for Primary {
     type Output = Primary;
 
-    fn build(pair: Pair<Rule>) -> Result<Primary, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Primary> {
         let item = single_inner(pair);
         match item.as_rule() {
             Rule::field => Ok(Primary::Field(Field::build(item)?)),
@@ -563,10 +564,10 @@ impl BuildAST for Primary {
     }
 }
 
-impl BuildAST for Field {
+impl ASTBuilder for Field {
     type Output = Field;
 
-    fn build(pair: Pair<Rule>) -> Result<Field, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<Field> {
         let inner = pair.into_inner();
         let mut top_level = None;
         let mut get_fields = vec![];
@@ -590,10 +591,10 @@ impl BuildAST for Field {
     }
 }
 
-impl BuildAST for GetField {
+impl ASTBuilder for GetField {
     type Output = GetField;
 
-    fn build(pair: Pair<Rule>) -> Result<GetField, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<GetField> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::number => {
@@ -609,10 +610,10 @@ impl BuildAST for GetField {
     }
 }
 
-impl BuildAST for TopLevel {
+impl ASTBuilder for TopLevel {
     type Output = TopLevel;
 
-    fn build(pair: Pair<Rule>) -> Result<TopLevel, CompileError> {
+    fn build(pair: Pair<Rule>) -> CompileResult<TopLevel> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::this => Ok(TopLevel::This),

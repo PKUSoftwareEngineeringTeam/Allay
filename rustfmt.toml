@@ -2,3 +2,4 @@ max_width = 100
 tab_spaces = 4
 
 chain_width = 80
+newline_style = "Unix"
