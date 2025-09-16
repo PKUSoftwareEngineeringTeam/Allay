@@ -1,12 +1,12 @@
-// TODO: Remove this when everything is finished
-#![allow(dead_code)]
-
+#[derive(Debug, PartialEq)]
 pub struct File(pub Template);
 
+#[derive(Debug, PartialEq)]
 pub struct Template {
     pub controls: Vec<Control>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Control {
     Text(String),
     ShortCode(ShortCode),
@@ -14,22 +14,26 @@ pub enum Control {
     Substitution(Substitution),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum ShortCode {
     Single(SingleShortCode),
     Block(BlockShortCode),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SingleShortCode {
     pub name: String,
     pub parameters: Vec<Expression>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct BlockShortCode {
     pub name: String,
     pub parameters: Vec<Expression>,
     pub inner: Template,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Command {
     Set(SetCommand),
     For(ForCommand),
@@ -38,11 +42,13 @@ pub enum Command {
     Include(IncludeCommand),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SetCommand {
     pub name: String,
     pub value: Expression,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ForCommand {
     pub item_name: String,
     pub index_name: Option<String>,
@@ -50,37 +56,46 @@ pub struct ForCommand {
     pub inner: Template,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct WithCommand {
     pub scope: Expression,
     pub inner: Template,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct IfCommand {
     pub condition: Expression,
     pub inner: Template,
     pub else_inner: Option<Template>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct IncludeCommand {
     pub path: String,
     pub parameters: Vec<Expression>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Substitution {
     pub expr: Expression,
 }
 
-pub struct Expression(Or);
+#[derive(Debug, PartialEq)]
+pub struct Expression(pub Or);
 
-pub struct Or(Vec<And>);
+#[derive(Debug, PartialEq)]
+pub struct Or(pub Vec<And>);
 
-pub struct And(Vec<Comparison>);
+#[derive(Debug, PartialEq)]
+pub struct And(pub Vec<Comparison>);
 
+#[derive(Debug, PartialEq)]
 pub struct Comparison {
     pub left: AddSub,
     pub right: Option<(ComparisonOp, AddSub)>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum ComparisonOp {
     Equal,
     NotEqual,
@@ -90,38 +105,45 @@ pub enum ComparisonOp {
     LessEqual,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct AddSub {
     pub left: MulDiv,
-    pub right: Vec<(AddSubOp, MulDiv)>,
+    pub rights: Vec<(AddSubOp, MulDiv)>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum AddSubOp {
     Add,
     Subtract,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct MulDiv {
     pub left: Unary,
-    pub right: Vec<(MulDivOp, Unary)>,
+    pub rights: Vec<(MulDivOp, Unary)>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum MulDivOp {
     Multiply,
     Divide,
     Modulo,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum UnaryOp {
     Not,
     Positive,
     Negative,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Unary {
-    Unary((UnaryOp, Expression)),
+    Unary((UnaryOp, Primary)),
     Primary(Primary),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Primary {
     Field(Field),
     TopLevel(TopLevel),
@@ -131,17 +153,20 @@ pub enum Primary {
     Expression(Expression),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum TopLevel {
     This,
     Param,
     Variable(String),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum GetField {
     Index(i32),
     Name(String),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Field {
     pub top_level: Option<TopLevel>,
     pub parts: Vec<GetField>,
