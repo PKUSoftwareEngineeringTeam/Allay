@@ -12,14 +12,16 @@ dir = "public"
 [statics]
 dir = "static"
 
-[template]
-dir = "templates"
+[shortcode]
+dir = "shortcodes"
 
 [theme]
 dir = "themes"
 [theme.default]
 name = "Axolotl"
 repository = "https://github.com/PKUSoftwareEngineeringTeam/Axolotl"
+[theme.template]
+dir = "templates"
 
 [log]
 dir = "logs"

@@ -17,7 +17,6 @@ pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
     let dirs = [
         &ALLAY_CONFIG.content.dir,
         &ALLAY_CONFIG.publish.dir,
-        &ALLAY_CONFIG.template.dir,
         &ALLAY_CONFIG.theme.dir,
         &ALLAY_CONFIG.statics.dir,
     ];

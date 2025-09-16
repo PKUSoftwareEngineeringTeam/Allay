@@ -7,16 +7,12 @@ mod interpreter;
 mod parser;
 pub mod scope;
 
-use crate::error::CompileError;
-use crate::scope::TemplateScope;
+use crate::error::{CompileError, CompileResult};
+use crate::scope::PageScope;
+use allay_base::data::AllayObject;
 use allay_base::file;
 use pulldown_cmark::{Parser, html};
 use std::path::Path;
-
-/// The result type for compile operations.
-///
-/// This is a type alias for `Result<T, CompileError>`.
-pub type CompileResult<T> = Result<T, CompileError>;
 
 /// Compile a source file (markdown or html) into HTML string.
 ///
@@ -32,7 +28,6 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     source: P,
     include_dir: Q,
     short_code_dir: R,
-    top_level: &TemplateScope,
 ) -> CompileResult<String> {
     // read source file, convert to html if source is markdown
     let source_path = source.as_ref();
@@ -50,12 +45,15 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     };
 
     // repeatedly compile until no changes
+    // TODO: add data from front-matter etc.
+    let scope = PageScope::new_top(AllayObject::new());
+
     loop {
         let (new_content, changed) = driver::compile_once(
             &source_content,
             include_dir.as_ref(),
             short_code_dir.as_ref(),
-            top_level,
+            &scope,
         )?;
         if !changed {
             return Ok(new_content);
