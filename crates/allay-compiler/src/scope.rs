@@ -10,7 +10,7 @@ pub(crate) trait DataProvider {
     /// Get the data of the element
     fn get_data(&self) -> &AllayData;
 
-    /// Utility functiion to get the field of the element once
+    /// Utility function to get the field of the element once
     fn get_field_once<'a>(cur: &'a AllayData, layer: &GetField) -> InterpretResult<&'a AllayData> {
         match layer {
             GetField::Index(i) => {
@@ -22,7 +22,7 @@ pub(crate) trait DataProvider {
             }
             GetField::Name(name) => {
                 let obj = cur.as_obj()?;
-                obj.get(name).ok_or(InterpretError::FieldNotFound(layer.clone()))
+                obj.get(name).ok_or(InterpretError::FieldNotFound(name.clone()))
             }
         }
     }
@@ -136,7 +136,8 @@ impl DataProvider for PageScope<'_> {
 
     fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
         // Optimized implementation without using get_data()
-        let first = field.parts.first().unwrap();
+        let first =
+            field.parts.first().ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
 
         match first {
             GetField::Index(_) => {
@@ -149,9 +150,9 @@ impl DataProvider for PageScope<'_> {
                 let mut cur = if self.owned.contains_key(name) {
                     self.owned.get(name).unwrap()
                 } else if let Some(inherited) = self.inherited {
-                    inherited.get(name).ok_or(InterpretError::FieldNotFound(first.clone()))?
+                    inherited.get(name).ok_or(InterpretError::FieldNotFound(name.clone()))?
                 } else {
-                    return Err(InterpretError::FieldNotFound(first.clone()));
+                    return Err(InterpretError::FieldNotFound(name.clone()));
                 };
 
                 for layer in &field.parts[1..] {

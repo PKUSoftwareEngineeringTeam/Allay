@@ -3,8 +3,6 @@
 use allay_base::{data::AllayDataError, file::FileError};
 use thiserror::Error;
 
-use crate::ast::GetField;
-
 /// Errors that can occur during parsing.
 #[derive(Debug, Error)]
 pub enum ParseError {
@@ -35,7 +33,7 @@ pub enum InterpretError {
 
     /// Field not found in the data
     #[error("Field not found: {0:?}")]
-    FieldNotFound(GetField),
+    FieldNotFound(String),
 
     /// Index out of bounds when accessing a list
     #[error("Index out of bounds: {0}")]
