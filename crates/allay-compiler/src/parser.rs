@@ -1,6 +1,5 @@
-use crate::CompileResult;
 use crate::ast::*;
-use crate::error::CompileError;
+use crate::{ParseError, ParseResult};
 use itertools::Itertools;
 use pest::Parser;
 use pest::iterators::Pair;
@@ -11,28 +10,23 @@ use pest_derive::Parser;
 #[grammar = "allay.pest"]
 struct TemplateParser;
 
-pub(crate) fn parse_template(source: &str) -> Result<File, CompileError> {
+pub(crate) fn parse_template(source: &str) -> ParseResult<File> {
     let tokens = TemplateParser::parse(Rule::file, source).map_err(Box::new)?.next().unwrap();
     File::build(tokens)
 }
 
+const REPORT_BUG_MSG: &str = "This is a bug of AST parser, please report it to the developers on \
+https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace.";
+
 macro_rules! parser_unreachable {
     () => {
-        unreachable!(
-            "This is a bug of AST parser, please report it to the developers on \
-            https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."
-        )
+        unreachable!("{}", REPORT_BUG_MSG)
     };
 }
 
 macro_rules! parser_unwarp {
     ($expr: expr) => {
-        $expr.unwrap_or_else(|| {
-            unreachable!(
-                "This is a bug of AST parser, please report it to the developers on \
-                https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."
-            )
-        })
+        $expr.unwrap_or_else(|| unreachable!("{}", REPORT_BUG_MSG))
     };
 }
 
@@ -40,24 +34,18 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwarp!(pair.into_inner().next())
 }
 
-trait ASTBuilder {
-    type Output;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Self::Output>;
+trait ASTBuilder: Sized {
+    fn build(pair: Pair<Rule>) -> ParseResult<Self>;
 }
 
 impl ASTBuilder for File {
-    type Output = File;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<File> {
+    fn build(pair: Pair<Rule>) -> ParseResult<File> {
         Ok(File(Template::build(single_inner(pair))?))
     }
 }
 
 impl ASTBuilder for Template {
-    type Output = Template;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Template> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Template> {
         let controls = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
@@ -65,15 +53,13 @@ impl ASTBuilder for Template {
                 Rule::EOI => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<Result<Vec<Control>, CompileError>>()?;
+            .collect::<ParseResult<Vec<Control>>>()?;
         Ok(Template { controls })
     }
 }
 
 impl ASTBuilder for Control {
-    type Output = Control;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Control> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Control> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::text => Ok(Control::Text(inner.as_str().to_string())),
@@ -86,9 +72,7 @@ impl ASTBuilder for Control {
 }
 
 impl ASTBuilder for ShortCode {
-    type Output = ShortCode;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<ShortCode> {
+    fn build(pair: Pair<Rule>) -> ParseResult<ShortCode> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::single_short_code => Ok(ShortCode::Single(SingleShortCode::build(inner)?)),
@@ -103,9 +87,7 @@ fn get_inner_str(pair: Pair<Rule>) -> String {
 }
 
 impl ASTBuilder for SingleShortCode {
-    type Output = SingleShortCode;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<SingleShortCode> {
+    fn build(pair: Pair<Rule>) -> ParseResult<SingleShortCode> {
         let mut name = String::new();
         let mut parameters = vec![];
         for inner in pair.into_inner() {
@@ -124,9 +106,7 @@ impl ASTBuilder for SingleShortCode {
 }
 
 impl ASTBuilder for BlockShortCode {
-    type Output = BlockShortCode;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<BlockShortCode> {
+    fn build(pair: Pair<Rule>) -> ParseResult<BlockShortCode> {
         let mut name = String::new();
         let mut end_name = String::new();
         let mut parameters = vec![];
@@ -151,7 +131,7 @@ impl ASTBuilder for BlockShortCode {
         }
 
         if name != end_name {
-            return Err(CompileError::ShortCodeInconsistent(name));
+            return Err(ParseError::ShortCodeInconsistent(name));
         }
 
         Ok(BlockShortCode {
@@ -163,9 +143,7 @@ impl ASTBuilder for BlockShortCode {
 }
 
 impl ASTBuilder for Command {
-    type Output = Command;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Command> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Command> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::set_command => Ok(Command::Set(SetCommand::build(inner)?)),
@@ -179,9 +157,7 @@ impl ASTBuilder for Command {
 }
 
 impl ASTBuilder for SetCommand {
-    type Output = SetCommand;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<SetCommand> {
+    fn build(pair: Pair<Rule>) -> ParseResult<SetCommand> {
         let mut name = String::new();
         let mut value = None;
 
@@ -206,9 +182,7 @@ impl ASTBuilder for SetCommand {
 }
 
 impl ASTBuilder for ForCommand {
-    type Output = ForCommand;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<ForCommand> {
+    fn build(pair: Pair<Rule>) -> ParseResult<ForCommand> {
         let mut item_name = String::new();
         let mut index_name = None;
         let mut list = None;
@@ -252,9 +226,7 @@ impl ASTBuilder for ForCommand {
 }
 
 impl ASTBuilder for WithCommand {
-    type Output = WithCommand;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<WithCommand> {
+    fn build(pair: Pair<Rule>) -> ParseResult<WithCommand> {
         let mut scope = None;
         let mut inner_template = None;
 
@@ -287,9 +259,7 @@ impl ASTBuilder for WithCommand {
 }
 
 impl ASTBuilder for IfCommand {
-    type Output = IfCommand;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<IfCommand> {
+    fn build(pair: Pair<Rule>) -> ParseResult<IfCommand> {
         let mut condition = None;
         let mut inner_template = None;
         let mut else_inner_template = None;
@@ -332,9 +302,7 @@ impl ASTBuilder for IfCommand {
 }
 
 impl ASTBuilder for IncludeCommand {
-    type Output = IncludeCommand;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<IncludeCommand> {
+    fn build(pair: Pair<Rule>) -> ParseResult<IncludeCommand> {
         let mut path = String::new();
         let mut parameters = vec![];
 
@@ -356,9 +324,7 @@ impl ASTBuilder for IncludeCommand {
 }
 
 impl ASTBuilder for Substitution {
-    type Output = Substitution;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Substitution> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Substitution> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::get_substitution => {
@@ -387,17 +353,13 @@ impl ASTBuilder for Substitution {
 }
 
 impl ASTBuilder for Expression {
-    type Output = Expression;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Expression> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Expression> {
         Ok(Expression(Or::build(single_inner(pair))?))
     }
 }
 
 impl ASTBuilder for Or {
-    type Output = Or;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Or> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Or> {
         let ands = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
@@ -405,15 +367,13 @@ impl ASTBuilder for Or {
                 Rule::logic_and => Some(And::build(item)),
                 _ => parser_unreachable!(),
             })
-            .collect::<Result<Vec<And>, CompileError>>()?;
+            .collect::<ParseResult<Vec<And>>>()?;
         Ok(Or(ands))
     }
 }
 
 impl ASTBuilder for And {
-    type Output = And;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<And> {
+    fn build(pair: Pair<Rule>) -> ParseResult<And> {
         let cmps = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
@@ -421,15 +381,13 @@ impl ASTBuilder for And {
                 Rule::logic_and => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<Result<Vec<Comparison>, CompileError>>()?;
+            .collect::<ParseResult<Vec<Comparison>>>()?;
         Ok(And(cmps))
     }
 }
 
 impl ASTBuilder for Comparison {
-    type Output = Comparison;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Comparison> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Comparison> {
         let mut left = None;
         let mut operator = None;
         let mut right = None;
@@ -466,9 +424,7 @@ impl ASTBuilder for Comparison {
 }
 
 impl ASTBuilder for AddSub {
-    type Output = AddSub;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<AddSub> {
+    fn build(pair: Pair<Rule>) -> ParseResult<AddSub> {
         let mut inner = pair.into_inner();
         let left = MulDiv::build(parser_unwarp!(inner.next()))?;
         let rights = inner
@@ -482,16 +438,14 @@ impl ASTBuilder for AddSub {
                 let val = MulDiv::build(val_pair)?;
                 Ok((op, val))
             })
-            .collect::<Result<Vec<_>, CompileError>>()?;
+            .collect::<ParseResult<Vec<_>>>()?;
 
         Ok(AddSub { left, rights })
     }
 }
 
 impl ASTBuilder for MulDiv {
-    type Output = MulDiv;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<MulDiv> {
+    fn build(pair: Pair<Rule>) -> ParseResult<MulDiv> {
         let mut inner = pair.into_inner();
         let left = Unary::build(parser_unwarp!(inner.next()))?;
         let rights = inner
@@ -506,16 +460,14 @@ impl ASTBuilder for MulDiv {
                 let val = Unary::build(val_pair)?;
                 Ok((op, val))
             })
-            .collect::<Result<Vec<_>, CompileError>>()?;
+            .collect::<ParseResult<Vec<_>>>()?;
 
         Ok(MulDiv { left, rights })
     }
 }
 
 impl ASTBuilder for Unary {
-    type Output = Unary;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Unary> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Unary> {
         let mut inner = pair.into_inner();
         if inner.len() == 1 {
             Ok(Unary::Primary(Primary::build(inner.next().unwrap())?))
@@ -535,9 +487,7 @@ impl ASTBuilder for Unary {
 }
 
 impl ASTBuilder for Primary {
-    type Output = Primary;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Primary> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Primary> {
         let item = single_inner(pair);
         match item.as_rule() {
             Rule::field => Ok(Primary::Field(Field::build(item)?)),
@@ -546,7 +496,7 @@ impl ASTBuilder for Primary {
                 let num = item
                     .as_str()
                     .parse::<i32>()
-                    .map_err(|e| CompileError::InvalidNumber(item.as_str().to_string(), e))?;
+                    .map_err(|e| ParseError::InvalidNumber(item.as_str().to_string(), e))?;
                 Ok(Primary::Number(num))
             }
             Rule::string => Ok(Primary::String(item.as_str().to_string())),
@@ -565,9 +515,7 @@ impl ASTBuilder for Primary {
 }
 
 impl ASTBuilder for Field {
-    type Output = Field;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<Field> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Field> {
         let inner = pair.into_inner();
         let mut top_level = None;
         let mut get_fields = vec![];
@@ -592,16 +540,14 @@ impl ASTBuilder for Field {
 }
 
 impl ASTBuilder for GetField {
-    type Output = GetField;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<GetField> {
+    fn build(pair: Pair<Rule>) -> ParseResult<GetField> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::number => {
                 let idx = inner
                     .as_str()
                     .parse::<i32>()
-                    .map_err(|e| CompileError::InvalidNumber(inner.as_str().to_string(), e))?;
+                    .map_err(|e| ParseError::InvalidNumber(inner.as_str().to_string(), e))?;
                 Ok(GetField::Index(idx))
             }
             Rule::identifier => Ok(GetField::Name(inner.as_str().to_string())),
@@ -611,9 +557,7 @@ impl ASTBuilder for GetField {
 }
 
 impl ASTBuilder for TopLevel {
-    type Output = TopLevel;
-
-    fn build(pair: Pair<Rule>) -> CompileResult<TopLevel> {
+    fn build(pair: Pair<Rule>) -> ParseResult<TopLevel> {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::this => Ok(TopLevel::This),
@@ -627,8 +571,8 @@ impl ASTBuilder for TopLevel {
 #[cfg(test)]
 mod tests {
     use super::parse_template;
+    use crate::ParseError;
     use crate::ast::*;
-    use crate::error::CompileError;
 
     #[test]
     fn test_parse_only_text() {
@@ -698,7 +642,7 @@ mod tests {
 
         let err = ast.err().unwrap();
         match err {
-            CompileError::ShortCodeInconsistent(name) => {
+            ParseError::ShortCodeInconsistent(name) => {
                 assert_eq!(name, "my_shortcode".to_string());
             }
             _ => panic!("Expected ShortCodeInconsistent error"),

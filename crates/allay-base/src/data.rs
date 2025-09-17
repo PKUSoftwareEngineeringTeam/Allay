@@ -41,12 +41,11 @@ pub type DataResult<T> = Result<T, AllayDataError>;
 pub type AllayList = Vec<AllayData>;
 pub type AllayObject = HashMap<String, AllayData>;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AllayData {
     String(String),
     Int(i64),
-    Float(f64),
     Bool(bool),
     List(AllayList),
     Object(AllayObject),
@@ -104,10 +103,6 @@ impl AllayData {
         matches!(self, AllayData::Int(_))
     }
 
-    pub fn is_float(&self) -> bool {
-        matches!(self, AllayData::Float(_))
-    }
-
     pub fn is_bool(&self) -> bool {
         matches!(self, AllayData::Bool(_))
     }
@@ -137,14 +132,6 @@ impl AllayData {
             Ok(*i)
         } else {
             Err(AllayDataError::TypeConversion("not an integer".to_string()))
-        }
-    }
-
-    pub fn as_float(&self) -> DataResult<f64> {
-        match self {
-            AllayData::Float(f) => Ok(*f),
-            AllayData::Int(i) => Ok(*i as f64),
-            _ => Err(AllayDataError::TypeConversion("not a float".to_string())),
         }
     }
 
@@ -194,7 +181,6 @@ impl fmt::Display for AllayData {
         match self {
             AllayData::String(s) => write!(f, "{}", s),
             AllayData::Int(i) => write!(f, "{}", i),
-            AllayData::Float(fl) => write!(f, "{}", fl),
             AllayData::Bool(b) => write!(f, "{}", b),
             AllayData::List(list) => {
                 write!(f, "[")?;
@@ -242,18 +228,6 @@ impl From<i32> for AllayData {
 impl From<i64> for AllayData {
     fn from(i: i64) -> Self {
         AllayData::Int(i)
-    }
-}
-
-impl From<f32> for AllayData {
-    fn from(f: f32) -> Self {
-        AllayData::Float(f as f64)
-    }
-}
-
-impl From<f64> for AllayData {
-    fn from(f: f64) -> Self {
-        AllayData::Float(f)
     }
 }
 

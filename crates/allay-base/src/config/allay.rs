@@ -11,7 +11,7 @@ pub struct AllayConfig {
     pub content: ContentConfig,
     pub publish: PublishConfig,
     pub statics: StaticConfig,
-    pub template: TemplateConfig,
+    pub shortcode: ShortcodeConfig,
     pub theme: ThemeConfig,
     pub log: LogConfig,
 }
@@ -51,20 +51,26 @@ pub struct StaticConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeConfig {
     pub dir: String,
     pub default: DefaultThemeConfig,
+    pub template: TemplateConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShortcodeConfig {
+    pub dir: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DefaultThemeConfig {
     pub name: String,
     pub repository: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateConfig {
+    pub dir: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
