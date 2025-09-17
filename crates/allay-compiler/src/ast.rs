@@ -162,7 +162,7 @@ pub enum TopLevel {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GetField {
-    Index(i32),
+    Index(usize),
     Name(String),
 }
 

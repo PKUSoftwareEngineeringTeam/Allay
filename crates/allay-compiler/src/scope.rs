@@ -14,11 +14,8 @@ pub(crate) trait Variable {
     fn get_field_once<'a>(cur: &'a AllayData, layer: &GetField) -> InterpretResult<&'a AllayData> {
         match layer {
             GetField::Index(i) => {
-                if (*i) < 0 {
-                    return Err(InterpretError::IndexOutOfBounds(*i));
-                }
                 let list = cur.as_list()?;
-                list.get(*i as usize).ok_or(InterpretError::IndexOutOfBounds(*i))
+                list.get(*i).ok_or(InterpretError::IndexOutOfBounds(*i))
             }
             GetField::Name(name) => {
                 let obj = cur.as_obj()?;
@@ -29,11 +26,7 @@ pub(crate) trait Variable {
 
     /// Get the field of the element
     fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
-        let mut cur = self.get_data();
-        for f in &field.parts {
-            cur = Self::get_field_once(cur, f)?;
-        }
-        Ok(cur)
+        field.parts.iter().try_fold(self.get_data(), Self::get_field_once)
     }
 
     /// What the element renders to in template
@@ -160,43 +153,28 @@ impl Variable for ThisVar<'_> {
     fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
         // Optimized implementation without using get_data()
         match self.scope {
-            Scope::Local(local) => {
-                let mut cur = local.data;
-                for f in &field.parts {
-                    cur = Self::get_field_once(cur, f)?;
-                }
-                Ok(cur)
-            }
+            Scope::Local(local) => field.parts.iter().try_fold(local.data, Self::get_field_once),
             Scope::Page(page) => {
                 let first = field
                     .parts
                     .first()
                     .ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
 
-                match first {
-                    GetField::Index(_) => {
-                        // Page scope is always an object
-                        Err(InterpretError::DataError(AllayDataError::TypeConversion(
-                            "Page scope is not a list".to_string(),
-                        )))
-                    }
-                    GetField::Name(name) => {
-                        let mut cur = if page.owned.contains_key(name) {
-                            page.owned.get(name).unwrap()
-                        } else if let Some(inherited) = page.inherited {
-                            inherited
-                                .get(name)
-                                .ok_or(InterpretError::FieldNotFound(name.clone()))?
-                        } else {
-                            return Err(InterpretError::FieldNotFound(name.clone()));
-                        };
+                if let GetField::Name(name) = first {
+                    let cur = if page.owned.contains_key(name) {
+                        page.owned.get(name).unwrap()
+                    } else if let Some(inherited) = page.inherited {
+                        inherited.get(name).ok_or(InterpretError::FieldNotFound(name.clone()))?
+                    } else {
+                        return Err(InterpretError::FieldNotFound(name.clone()));
+                    };
 
-                        for layer in &field.parts[1..] {
-                            cur = Self::get_field_once(cur, layer)?;
-                        }
-
-                        Ok(cur)
-                    }
+                    field.parts[1..].iter().try_fold(cur, Self::get_field_once)
+                } else {
+                    // Page scope is always an object
+                    Err(InterpretError::DataError(AllayDataError::TypeConversion(
+                        "Page scope is not a list".to_string(),
+                    )))
                 }
             }
         }

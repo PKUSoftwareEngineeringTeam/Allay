@@ -37,7 +37,7 @@ pub enum InterpretError {
 
     /// Index out of bounds when accessing a list
     #[error("Index out of bounds: {0}")]
-    IndexOutOfBounds(i32),
+    IndexOutOfBounds(usize),
 }
 
 /// The result type for interpreter.
