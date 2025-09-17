@@ -121,7 +121,7 @@ pub(crate) struct LocalScope<'a> {
 /// TODO: Implement it as a singleton
 #[derive(Debug, Clone)]
 pub(crate) struct SiteVar {
-    data: AllayData,
+    pub data: AllayData,
 }
 
 impl Variable for SiteVar {
@@ -133,7 +133,7 @@ impl Variable for SiteVar {
 /// The special variable `this`, which points to the current scope data
 #[derive(Debug, Clone)]
 pub(crate) struct ThisVar<'a> {
-    scope: &'a Scope<'a>,
+    pub scope: &'a Scope<'a>,
     /// the merged data, cached for performance
     /// it is hardly used, except for `{: this :}` expression
     merged: OnceCell<AllayData>,
