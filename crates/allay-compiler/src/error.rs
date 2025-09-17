@@ -10,9 +10,9 @@ pub enum ParseError {
     #[error("Template parsing error: {0}")]
     ParsingError(#[from] Box<pest::error::Error<crate::parse::Rule>>),
 
-    /// Short code is inconsistent, i.e., opening and closing tags do not match.
-    #[error("Short code {0} is inconsistent")]
-    ShortCodeInconsistent(String),
+    /// Shortcode is inconsistent, i.e., opening and closing tags do not match.
+    #[error("Shortcode {0} is inconsistent")]
+    ShortcodeInconsistent(String),
 
     /// Invalid number format.
     #[error("Invalid number: {0}, error: {1}")]

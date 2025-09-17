@@ -9,25 +9,25 @@ pub struct Template {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Control {
     Text(String),
-    ShortCode(ShortCode),
+    Shortcode(Shortcode),
     Command(Command),
     Substitution(Substitution),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ShortCode {
-    Single(SingleShortCode),
-    Block(BlockShortCode),
+pub enum Shortcode {
+    Single(SingleShortcode),
+    Block(BlockShortcode),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SingleShortCode {
+pub struct SingleShortcode {
     pub name: String,
     pub parameters: Vec<Expression>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BlockShortCode {
+pub struct BlockShortcode {
     pub name: String,
     pub parameters: Vec<Expression>,
     pub inner: Template,

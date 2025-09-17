@@ -6,10 +6,8 @@ mod error;
 mod interpret;
 mod parse;
 
-use allay_base::data::{AllayList, AllayObject};
 use allay_base::file;
 pub use error::*;
-use interpret::scope::PageScope;
 use pulldown_cmark::{Parser, html};
 use std::path::Path;
 
@@ -18,15 +16,14 @@ use std::path::Path;
 /// # Arguments
 /// - `source`: The path to the source file (markdown or html)
 /// - `include_dir`: The directory to look for included templates
-/// - `short_code_dir`: The directory to look for shortcodes
-/// - `top_level`: The top level scope for template variables
+/// - `shortcode_dir`: The directory to look for shortcodes
 ///
 /// # Returns
 /// The compiled HTML string or a [`CompileError`]
 pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     source: P,
     include_dir: Q,
-    short_code_dir: R,
+    shortcode_dir: R,
 ) -> CompileResult<String> {
     // read source file, convert to html if source is markdown
     let source_path = source.as_ref();
@@ -43,16 +40,11 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
         return Err(CompileError::FileTypeNotSupported(ext.to_string()));
     };
 
-    // repeatedly compile until no changes
-    // TODO: add data from front-matter etc.
-    let scope = PageScope::new_top(AllayObject::new(), AllayList::new());
-
     loop {
         let (new_content, changed) = driver::compile_once(
             &source_content,
             include_dir.as_ref(),
-            short_code_dir.as_ref(),
-            &scope,
+            shortcode_dir.as_ref(),
         )?;
         if !changed {
             return Ok(new_content);

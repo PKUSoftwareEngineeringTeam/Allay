@@ -2,7 +2,7 @@ This file contains the AST for the Allay template language.
 
 ```
 Template            ::= {Control};
-Control             ::= Text | ShortCode | Command | Substitution;
+Control             ::= Text | Shortcode | Command | Substitution;
 
 Text                ::= /[^{}-]+/;
 
@@ -32,9 +32,9 @@ Field               ::= TopLevel? GetField {GetField};
 BoolLiteral         ::= '#t' | '#f';
 Primary             ::= Field | TopLevel | Number | String | BoolLiteral | '(' Expression ')';
 
-ShortCode           ::= SingleShortCode | BlockShortCode;
-SingleShortCode     ::= '{<' Identifier {Expression} '/>}';
-BlockShortCode      ::= '{<' Identifier {Expression} '>}' Template '{</' Identifier '>}';
+Shortcode           ::= SingleShortcode | BlockShortcode;
+SingleShortcode     ::= '{<' Identifier {Expression} '/>}';
+BlockShortcode      ::= '{<' Identifier {Expression} '>}' Template '{</' Identifier '>}';
 
 Command             ::= SetCommand | ForCommand | WithCommand | IfCommand | IncludeCommand;
 
