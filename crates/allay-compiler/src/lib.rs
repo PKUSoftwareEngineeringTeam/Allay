@@ -3,14 +3,13 @@
 mod ast;
 mod driver;
 mod error;
-mod interpreter;
-mod parser;
-pub mod scope;
+mod interpret;
+mod parse;
 
-use crate::scope::PageScope;
 use allay_base::data::{AllayList, AllayObject};
 use allay_base::file;
 pub use error::*;
+use interpret::scope::PageScope;
 use pulldown_cmark::{Parser, html};
 use std::path::Path;
 

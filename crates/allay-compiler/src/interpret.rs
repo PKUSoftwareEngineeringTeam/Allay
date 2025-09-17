@@ -1,6 +1,9 @@
+pub(crate) mod scope;
+mod var;
+
 use crate::InterpretResult;
 use crate::ast::{self, Control};
-use crate::scope::PageScope;
+use scope::PageScope;
 use std::path::Path;
 
 pub(crate) fn interpret_template(

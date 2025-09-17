@@ -1,9 +1,9 @@
 //! Compiler driver
 
 use crate::CompileResult;
-use crate::interpreter::interpret_template;
-use crate::parser::parse_template;
-use crate::scope::PageScope;
+use crate::interpret::interpret_template;
+use crate::interpret::scope::PageScope;
+use crate::parse::parse_template;
 use std::path::Path;
 
 /// Compile the source code once, return the compiled HTML and a boolean indicating

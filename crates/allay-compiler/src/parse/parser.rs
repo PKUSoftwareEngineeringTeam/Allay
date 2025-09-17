@@ -1,19 +1,8 @@
 use crate::ast::*;
+use crate::parse::Rule;
 use crate::{ParseError, ParseResult};
 use itertools::Itertools;
-use pest::Parser;
 use pest::iterators::Pair;
-use pest_derive::Parser;
-
-/// The template parser using Pest
-#[derive(Parser)]
-#[grammar = "allay.pest"]
-struct TemplateParser;
-
-pub(crate) fn parse_template(source: &str) -> ParseResult<File> {
-    let tokens = TemplateParser::parse(Rule::file, source).map_err(Box::new)?.next().unwrap();
-    File::build(tokens)
-}
 
 const REPORT_BUG_MSG: &str = "This is a bug of AST parser, please report it to the developers on \
 https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace.";
@@ -34,7 +23,7 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwarp!(pair.into_inner().next())
 }
 
-trait ASTBuilder: Sized {
+pub(super) trait ASTBuilder: Sized {
     fn build(pair: Pair<Rule>) -> ParseResult<Self>;
 }
 
@@ -570,9 +559,9 @@ impl ASTBuilder for TopLevel {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_template;
     use crate::ParseError;
     use crate::ast::*;
+    use crate::parse::parse_template;
 
     #[test]
     fn test_parse_only_text() {
