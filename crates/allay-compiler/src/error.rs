@@ -21,7 +21,7 @@ pub enum ParseError {
 
 /// The result type for parsing.
 ///
-/// This is a type alias for [`Result<T, CompileError>`].
+/// This is a type alias for `Result<T, CompileError>`.
 pub type ParseResult<T> = Result<T, ParseError>;
 
 /// Errors that can occur during interpretation.
@@ -42,7 +42,7 @@ pub enum InterpretError {
 
 /// The result type for interpreter.
 ///
-/// This is a type alias for [`Result<T, InterpretError>`]
+/// This is a type alias for `Result<T, InterpretError>`.
 pub type InterpretResult<T> = Result<T, InterpretError>;
 
 /// Errors that can occur during compilation (parsing + interpretation).
@@ -64,5 +64,5 @@ pub enum CompileError {
 
 /// The result type for compilation.
 ///
-/// This is a type alias for [`Result<T, CompileError>`].
+/// This is a type alias for `Result<T, CompileError>`.
 pub type CompileResult<T> = Result<T, CompileError>;
