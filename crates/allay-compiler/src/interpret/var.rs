@@ -1,6 +1,6 @@
 #![allow(dead_code)] // TODO: remove this line when the module is complete
 
-use crate::ast::{Field, GetField};
+use crate::ast::GetField;
 use crate::interpret::scope::{PageScope, Scope};
 use crate::{InterpretError, InterpretResult};
 use allay_base::data::{AllayData, AllayDataError, AllayObject};
@@ -11,8 +11,8 @@ pub(crate) trait Variable {
     fn get_data(&self) -> &AllayData;
 
     /// Utility function to get the field of the element once
-    fn get_field_once<'a>(cur: &'a AllayData, layer: &GetField) -> InterpretResult<&'a AllayData> {
-        match layer {
+    fn get_field_once<'a>(cur: &'a AllayData, field: &GetField) -> InterpretResult<&'a AllayData> {
+        match field {
             GetField::Index(i) => {
                 let list = cur.as_list()?;
                 list.get(*i).ok_or(InterpretError::IndexOutOfBounds(*i))
@@ -25,8 +25,8 @@ pub(crate) trait Variable {
     }
 
     /// Get the field of the element
-    fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
-        field.parts.iter().try_fold(self.get_data(), Self::get_field_once)
+    fn get_field(&self, fields: &Vec<GetField>) -> InterpretResult<&AllayData> {
+        fields.iter().try_fold(self.get_data(), Self::get_field_once)
     }
 
     /// What the element renders to in template
@@ -75,15 +75,13 @@ impl Variable for ThisVar<'_> {
         }
     }
 
-    fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
+    fn get_field(&self, fields: &Vec<GetField>) -> InterpretResult<&AllayData> {
         // Optimized implementation without using get_data()
         match self.scope {
-            Scope::Local(local) => field.parts.iter().try_fold(local.data, Self::get_field_once),
+            Scope::Local(local) => fields.iter().try_fold(local.data, Self::get_field_once),
             Scope::Page(page) => {
-                let first = field
-                    .parts
-                    .first()
-                    .ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
+                let first =
+                    fields.first().ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
 
                 if let GetField::Name(name) = first {
                     let cur = if page.owned.contains_key(name) {
@@ -94,7 +92,7 @@ impl Variable for ThisVar<'_> {
                         return Err(InterpretError::FieldNotFound(name.clone()));
                     };
 
-                    field.parts[1..].iter().try_fold(cur, Self::get_field_once)
+                    fields[1..].iter().try_fold(cur, Self::get_field_once)
                 } else {
                     // Page scope is always an object
                     Err(InterpretError::DataError(AllayDataError::TypeConversion(
