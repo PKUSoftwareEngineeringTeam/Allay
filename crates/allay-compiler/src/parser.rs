@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::error::{ParseError, ParseResult};
+use crate::{ParseError, ParseResult};
 use itertools::Itertools;
 use pest::Parser;
 use pest::iterators::Pair;
@@ -10,7 +10,7 @@ use pest_derive::Parser;
 #[grammar = "allay.pest"]
 struct TemplateParser;
 
-pub(crate) fn parse_template(source: &str) -> Result<File, ParseError> {
+pub(crate) fn parse_template(source: &str) -> ParseResult<File> {
     let tokens = TemplateParser::parse(Rule::file, source).map_err(Box::new)?.next().unwrap();
     File::build(tokens)
 }
@@ -53,7 +53,7 @@ impl ASTBuilder for Template {
                 Rule::EOI => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<Result<Vec<Control>, ParseError>>()?;
+            .collect::<ParseResult<Vec<Control>>>()?;
         Ok(Template { controls })
     }
 }
@@ -367,7 +367,7 @@ impl ASTBuilder for Or {
                 Rule::logic_and => Some(And::build(item)),
                 _ => parser_unreachable!(),
             })
-            .collect::<Result<Vec<And>, ParseError>>()?;
+            .collect::<ParseResult<Vec<And>>>()?;
         Ok(Or(ands))
     }
 }
@@ -381,7 +381,7 @@ impl ASTBuilder for And {
                 Rule::logic_and => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<Result<Vec<Comparison>, ParseError>>()?;
+            .collect::<ParseResult<Vec<Comparison>>>()?;
         Ok(And(cmps))
     }
 }
@@ -438,7 +438,7 @@ impl ASTBuilder for AddSub {
                 let val = MulDiv::build(val_pair)?;
                 Ok((op, val))
             })
-            .collect::<Result<Vec<_>, ParseError>>()?;
+            .collect::<ParseResult<Vec<_>>>()?;
 
         Ok(AddSub { left, rights })
     }
@@ -460,7 +460,7 @@ impl ASTBuilder for MulDiv {
                 let val = Unary::build(val_pair)?;
                 Ok((op, val))
             })
-            .collect::<Result<Vec<_>, ParseError>>()?;
+            .collect::<ParseResult<Vec<_>>>()?;
 
         Ok(MulDiv { left, rights })
     }
@@ -571,8 +571,8 @@ impl ASTBuilder for TopLevel {
 #[cfg(test)]
 mod tests {
     use super::parse_template;
+    use crate::ParseError;
     use crate::ast::*;
-    use crate::error::ParseError;
 
     #[test]
     fn test_parse_only_text() {

@@ -1,6 +1,5 @@
-use crate::ast;
-use crate::ast::Control;
-use crate::error::InterpretResult;
+use crate::InterpretResult;
+use crate::ast::{self, Control};
 use crate::scope::PageScope;
 use std::path::Path;
 

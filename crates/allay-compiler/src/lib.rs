@@ -2,15 +2,15 @@
 
 mod ast;
 mod driver;
-pub mod error;
+mod error;
 mod interpreter;
 mod parser;
 pub mod scope;
 
-use crate::error::{CompileError, CompileResult};
 use crate::scope::PageScope;
-use allay_base::data::AllayObject;
+use allay_base::data::{AllayList, AllayObject};
 use allay_base::file;
+pub use error::*;
 use pulldown_cmark::{Parser, html};
 use std::path::Path;
 
@@ -46,7 +46,7 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
 
     // repeatedly compile until no changes
     // TODO: add data from front-matter etc.
-    let scope = PageScope::new_top(AllayObject::new());
+    let scope = PageScope::new_top(AllayObject::new(), AllayList::new());
 
     loop {
         let (new_content, changed) = driver::compile_once(

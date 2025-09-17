@@ -1,6 +1,6 @@
 //! Compiler driver
 
-use crate::error::CompileResult;
+use crate::CompileResult;
 use crate::interpreter::interpret_template;
 use crate::parser::parse_template;
 use crate::scope::PageScope;

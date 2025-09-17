@@ -2,11 +2,11 @@
 // TODO: May reconstruct the module structure later
 
 use crate::ast::{Field, GetField};
-use crate::error::{InterpretError, InterpretResult};
-use allay_base::data::{AllayData, AllayDataError, AllayObject};
+use crate::{InterpretError, InterpretResult};
+use allay_base::data::{AllayData, AllayDataError, AllayList, AllayObject};
 use std::cell::OnceCell;
 
-pub(crate) trait DataProvider {
+pub(crate) trait Variable {
     /// Get the data of the element
     fn get_data(&self) -> &AllayData;
 
@@ -73,18 +73,9 @@ pub(crate) trait DataProvider {
 /// {- end -}
 /// ```
 #[derive(Debug, Clone)]
-pub(crate) enum TemplateScope<'a> {
+pub(crate) enum Scope<'a> {
     Page(PageScope<'a>),
     Local(LocalScope<'a>),
-}
-
-impl DataProvider for TemplateScope<'_> {
-    fn get_data(&self) -> &AllayData {
-        match self {
-            TemplateScope::Page(page) => page.get_data(),
-            TemplateScope::Local(local) => local.get_data(),
-        }
-    }
 }
 
 /// The top level scope for a page, usually from the parent template or front-matter
@@ -95,72 +86,26 @@ impl DataProvider for TemplateScope<'_> {
 pub(crate) struct PageScope<'a> {
     pub owned: AllayObject,
     pub inherited: Option<&'a AllayObject>,
-    /// the merged data, cached for performance
-    /// it is hardly used, except for `{: this :}` expression
-    merged: OnceCell<AllayData>,
+    pub params: AllayList,
 }
 
 impl PageScope<'_> {
     /// The scope of top level pages with no inherited data.
     /// Usually for the markdown contents
     /// or the magic pages like "index.html" or "404.html"
-    pub fn new_top(data: AllayObject) -> PageScope<'static> {
+    pub fn new_top(data: AllayObject, params: AllayList) -> PageScope<'static> {
         PageScope {
             owned: data,
             inherited: None,
-            merged: OnceCell::new(),
+            params,
         }
     }
 
-    pub fn new(owned: AllayObject, inherited: &AllayObject) -> PageScope<'_> {
+    pub fn new(owned: AllayObject, inherited: &AllayObject, params: AllayList) -> PageScope<'_> {
         PageScope {
             owned,
             inherited: Some(inherited),
-            merged: OnceCell::new(),
-        }
-    }
-}
-
-impl DataProvider for PageScope<'_> {
-    fn get_data(&self) -> &AllayData {
-        self.merged.get_or_init(|| {
-            // Merge inherited and extra data
-            let mut merged = self.inherited.unwrap_or(&AllayObject::new()).clone();
-
-            for (k, v) in self.owned.clone() {
-                merged.insert(k, v);
-            }
-            AllayData::from(merged)
-        })
-    }
-
-    fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
-        // Optimized implementation without using get_data()
-        let first =
-            field.parts.first().ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
-
-        match first {
-            GetField::Index(_) => {
-                // Page scope is always an object
-                Err(InterpretError::DataError(AllayDataError::TypeConversion(
-                    "Page scope is not a list".to_string(),
-                )))
-            }
-            GetField::Name(name) => {
-                let mut cur = if self.owned.contains_key(name) {
-                    self.owned.get(name).unwrap()
-                } else if let Some(inherited) = self.inherited {
-                    inherited.get(name).ok_or(InterpretError::FieldNotFound(name.clone()))?
-                } else {
-                    return Err(InterpretError::FieldNotFound(name.clone()));
-                };
-
-                for layer in &field.parts[1..] {
-                    cur = Self::get_field_once(cur, layer)?;
-                }
-
-                Ok(cur)
-            }
+            params,
         }
     }
 }
@@ -168,14 +113,8 @@ impl DataProvider for PageScope<'_> {
 /// A local scope, usually created by `with` command
 #[derive(Debug, Clone)]
 pub(crate) struct LocalScope<'a> {
-    pub parent: &'a TemplateScope<'a>,
+    pub parent: &'a Scope<'a>,
     pub data: &'a AllayData,
-}
-
-impl DataProvider for LocalScope<'_> {
-    fn get_data(&self) -> &AllayData {
-        self.data
-    }
 }
 
 /// The global site variable, usually from site config
@@ -185,7 +124,7 @@ pub(crate) struct SiteVar {
     data: AllayData,
 }
 
-impl DataProvider for SiteVar {
+impl Variable for SiteVar {
     fn get_data(&self) -> &AllayData {
         &self.data
     }
@@ -194,12 +133,86 @@ impl DataProvider for SiteVar {
 /// The special variable `this`, which points to the current scope data
 #[derive(Debug, Clone)]
 pub(crate) struct ThisVar<'a> {
-    scope: &'a TemplateScope<'a>,
+    scope: &'a Scope<'a>,
+    /// the merged data, cached for performance
+    /// it is hardly used, except for `{: this :}` expression
+    merged: OnceCell<AllayData>,
 }
 
-impl DataProvider for ThisVar<'_> {
+impl Variable for ThisVar<'_> {
     fn get_data(&self) -> &AllayData {
-        self.scope.get_data()
+        match self.scope {
+            Scope::Local(local) => local.data,
+            Scope::Page(page) => {
+                self.merged.get_or_init(|| {
+                    // Merge inherited and extra data
+                    let mut merged = page.inherited.unwrap_or(&AllayObject::new()).clone();
+
+                    for (k, v) in page.owned.clone() {
+                        merged.insert(k, v);
+                    }
+                    AllayData::from(merged)
+                })
+            }
+        }
+    }
+
+    fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
+        // Optimized implementation without using get_data()
+        match self.scope {
+            Scope::Local(local) => {
+                let mut cur = local.data;
+                for f in &field.parts {
+                    cur = Self::get_field_once(cur, f)?;
+                }
+                Ok(cur)
+            }
+            Scope::Page(page) => {
+                let first = field
+                    .parts
+                    .first()
+                    .ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
+
+                match first {
+                    GetField::Index(_) => {
+                        // Page scope is always an object
+                        Err(InterpretError::DataError(AllayDataError::TypeConversion(
+                            "Page scope is not a list".to_string(),
+                        )))
+                    }
+                    GetField::Name(name) => {
+                        let mut cur = if page.owned.contains_key(name) {
+                            page.owned.get(name).unwrap()
+                        } else if let Some(inherited) = page.inherited {
+                            inherited
+                                .get(name)
+                                .ok_or(InterpretError::FieldNotFound(name.clone()))?
+                        } else {
+                            return Err(InterpretError::FieldNotFound(name.clone()));
+                        };
+
+                        for layer in &field.parts[1..] {
+                            cur = Self::get_field_once(cur, layer)?;
+                        }
+
+                        Ok(cur)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The special variable `param`, which is often set by parents
+#[derive(Debug, Clone)]
+pub(crate) struct ParamVar<'a> {
+    pub scope: &'a PageScope<'a>,
+    pub index: usize,
+}
+
+impl Variable for ParamVar<'_> {
+    fn get_data(&self) -> &AllayData {
+        self.scope.params.get(self.index).unwrap_or(&AllayData::Null)
     }
 }
 
@@ -210,7 +223,7 @@ pub(crate) struct LocalVar<'a> {
     pub data: &'a AllayData,
 }
 
-impl DataProvider for LocalVar<'_> {
+impl Variable for LocalVar<'_> {
     fn get_data(&self) -> &AllayData {
         self.data
     }
@@ -222,7 +235,7 @@ pub(crate) struct AnonymousVar<'a> {
     pub data: &'a AllayData,
 }
 
-impl DataProvider for AnonymousVar<'_> {
+impl Variable for AnonymousVar<'_> {
     fn get_data(&self) -> &AllayData {
         self.data
     }
