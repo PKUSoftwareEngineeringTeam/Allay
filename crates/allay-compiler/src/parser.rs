@@ -546,7 +546,7 @@ impl ASTBuilder for GetField {
             Rule::number => {
                 let idx = inner
                     .as_str()
-                    .parse::<i32>()
+                    .parse::<usize>()
                     .map_err(|e| ParseError::InvalidNumber(inner.as_str().to_string(), e))?;
                 Ok(GetField::Index(idx))
             }
