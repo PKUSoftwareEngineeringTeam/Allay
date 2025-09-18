@@ -3,7 +3,7 @@ WHITESPACE = _{ " " | "\t" | "\r" }
 file = { SOI ~ template ~ EOI }
 
 template = { control* }
-control = { text | short_code | command | substitution }
+control = { text | shortcode | command | substitution }
 
 text = { (!("{-" | "{<" | "{:" ) ~ ANY)+ }
 
@@ -34,10 +34,10 @@ field = ${ top_level? ~ get_field+ }
 bool_literal = { "#t" | "#f" }
 primary = { field | top_level | number | string | bool_literal | "(" ~ expression ~ ")" }
 
-short_code = { single_short_code | block_short_code }
-short_code_pattern = ${ identifier ~ WHITESPACE }
-single_short_code = { "{<" ~ short_code_pattern ~ expression* ~ "/>}" }
-block_short_code = { "{<" ~ short_code_pattern ~ expression* ~ ">}" ~ template ~ "{</" ~ identifier ~ ">}" }
+shortcode = { single_shortcode | block_shortcode }
+shortcode_pattern = ${ identifier ~ WHITESPACE }
+single_shortcode = { "{<" ~ shortcode_pattern ~ expression* ~ "/>}" }
+block_shortcode = { "{<" ~ shortcode_pattern ~ expression* ~ ">}" ~ template ~ "{</" ~ identifier ~ ">}" }
 
 command = { set_command | for_command | with_command | if_command | include_command }
 

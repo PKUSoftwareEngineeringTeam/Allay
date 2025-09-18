@@ -1,19 +1,8 @@
 use crate::ast::*;
+use crate::parse::Rule;
 use crate::{ParseError, ParseResult};
 use itertools::Itertools;
-use pest::Parser;
 use pest::iterators::Pair;
-use pest_derive::Parser;
-
-/// The template parser using Pest
-#[derive(Parser)]
-#[grammar = "allay.pest"]
-struct TemplateParser;
-
-pub(crate) fn parse_template(source: &str) -> ParseResult<File> {
-    let tokens = TemplateParser::parse(Rule::file, source).map_err(Box::new)?.next().unwrap();
-    File::build(tokens)
-}
 
 const REPORT_BUG_MSG: &str = "This is a bug of AST parser, please report it to the developers on \
 https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace.";
@@ -34,7 +23,7 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwarp!(pair.into_inner().next())
 }
 
-trait ASTBuilder: Sized {
+pub(super) trait ASTBuilder: Sized {
     fn build(pair: Pair<Rule>) -> ParseResult<Self>;
 }
 
@@ -63,7 +52,7 @@ impl ASTBuilder for Control {
         let inner = single_inner(pair);
         match inner.as_rule() {
             Rule::text => Ok(Control::Text(inner.as_str().to_string())),
-            Rule::short_code => Ok(Control::ShortCode(ShortCode::build(inner)?)),
+            Rule::shortcode => Ok(Control::Shortcode(Shortcode::build(inner)?)),
             Rule::command => Ok(Control::Command(Command::build(inner)?)),
             Rule::substitution => Ok(Control::Substitution(Substitution::build(inner)?)),
             _ => parser_unreachable!(),
@@ -71,12 +60,12 @@ impl ASTBuilder for Control {
     }
 }
 
-impl ASTBuilder for ShortCode {
-    fn build(pair: Pair<Rule>) -> ParseResult<ShortCode> {
+impl ASTBuilder for Shortcode {
+    fn build(pair: Pair<Rule>) -> ParseResult<Shortcode> {
         let inner = single_inner(pair);
         match inner.as_rule() {
-            Rule::single_short_code => Ok(ShortCode::Single(SingleShortCode::build(inner)?)),
-            Rule::block_short_code => Ok(ShortCode::Block(BlockShortCode::build(inner)?)),
+            Rule::single_shortcode => Ok(Shortcode::Single(SingleShortcode::build(inner)?)),
+            Rule::block_shortcode => Ok(Shortcode::Block(BlockShortcode::build(inner)?)),
             _ => parser_unreachable!(),
         }
     }
@@ -86,13 +75,13 @@ fn get_inner_str(pair: Pair<Rule>) -> String {
     single_inner(pair).as_str().to_string()
 }
 
-impl ASTBuilder for SingleShortCode {
-    fn build(pair: Pair<Rule>) -> ParseResult<SingleShortCode> {
+impl ASTBuilder for SingleShortcode {
+    fn build(pair: Pair<Rule>) -> ParseResult<SingleShortcode> {
         let mut name = String::new();
         let mut parameters = vec![];
         for inner in pair.into_inner() {
             match inner.as_rule() {
-                Rule::short_code_pattern => {
+                Rule::shortcode_pattern => {
                     name = get_inner_str(inner);
                 }
                 Rule::expression => {
@@ -101,12 +90,12 @@ impl ASTBuilder for SingleShortCode {
                 _ => parser_unreachable!(),
             }
         }
-        Ok(SingleShortCode { name, parameters })
+        Ok(SingleShortcode { name, parameters })
     }
 }
 
-impl ASTBuilder for BlockShortCode {
-    fn build(pair: Pair<Rule>) -> ParseResult<BlockShortCode> {
+impl ASTBuilder for BlockShortcode {
+    fn build(pair: Pair<Rule>) -> ParseResult<BlockShortcode> {
         let mut name = String::new();
         let mut end_name = String::new();
         let mut parameters = vec![];
@@ -114,7 +103,7 @@ impl ASTBuilder for BlockShortCode {
 
         for inner in pair.into_inner() {
             match inner.as_rule() {
-                Rule::short_code_pattern => {
+                Rule::shortcode_pattern => {
                     name = get_inner_str(inner);
                 }
                 Rule::expression => {
@@ -131,10 +120,10 @@ impl ASTBuilder for BlockShortCode {
         }
 
         if name != end_name {
-            return Err(ParseError::ShortCodeInconsistent(name));
+            return Err(ParseError::ShortcodeInconsistent(name));
         }
 
-        Ok(BlockShortCode {
+        Ok(BlockShortcode {
             name,
             parameters,
             inner: parser_unwarp!(inner_template),
@@ -570,9 +559,9 @@ impl ASTBuilder for TopLevel {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_template;
     use crate::ParseError;
     use crate::ast::*;
+    use crate::parse::parse_template;
 
     #[test]
     fn test_parse_only_text() {
@@ -590,7 +579,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_short_code() {
+    fn test_single_shortcode() {
         let source = "This is a simple text. {< my_shortcode />}";
         let ast = parse_template(source);
         assert!(ast.is_ok());
@@ -601,7 +590,7 @@ mod tests {
             File(Template {
                 controls: vec![
                     Control::Text("This is a simple text.".to_string()),
-                    Control::ShortCode(ShortCode::Single(SingleShortCode {
+                    Control::Shortcode(Shortcode::Single(SingleShortcode {
                         name: "my_shortcode".to_string(),
                         parameters: vec![],
                     })),
@@ -611,7 +600,7 @@ mod tests {
     }
 
     #[test]
-    fn test_block_short_code() {
+    fn test_block_shortcode() {
         let source = "This is a simple text. {< my_shortcode >}Inner content{</ my_shortcode >}";
         let ast = parse_template(source);
         assert!(ast.is_ok());
@@ -622,7 +611,7 @@ mod tests {
             File(Template {
                 controls: vec![
                     Control::Text("This is a simple text.".to_string()),
-                    Control::ShortCode(ShortCode::Block(BlockShortCode {
+                    Control::Shortcode(Shortcode::Block(BlockShortcode {
                         name: "my_shortcode".to_string(),
                         parameters: vec![],
                         inner: Template {
@@ -635,17 +624,17 @@ mod tests {
     }
 
     #[test]
-    fn test_block_short_code_inconsistent() {
+    fn test_block_shortcode_inconsistent() {
         let source = "{< my_shortcode >}Inner content{</ another_shortcode >}";
         let ast = parse_template(source);
         assert!(ast.is_err());
 
         let err = ast.err().unwrap();
         match err {
-            ParseError::ShortCodeInconsistent(name) => {
+            ParseError::ShortcodeInconsistent(name) => {
                 assert_eq!(name, "my_shortcode".to_string());
             }
-            _ => panic!("Expected ShortCodeInconsistent error"),
+            _ => panic!("Expected ShortcodeInconsistent error"),
         }
     }
 

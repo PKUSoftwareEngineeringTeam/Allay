@@ -1,9 +1,9 @@
 #![allow(dead_code)] // TODO: remove this line when the module is complete
-// TODO: May reconstruct the module structure later
 
-use crate::ast::{Field, GetField};
+use crate::ast::GetField;
+use crate::interpret::scope::{PageScope, Scope};
 use crate::{InterpretError, InterpretResult};
-use allay_base::data::{AllayData, AllayDataError, AllayList, AllayObject};
+use allay_base::data::{AllayData, AllayDataError, AllayObject};
 use std::cell::OnceCell;
 
 pub(crate) trait Variable {
@@ -11,8 +11,8 @@ pub(crate) trait Variable {
     fn get_data(&self) -> &AllayData;
 
     /// Utility function to get the field of the element once
-    fn get_field_once<'a>(cur: &'a AllayData, layer: &GetField) -> InterpretResult<&'a AllayData> {
-        match layer {
+    fn get_field_once<'a>(cur: &'a AllayData, field: &GetField) -> InterpretResult<&'a AllayData> {
+        match field {
             GetField::Index(i) => {
                 let list = cur.as_list()?;
                 list.get(*i).ok_or(InterpretError::IndexOutOfBounds(*i))
@@ -25,89 +25,14 @@ pub(crate) trait Variable {
     }
 
     /// Get the field of the element
-    fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
-        field.parts.iter().try_fold(self.get_data(), Self::get_field_once)
+    fn get_field(&self, fields: &[GetField]) -> InterpretResult<&AllayData> {
+        fields.iter().try_fold(self.get_data(), Self::get_field_once)
     }
 
     /// What the element renders to in template
     fn render(&self) -> String {
         self.get_data().to_string()
     }
-}
-
-/// The variable scope for template, organized as a tree like json object
-///
-/// # Example
-/// Current scope:
-/// ```json
-/// {
-///  "title": "Hello, world!",
-///  "author": {
-///    "name": "John Doe",
-///    "age": 30
-///  },
-///  "tags": ["test", "markdown"]
-/// }
-/// ```
-///
-/// Then the template can be like:
-/// ```html
-/// <!-- visit variables by dot notation -->
-/// <h1>{: .title :}</h1>
-///
-/// <!-- use "for" to iterate a list -->
-/// {- for $tag: .tags -}
-/// <span>{: $tag :}</span>
-/// {- end -}
-///
-/// <!-- use "with" to visit a child scope -->
-/// {- with .author -}
-/// <p>Author: {: .name :}, Age: {: .age :}</p>
-/// {- end -}
-/// ```
-#[derive(Debug, Clone)]
-pub(crate) enum Scope<'a> {
-    Page(PageScope<'a>),
-    Local(LocalScope<'a>),
-}
-
-/// The top level scope for a page, usually from the parent template or front-matter
-///
-/// Note: Owned data has higher priority, which means if both inherited and owned have the same key,
-/// the value in extra will be used.
-#[derive(Debug, Clone)]
-pub(crate) struct PageScope<'a> {
-    pub owned: AllayObject,
-    pub inherited: Option<&'a AllayObject>,
-    pub params: AllayList,
-}
-
-impl PageScope<'_> {
-    /// The scope of top level pages with no inherited data.
-    /// Usually for the markdown contents
-    /// or the magic pages like "index.html" or "404.html"
-    pub fn new_top(data: AllayObject, params: AllayList) -> PageScope<'static> {
-        PageScope {
-            owned: data,
-            inherited: None,
-            params,
-        }
-    }
-
-    pub fn new(owned: AllayObject, inherited: &AllayObject, params: AllayList) -> PageScope<'_> {
-        PageScope {
-            owned,
-            inherited: Some(inherited),
-            params,
-        }
-    }
-}
-
-/// A local scope, usually created by `with` command
-#[derive(Debug, Clone)]
-pub(crate) struct LocalScope<'a> {
-    pub parent: &'a Scope<'a>,
-    pub data: &'a AllayData,
 }
 
 /// The global site variable, usually from site config
@@ -150,15 +75,13 @@ impl Variable for ThisVar<'_> {
         }
     }
 
-    fn get_field(&self, field: &Field) -> InterpretResult<&AllayData> {
+    fn get_field(&self, fields: &[GetField]) -> InterpretResult<&AllayData> {
         // Optimized implementation without using get_data()
         match self.scope {
-            Scope::Local(local) => field.parts.iter().try_fold(local.data, Self::get_field_once),
+            Scope::Local(local) => fields.iter().try_fold(local.data, Self::get_field_once),
             Scope::Page(page) => {
-                let first = field
-                    .parts
-                    .first()
-                    .ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
+                let first =
+                    fields.first().ok_or(InterpretError::FieldNotFound("Empty field".into()))?;
 
                 if let GetField::Name(name) = first {
                     let cur = if page.owned.contains_key(name) {
@@ -169,7 +92,7 @@ impl Variable for ThisVar<'_> {
                         return Err(InterpretError::FieldNotFound(name.clone()));
                     };
 
-                    field.parts[1..].iter().try_fold(cur, Self::get_field_once)
+                    fields[1..].iter().try_fold(cur, Self::get_field_once)
                 } else {
                     // Page scope is always an object
                     Err(InterpretError::DataError(AllayDataError::TypeConversion(
