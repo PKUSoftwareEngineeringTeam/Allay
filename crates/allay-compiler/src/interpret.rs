@@ -1,3 +1,4 @@
+mod interpreter;
 mod scope;
 mod traits;
 mod var;

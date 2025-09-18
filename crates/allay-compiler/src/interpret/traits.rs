@@ -74,12 +74,11 @@ pub(crate) trait Variable: DataProvider {
 /// {- end -}
 /// ```
 pub(crate) trait Scope: DataProvider {
-    fn create_this(&self) -> ThisVar<'_>
-    where
-        Self: Sized,
-    {
-        ThisVar::create(self)
-    }
+    fn create_this(&self) -> ThisVar<'_>;
 
-    fn create_local(&mut self, id: String, data: LocalVar);
+    fn create_local_var(&mut self, id: String, data: LocalVar);
+
+    fn create_local(&mut self, id: String, data: Arc<AllayData>) {
+        self.create_local_var(id, LocalVar::create(data));
+    }
 }
