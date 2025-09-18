@@ -1,5 +1,11 @@
 # Developer Documentation
 
+## About Allay Engine
+
+Want to build a beautiful personal blog but don't want to write a lot of HTML and CSS? Allay Engine is
+suit for you. With Allay Engine, all you need is markdown! Allay Engine can automatically translate
+your markdown into HTML based on the theme you choose. Also, Allay Engine is flexible and configurable. You and write your own theme and shortcode.
+
 ## Get Started
 
 ### Step 1: Install Rust Toolchain
@@ -9,8 +15,11 @@ You may need to install some other tools, for example, Microsoft Visual Studio o
 
 > **Note**: Make sure your Rust toolchain is always *latest stable* version. Other versions of Rust
 > may work, but our CI/CD uses the latest stable version, so some checks may fail.
-> 
+>
 > For typical installation of Rust, you can run `rustup update` to update.
+> 
+> If you are a beginner of Rust, see the guide in [Rust book](https://doc.rust-lang.org/book/). You
+> can also read the Chinese translation at [here](https://kaisery.github.io/trpl-zh-cn/), but it may be outdated.
 
 ### Step 2: Be Familiar with the Code Base
 
