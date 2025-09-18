@@ -1,4 +1,5 @@
 mod scope;
+mod traits;
 mod var;
 
 use crate::InterpretResult;
