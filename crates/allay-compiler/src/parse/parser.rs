@@ -556,9 +556,9 @@ impl ASTBuilder for TopLevel {
 
 #[cfg(test)]
 mod tests {
+    use crate::ParseError;
     use crate::ast::*;
     use crate::parse::parse_template;
-    use crate::ParseError;
 
     #[test]
     fn test_parse_only_text() {
@@ -684,7 +684,7 @@ mod tests {
                                 left: Unary {
                                     ops: vec![],
                                     exp: Primary::Field(Field {
-                                        top_level: Some(TopLevel::This),
+                                        top_level: None,
                                         parts: vec![GetField::Name("ref".to_string())],
                                     })
                                 },
