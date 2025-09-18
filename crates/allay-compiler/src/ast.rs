@@ -147,7 +147,7 @@ pub struct Unary {
 pub enum Primary {
     Field(Field),
     TopLevel(TopLevel),
-    Number(i32),
+    Number(u32),
     String(String),
     Boolean(bool),
     Expression(Expression),
