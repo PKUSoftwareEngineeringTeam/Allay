@@ -13,14 +13,14 @@ macro_rules! parser_unreachable {
     };
 }
 
-macro_rules! parser_unwarp {
+macro_rules! parser_unwrap {
     ($expr: expr) => {
         $expr.unwrap_or_else(|| unreachable!("{}", REPORT_BUG_MSG))
     };
 }
 
 fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
-    parser_unwarp!(pair.into_inner().next())
+    parser_unwrap!(pair.into_inner().next())
 }
 
 pub(super) trait ASTBuilder: Sized {
@@ -126,7 +126,7 @@ impl ASTBuilder for BlockShortcode {
         Ok(BlockShortcode {
             name,
             parameters,
-            inner: parser_unwarp!(inner_template),
+            inner: parser_unwrap!(inner_template),
         })
     }
 }
@@ -165,7 +165,7 @@ impl ASTBuilder for SetCommand {
 
         Ok(SetCommand {
             name,
-            value: parser_unwarp!(value),
+            value: parser_unwrap!(value),
         })
     }
 }
@@ -208,8 +208,8 @@ impl ASTBuilder for ForCommand {
         Ok(ForCommand {
             item_name,
             index_name,
-            list: parser_unwarp!(list),
-            inner: parser_unwarp!(inner_template),
+            list: parser_unwrap!(list),
+            inner: parser_unwrap!(inner_template),
         })
     }
 }
@@ -241,8 +241,8 @@ impl ASTBuilder for WithCommand {
         }
 
         Ok(WithCommand {
-            scope: parser_unwarp!(scope),
-            inner: parser_unwarp!(inner_template),
+            scope: parser_unwrap!(scope),
+            inner: parser_unwrap!(inner_template),
         })
     }
 }
@@ -283,8 +283,8 @@ impl ASTBuilder for IfCommand {
         }
 
         Ok(IfCommand {
-            condition: parser_unwarp!(condition),
-            inner: parser_unwarp!(inner_template),
+            condition: parser_unwrap!(condition),
+            inner: parser_unwrap!(inner_template),
             else_inner: else_inner_template,
         })
     }
@@ -406,7 +406,7 @@ impl ASTBuilder for Comparison {
         }
 
         Ok(Comparison {
-            left: parser_unwarp!(left),
+            left: parser_unwrap!(left),
             right: operator.and_then(|op| right.map(|r| (op, r))),
         })
     }
@@ -415,7 +415,7 @@ impl ASTBuilder for Comparison {
 impl ASTBuilder for AddSub {
     fn build(pair: Pair<Rule>) -> ParseResult<AddSub> {
         let mut inner = pair.into_inner();
-        let left = MulDiv::build(parser_unwarp!(inner.next()))?;
+        let left = MulDiv::build(parser_unwrap!(inner.next()))?;
         let rights = inner
             .tuples()
             .map(|(op_pair, val_pair)| {
@@ -436,7 +436,7 @@ impl ASTBuilder for AddSub {
 impl ASTBuilder for MulDiv {
     fn build(pair: Pair<Rule>) -> ParseResult<MulDiv> {
         let mut inner = pair.into_inner();
-        let left = Unary::build(parser_unwarp!(inner.next()))?;
+        let left = Unary::build(parser_unwrap!(inner.next()))?;
         let rights = inner
             .tuples()
             .map(|(op_pair, val_pair)| {
@@ -457,21 +457,18 @@ impl ASTBuilder for MulDiv {
 
 impl ASTBuilder for Unary {
     fn build(pair: Pair<Rule>) -> ParseResult<Unary> {
-        let mut inner = pair.into_inner();
-        if inner.len() == 1 {
-            Ok(Unary::Primary(Primary::build(inner.next().unwrap())?))
-        } else if inner.len() == 2 {
-            let op = match inner.next().unwrap().as_str() {
+        let mut parts: Vec<_> = pair.into_inner().collect();
+        let exp = Primary::build(parser_unwrap!(parts.pop()))?;
+        let ops = parts
+            .into_iter()
+            .map(|op_pair| match op_pair.as_str() {
                 "!" => UnaryOp::Not,
                 "+" => UnaryOp::Positive,
                 "-" => UnaryOp::Negative,
                 _ => parser_unreachable!(),
-            };
-            let primary = Primary::build(inner.next().unwrap())?;
-            Ok(Unary::Unary((op, primary)))
-        } else {
-            parser_unreachable!()
-        }
+            })
+            .collect();
+        Ok(Unary { ops, exp })
     }
 }
 
@@ -484,7 +481,7 @@ impl ASTBuilder for Primary {
             Rule::number => {
                 let num = item
                     .as_str()
-                    .parse::<i32>()
+                    .parse::<u32>()
                     .map_err(|e| ParseError::InvalidNumber(item.as_str().to_string(), e))?;
                 Ok(Primary::Number(num))
             }
@@ -640,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_set_command() {
-        let source = "{- set $my_var = 42 -}";
+        let source = "{- set $my_var = +-42 -}";
         let ast = parse_template(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
@@ -653,7 +650,10 @@ mod tests {
                     value: Expression(Or(vec![And(vec![Comparison {
                         left: AddSub {
                             left: MulDiv {
-                                left: Unary::Primary(Primary::Number(42)),
+                                left: Unary {
+                                    ops: vec![UnaryOp::Positive, UnaryOp::Negative],
+                                    exp: Primary::Number(42)
+                                },
                                 rights: vec![],
                             },
                             rights: vec![],
@@ -681,10 +681,13 @@ mod tests {
                     list: Expression(Or(vec![And(vec![Comparison {
                         left: AddSub {
                             left: MulDiv {
-                                left: Unary::Primary(Primary::Field(Field {
-                                    top_level: None,
-                                    parts: vec![GetField::Name("ref".to_string())],
-                                })),
+                                left: Unary {
+                                    ops: vec![],
+                                    exp: Primary::Field(Field {
+                                        top_level: None,
+                                        parts: vec![GetField::Name("ref".to_string())],
+                                    })
+                                },
                                 rights: vec![],
                             },
                             rights: vec![],
@@ -713,7 +716,10 @@ mod tests {
                     condition: Expression(Or(vec![And(vec![Comparison {
                         left: AddSub {
                             left: MulDiv {
-                                left: Unary::Primary(Primary::Boolean(true)),
+                                left: Unary {
+                                    ops: vec![],
+                                    exp: Primary::Boolean(true)
+                                },
                                 rights: vec![],
                             },
                             rights: vec![],
@@ -747,16 +753,24 @@ mod tests {
                         expr: Expression(Or(vec![And(vec![Comparison {
                             left: AddSub {
                                 left: MulDiv {
-                                    left: Unary::Primary(Primary::Field(Field {
-                                        top_level: Some(TopLevel::Variable("my_var".to_string())),
-                                        parts: vec![GetField::Name("my_field".to_string())],
-                                    })),
+                                    left: Unary {
+                                        ops: vec![],
+                                        exp: Primary::Field(Field {
+                                            top_level: Some(TopLevel::Variable(
+                                                "my_var".to_string()
+                                            )),
+                                            parts: vec![GetField::Name("my_field".to_string())],
+                                        })
+                                    },
                                     rights: vec![],
                                 },
                                 rights: vec![(
                                     AddSubOp::Add,
                                     MulDiv {
-                                        left: Unary::Primary(Primary::Number(1)),
+                                        left: Unary {
+                                            ops: vec![],
+                                            exp: Primary::Number(1),
+                                        },
                                         rights: vec![],
                                     },
                                 )],
@@ -769,34 +783,46 @@ mod tests {
                         expr: Expression(Or(vec![And(vec![Comparison {
                             left: AddSub {
                                 left: MulDiv {
-                                    left: Unary::Primary(Primary::Expression(Expression(Or(
-                                        vec![And(vec![Comparison {
-                                            left: AddSub {
-                                                left: MulDiv {
-                                                    left: Unary::Primary(Primary::Number(1)),
-                                                    rights: vec![],
-                                                },
-                                                rights: vec![(
-                                                    AddSubOp::Add,
-                                                    MulDiv {
-                                                        left: Unary::Primary(Primary::Number(2)),
+                                    left: Unary {
+                                        ops: vec![],
+                                        exp: Primary::Expression(Expression(Or(vec![And(vec![
+                                            Comparison {
+                                                left: AddSub {
+                                                    left: MulDiv {
+                                                        left: Unary {
+                                                            ops: vec![],
+                                                            exp: Primary::Number(1),
+                                                        },
                                                         rights: vec![],
-                                                    }
-                                                )],
+                                                    },
+                                                    rights: vec![(
+                                                        AddSubOp::Add,
+                                                        MulDiv {
+                                                            left: Unary {
+                                                                ops: vec![],
+                                                                exp: Primary::Number(2),
+                                                            },
+                                                            rights: vec![],
+                                                        },
+                                                    )],
+                                                },
+                                                right: None,
                                             },
-                                            right: None,
-                                        }])]
-                                    )))),
+                                        ])]))),
+                                    },
                                     rights: vec![(
                                         MulDivOp::Multiply,
-                                        Unary::Primary(Primary::Number(3)),
+                                        Unary {
+                                            ops: vec![],
+                                            exp: Primary::Number(3),
+                                        },
                                     )],
                                 },
                                 rights: vec![],
                             },
                             right: None,
                         }])])),
-                    }),
+                    })
                 ],
             })
         );
