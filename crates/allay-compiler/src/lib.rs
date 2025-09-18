@@ -46,7 +46,7 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
             include_dir.as_ref(),
             shortcode_dir.as_ref(),
         )?;
-        if !(new_content != source_content) {
+        if new_content == source_content {
             return Ok(new_content);
         }
         source_content = new_content;
