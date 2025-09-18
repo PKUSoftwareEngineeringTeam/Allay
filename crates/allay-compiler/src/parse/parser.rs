@@ -7,7 +7,7 @@ use pest::iterators::Pair;
 const REPORT_BUG_MSG: &str = "This is a bug of AST parser, please report it to the developers on \
 https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace.";
 
-macro_rules! parser_unreachable {
+macro_rules! parser_unreachable { 
     () => {
         unreachable!("{}", REPORT_BUG_MSG)
     };
