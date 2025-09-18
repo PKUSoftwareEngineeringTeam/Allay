@@ -138,9 +138,9 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Unary {
-    Unary((UnaryOp, Primary)),
-    Primary(Primary),
+pub struct Unary {
+    pub ops: Vec<UnaryOp>,
+    pub exp: Primary,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
