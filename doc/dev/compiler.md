@@ -6,7 +6,7 @@ The Allay compiler translates the Allay template language into HTML. It has two 
 
 1. **Parser**: Converts the template source code into an Abstract Syntax Tree (AST). The EBNF grammar
    for the Allay template language is defined in [ast.md](ast.md) and the implementation of the parser
-   in [pest](https://pest.rs/) DSL can be found in [allay.pest](../../crates/allay-compiler/src/allay.pest).
+   in [pest](https://pest.rs/) DSL can be found in [allay.pest](../../crates/allay-compiler/src/parse/allay.pest).
 2. **Interpreter**: Traverses the AST and executes the template logic to produce the final HTML output.
 
 ## Compilation Pipeline
