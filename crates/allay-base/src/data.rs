@@ -95,7 +95,7 @@ impl AllayData {
         Ok(serde_json::to_string(self)?)
     }
 
-    pub fn is_string(&self) -> bool {
+    pub fn is_str(&self) -> bool {
         matches!(self, AllayData::String(_))
     }
 
@@ -119,7 +119,7 @@ impl AllayData {
         matches!(self, AllayData::Null)
     }
 
-    pub fn as_string(&self) -> DataResult<&String> {
+    pub fn as_str(&self) -> DataResult<&String> {
         if let AllayData::String(s) = self {
             Ok(s)
         } else {

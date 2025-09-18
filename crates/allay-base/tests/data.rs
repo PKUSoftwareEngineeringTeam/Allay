@@ -4,7 +4,7 @@ use std::collections::HashMap;
 #[test]
 fn test_basic_types() {
     let string_data = AllayData::from("hello");
-    assert!(string_data.is_string());
+    assert!(string_data.is_str());
 
     let int_data = AllayData::from(42);
     assert!(int_data.is_int());
@@ -40,7 +40,7 @@ fn test_object_operations() {
 #[test]
 fn test_from_traits() {
     let from_str: AllayData = "hello".into();
-    assert!(from_str.is_string());
+    assert!(from_str.is_str());
 
     let from_i32: AllayData = 42.into();
     assert!(from_i32.is_int());
@@ -63,11 +63,11 @@ key4:
     subkey2: 100
 "#;
     let data = AllayData::from_yaml(yaml_str)?;
-    assert_eq!(data.get("key1").unwrap().as_string()?, "value1");
+    assert_eq!(data.get("key1").unwrap().as_str()?, "value1");
     assert_eq!(data.get("key2").unwrap().as_int()?, 42);
     assert_eq!(data.get("key3").unwrap().as_list()?.len(), 3);
     assert_eq!(
-        data.get("key4").unwrap().as_obj()?.get("subkey1").unwrap().as_string()?,
+        data.get("key4").unwrap().as_obj()?.get("subkey1").unwrap().as_str()?,
         "subvalue1"
     );
 
@@ -84,10 +84,10 @@ subkey1 = "subvalue1"
 subkey2 = 100
 "#;
     let data = AllayData::from_toml(toml_str)?;
-    assert_eq!(data.get("key1").unwrap().as_string()?, "value1");
+    assert_eq!(data.get("key1").unwrap().as_str()?, "value1");
     assert_eq!(data.get("key2").unwrap().as_list()?.len(), 3);
     assert_eq!(
-        data.get("key3").unwrap().as_obj()?.get("subkey1").unwrap().as_string()?,
+        data.get("key3").unwrap().as_obj()?.get("subkey1").unwrap().as_str()?,
         "subvalue1"
     );
     Ok(())
