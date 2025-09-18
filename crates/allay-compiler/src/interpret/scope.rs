@@ -45,7 +45,7 @@ impl PageScope<'_> {
 }
 
 impl DataProvider for PageScope<'_> {
-    /// Warning: Directly access `this` in page scope is not recommended, 
+    /// Warning: Directly access `this` in page scope is not recommended,
     /// because it requires merging the data, which is not efficient.
     /// Access field directly by [`Self::get_field`] instead as much as possible.
     fn get_data(&self) -> &AllayData {
