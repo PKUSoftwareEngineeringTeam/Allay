@@ -41,12 +41,12 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     };
 
     loop {
-        let (new_content, changed) = driver::compile_once(
+        let new_content = driver::compile_once(
             &source_content,
             include_dir.as_ref(),
             shortcode_dir.as_ref(),
         )?;
-        if !changed {
+        if !(new_content != source_content) {
             return Ok(new_content);
         }
         source_content = new_content;
