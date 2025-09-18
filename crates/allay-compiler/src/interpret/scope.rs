@@ -11,9 +11,6 @@ use allay_base::data::{AllayData, AllayDataError, AllayList, AllayObject};
 ///
 /// Note: Owned data has higher priority, which means if both inherited and owned have the same key,
 /// the value in extra will be used.
-/// 
-/// Warning: Directly access `this` in page scope is not recommended, because it requires merging the data,
-/// which is not efficient. Access field directly by `get_field` instead as much as possible.
 #[derive(Clone, Debug)]
 pub(crate) struct PageScope<'a> {
     pub owned: AllayObject,
@@ -49,6 +46,8 @@ impl PageScope<'_> {
 }
 
 impl DataProvider for PageScope<'_> {
+    /// Warning: Directly access `this` in page scope is not recommended, because it requires merging the data,
+    /// which is not efficient. Access field directly by `get_field` instead as much as possible.
     fn get_data(&self) -> &AllayData {
         self.merged.get_or_init(|| {
             // Merge inherited and extra data
