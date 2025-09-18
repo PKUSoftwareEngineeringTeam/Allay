@@ -25,7 +25,7 @@ pub(crate) trait Variable {
     }
 
     /// Get the field of the element
-    fn get_field(&self, fields: &Vec<GetField>) -> InterpretResult<&AllayData> {
+    fn get_field(&self, fields: &[GetField]) -> InterpretResult<&AllayData> {
         fields.iter().try_fold(self.get_data(), Self::get_field_once)
     }
 
@@ -75,7 +75,7 @@ impl Variable for ThisVar<'_> {
         }
     }
 
-    fn get_field(&self, fields: &Vec<GetField>) -> InterpretResult<&AllayData> {
+    fn get_field(&self, fields: &[GetField]) -> InterpretResult<&AllayData> {
         // Optimized implementation without using get_data()
         match self.scope {
             Scope::Local(local) => fields.iter().try_fold(local.data, Self::get_field_once),
