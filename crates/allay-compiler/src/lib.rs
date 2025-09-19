@@ -28,7 +28,7 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     // read source file, convert to html if source is markdown
     let source_path = source.as_ref();
     let source_content = file::read_file_string(source_path)?;
-    let ext = source_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let ext = source_path.extension().and_then(|s| s.to_str()).unwrap_or_default();
 
     let mut source_content = if ext == "md" {
         let mut html_output = String::new();
