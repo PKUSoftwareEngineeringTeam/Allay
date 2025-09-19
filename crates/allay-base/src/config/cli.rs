@@ -1,6 +1,6 @@
 pub use clap::Parser;
 use clap::{Args, Subcommand};
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 // NOTE: The doc comments here will be used by clap for the CLI help messages
 
@@ -23,7 +23,10 @@ pub struct AllayCLI {
     pub command: CLICommand,
 }
 
-pub static CLI_CONFIG: LazyLock<AllayCLI> = LazyLock::new(AllayCLI::parse);
+pub fn get_cli_config() -> &'static AllayCLI {
+    static INSTANCE: OnceLock<AllayCLI> = OnceLock::new();
+    INSTANCE.get_or_init(AllayCLI::parse)
+}
 
 #[derive(Subcommand, Debug)]
 pub enum CLICommand {

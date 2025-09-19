@@ -1,15 +1,16 @@
+use allay_base::config::get_allay_config;
+
 use crate::listener::{FileMapper, FilePublisher};
-use allay_base::config::ALLAY_CONFIG;
 
 pub struct StaticPublisher;
 
 impl FileMapper for StaticPublisher {
     fn src_root() -> String {
-        ALLAY_CONFIG.statics.dir.clone()
+        get_allay_config().statics.dir.clone()
     }
 
     fn dest_root() -> String {
-        ALLAY_CONFIG.publish.dir.clone()
+        get_allay_config().publish.dir.clone()
     }
 }
 
