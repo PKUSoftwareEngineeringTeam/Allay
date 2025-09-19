@@ -84,13 +84,13 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     /// Check if a point is a root (no dependencies)
     /// Returns true if the point does not exist in the graph
     pub fn is_root(&self, point: &T) -> bool {
-        self.depended_by(point).map_or(true, |deps| deps.is_empty())
+        self.depended_by(point).is_none_or(|deps| deps.is_empty())
     }
 
     /// Check if a point is a leaf (no dependents)
     /// Returns true if the point does not exist in the graph
     pub fn is_leaf(&self, point: &T) -> bool {
-        self.depends_on(point).map_or(true, |deps| deps.is_empty())
+        self.depends_on(point).is_none_or(|deps| deps.is_empty())
     }
 
     /// Create a new dependency line
@@ -173,11 +173,11 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
                 return true;
             }
 
-            if visited.insert(current.clone()) {
-                if let Some(dependencies) = self.depends_on(&current) {
-                    for dep in dependencies {
-                        stack.push(dep.clone());
-                    }
+            if visited.insert(current.clone())
+                && let Some(dependencies) = self.depends_on(&current)
+            {
+                for dep in dependencies {
+                    stack.push(dep.clone());
                 }
             }
         }
