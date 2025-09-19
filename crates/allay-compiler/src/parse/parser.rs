@@ -15,7 +15,7 @@ macro_rules! parser_unreachable {
 macro_rules! parser_unwrap {
     ($expr: expr) => {
         $expr.unwrap_or_else(|| parser_unreachable!())
-    }
+    };
 }
 
 fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
