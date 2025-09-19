@@ -1,36 +1,31 @@
 use allay_base::file;
 use allay_compiler::compile;
-use std::{path::PathBuf, sync::OnceLock};
+use std::path::PathBuf;
 use tempfile::{TempDir, tempdir};
 
-fn test_temp_dir() -> &'static TempDir {
-    static TEMP_DIR: OnceLock<TempDir> = OnceLock::new();
-    TEMP_DIR.get_or_init(|| tempdir().unwrap())
-}
-
-fn create_include_dir() -> PathBuf {
-    let include_dir = test_temp_dir().path().join("includes");
-    file::create_dir_if_not_exists(&include_dir).unwrap();
+fn create_include_dir(temp_dir: &TempDir) -> PathBuf {
+    let include_dir = temp_dir.path().join("includes");
+    file::create_dir_recursively(&include_dir).unwrap();
     include_dir
 }
 
-fn create_shortcode_dir() -> PathBuf {
-    let shortcode_dir = test_temp_dir().path().join("shortcodes");
-    file::create_dir_if_not_exists(&shortcode_dir).unwrap();
+fn create_shortcode_dir(temp_dir: &TempDir) -> PathBuf {
+    let shortcode_dir = temp_dir.path().join("shortcodes");
+    file::create_dir_recursively(&shortcode_dir).unwrap();
     shortcode_dir
 }
 
-fn create_test_file(filename: &str, content: &str) -> PathBuf {
-    let dir = test_temp_dir();
-    let file_path = dir.path().join(filename);
+fn create_test_file(temp_dir: &TempDir, filename: &str, content: &str) -> PathBuf {
+    let file_path = temp_dir.path().join(filename);
     file::write_file(&file_path, content).unwrap();
     file_path
 }
 
 fn get_compile_res(content: &str) -> String {
-    let include_dir = create_include_dir();
-    let shortcode_dir = create_shortcode_dir();
-    let source = create_test_file("test.md", content);
+    let temp_dir = tempdir().unwrap();
+    let include_dir = create_include_dir(&temp_dir);
+    let shortcode_dir = create_shortcode_dir(&temp_dir);
+    let source = create_test_file(&temp_dir, "test.md", content);
     compile(source, include_dir, shortcode_dir).unwrap()
 }
 
