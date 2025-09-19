@@ -405,7 +405,7 @@ impl Interpretable for Unary {
                     UnaryOp::Positive => {}
                     UnaryOp::Negative => acc = -acc,
                     UnaryOp::Not => {
-                        return Err(converse_error("not an integer".into()));
+                        return Err(converse_error("not a boolean".into()));
                     }
                 }
             }
@@ -415,7 +415,7 @@ impl Interpretable for Unary {
             for op in self.ops.iter().rev() {
                 match op {
                     UnaryOp::Positive | UnaryOp::Negative => {
-                        return Err(converse_error("not a boolean".into()));
+                        return Err(converse_error("not an integer".into()));
                     }
                     UnaryOp::Not => bool = !bool,
                 }
