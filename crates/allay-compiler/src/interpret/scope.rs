@@ -1,11 +1,10 @@
 #![allow(dead_code)] // TODO: remove this line when the module is complete
 
-use std::cell::OnceCell;
-
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Scope, get_field_once};
 use crate::{InterpretError, InterpretResult};
 use allay_base::data::{AllayData, AllayDataError, AllayList, AllayObject};
+use std::cell::OnceCell;
 
 /// The top level scope for a page, usually from the parent template or front-matter
 ///
@@ -17,8 +16,8 @@ pub(crate) struct PageScope<'a> {
     pub inherited: Option<&'a AllayObject>,
     pub params: AllayList,
 
-    /// the merged data of `this`, cached for performance
-    /// it is hardly used, except for `{: this :}` expression in page scope
+    /// the merged data of `this`, cached for performance.
+    /// It is hardly used, except for `{: this :}` expression in page scope
     merged: OnceCell<AllayData>,
 }
 
@@ -46,8 +45,9 @@ impl PageScope<'_> {
 }
 
 impl DataProvider for PageScope<'_> {
-    /// Warning: Directly access `this` in page scope is not recommended, because it requires merging the data,
-    /// which is not efficient. Access field directly by `get_field` instead as much as possible.
+    /// Warning: Directly access `this` in page scope is not recommended,
+    /// because it requires merging the data, which is not efficient.
+    /// Access field directly by [`Self::get_field`] instead as much as possible.
     fn get_data(&self) -> &AllayData {
         self.merged.get_or_init(|| {
             // Merge inherited and extra data
