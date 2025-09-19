@@ -41,7 +41,7 @@ pub type DataResult<T> = Result<T, AllayDataError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum RawAllayData {
+enum RawAllayData {
     String(String),
     Int(i64),
     Bool(bool),
