@@ -81,6 +81,4 @@ pub(crate) trait Scope: DataProvider {
     fn create_local(&mut self, id: String, data: Arc<AllayData>) {
         self.create_local_var(id, LocalVar::create(data));
     }
-
-    fn create_local(&mut self, id: String, data: LocalVar);
 }
