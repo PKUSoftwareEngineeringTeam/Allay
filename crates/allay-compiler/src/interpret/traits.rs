@@ -1,23 +1,24 @@
 #![allow(dead_code)] // TODO: remove this line when the module is complete
 
 use crate::ast::GetField;
-use crate::interpret::var::ThisVar;
+use crate::interpret::var::{LocalVar, ThisVar};
 use crate::{InterpretError, InterpretResult};
 use allay_base::data::AllayData;
+use std::sync::Arc;
 
 /// Utility function to get the field of the element once
-pub(crate) fn get_field_once<'a>(
-    cur: &'a AllayData,
+pub(crate) fn get_field_once(
+    cur: Arc<AllayData>,
     field: &GetField,
-) -> InterpretResult<&'a AllayData> {
+) -> InterpretResult<Arc<AllayData>> {
     match field {
         GetField::Index(i) => {
             let list = cur.as_list()?;
-            list.get(*i).ok_or(InterpretError::IndexOutOfBounds(*i))
+            list.get(*i).map(Arc::clone).ok_or(InterpretError::IndexOutOfBounds(*i))
         }
         GetField::Name(name) => {
             let obj = cur.as_obj()?;
-            obj.get(name).ok_or(InterpretError::FieldNotFound(name.clone()))
+            obj.get(name).map(Arc::clone).ok_or(InterpretError::FieldNotFound(name.clone()))
         }
     }
 }
@@ -25,10 +26,10 @@ pub(crate) fn get_field_once<'a>(
 /// A provider of data
 pub(crate) trait DataProvider {
     /// Get the data of the element
-    fn get_data(&self) -> &AllayData;
+    fn get_data(&self) -> Arc<AllayData>;
 
     /// Get the field of the element by a series of field names or indices
-    fn get_field(&self, fields: &[GetField]) -> InterpretResult<&AllayData> {
+    fn get_field(&self, fields: &[GetField]) -> InterpretResult<Arc<AllayData>> {
         fields.iter().try_fold(self.get_data(), get_field_once)
     }
 }
@@ -79,4 +80,6 @@ pub(crate) trait Scope: DataProvider {
     {
         ThisVar::create(self)
     }
+
+    fn create_local(&mut self, id: String, data: LocalVar);
 }

@@ -1,5 +1,6 @@
 use allay_base::data::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 #[test]
 fn test_basic_types() {
@@ -15,25 +16,28 @@ fn test_basic_types() {
 
 #[test]
 fn test_list_operations() {
-    let mut list = AllayData::from(vec![AllayData::from(1), AllayData::from("test")]);
+    let mut list = AllayData::from(AllayList::from([
+        Arc::new(AllayData::from(1)),
+        Arc::new(AllayData::from("test")),
+    ]));
     let list = list.as_list_mut().unwrap();
 
     assert_eq!(list.len(), 2);
-    list.push(AllayData::Bool(true));
+    list.push(Arc::new(AllayData::from(true)));
     assert_eq!(list.len(), 3);
 }
 
 #[test]
 fn test_object_operations() {
     let mut obj = HashMap::new();
-    obj.insert("key1".to_string(), AllayData::from("value1"));
-    obj.insert("key2".to_string(), AllayData::from(42));
+    obj.insert("key1".to_string(), Arc::new(AllayData::from("value1")));
+    obj.insert("key2".to_string(), Arc::new(AllayData::from(42)));
 
     let mut data = AllayData::from(obj);
     let data = data.as_obj_mut().unwrap();
     assert!(data.contains_key("key1"));
 
-    data.insert("key3".to_string(), AllayData::Bool(true));
+    data.insert("key3".to_string(), Arc::new(AllayData::from(true)));
     assert!(data.contains_key("key3"));
 }
 
