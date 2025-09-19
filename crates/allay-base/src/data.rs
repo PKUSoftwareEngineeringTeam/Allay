@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -38,24 +39,52 @@ pub enum AllayDataError {
 
 pub type DataResult<T> = Result<T, AllayDataError>;
 
-pub type AllayList = Vec<AllayData>;
-pub type AllayObject = HashMap<String, AllayData>;
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
+enum RawAllayData {
+    String(String),
+    Int(i64),
+    Bool(bool),
+    List(Vec<RawAllayData>),
+    Object(HashMap<String, RawAllayData>),
+    Null,
+}
+
+impl From<RawAllayData> for AllayData {
+    fn from(raw: RawAllayData) -> Self {
+        match raw {
+            RawAllayData::String(str) => AllayData::String(str),
+            RawAllayData::Int(int) => AllayData::Int(int),
+            RawAllayData::Bool(bool) => AllayData::Bool(bool),
+            RawAllayData::List(list) => {
+                AllayData::List(list.into_iter().map(AllayData::from).map(Arc::new).collect())
+            }
+            RawAllayData::Object(obj) => AllayData::Object(
+                obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect(),
+            ),
+            RawAllayData::Null => AllayData::Null,
+        }
+    }
+}
+
+pub type AllayList = Vec<Arc<AllayData>>;
+pub type AllayObject = HashMap<String, Arc<AllayData>>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AllayData {
     String(String),
     Int(i64),
     Bool(bool),
     List(AllayList),
     Object(AllayObject),
+    #[default]
     Null,
 }
 
 impl AllayData {
     pub fn from_toml(content: &str) -> DataResult<AllayObject> {
-        let data: AllayData = toml::from_str(content)?;
-        match data {
+        let data: RawAllayData = toml::from_str(content)?;
+        match data.into() {
             AllayData::Object(obj) => Ok(obj),
             _ => Err(AllayDataError::TypeConversion(
                 "TOML root is not a table".to_string(),
@@ -64,8 +93,8 @@ impl AllayData {
     }
 
     pub fn from_yaml(content: &str) -> DataResult<AllayObject> {
-        let data: AllayData = serde_yaml::from_str(content)?;
-        match data {
+        let data: RawAllayData = serde_yaml::from_str(content)?;
+        match data.into() {
             AllayData::Object(obj) => Ok(obj),
             _ => Err(AllayDataError::TypeConversion(
                 "YAML root is not an object".to_string(),
@@ -74,25 +103,13 @@ impl AllayData {
     }
 
     pub fn from_json(content: &str) -> DataResult<AllayObject> {
-        let data: AllayData = serde_json::from_str(content)?;
-        match data {
+        let data: RawAllayData = serde_json::from_str(content)?;
+        match data.into() {
             AllayData::Object(obj) => Ok(obj),
             _ => Err(AllayDataError::TypeConversion(
                 "JSON root is not an object".to_string(),
             )),
         }
-    }
-
-    pub fn to_toml(&self) -> DataResult<String> {
-        Ok(toml::to_string(self)?)
-    }
-
-    pub fn to_yaml(&self) -> DataResult<String> {
-        Ok(serde_yaml::to_string(self)?)
-    }
-
-    pub fn to_json(&self) -> DataResult<String> {
-        Ok(serde_json::to_string(self)?)
     }
 
     pub fn is_str(&self) -> bool {
@@ -174,14 +191,30 @@ impl AllayData {
             Err(AllayDataError::TypeConversion("not an object".to_string()))
         }
     }
+
+    pub fn to_list(self) -> DataResult<AllayList> {
+        if let AllayData::List(list) = self {
+            Ok(list)
+        } else {
+            Err(AllayDataError::TypeConversion("not a list".to_string()))
+        }
+    }
+
+    pub fn to_obj(self) -> DataResult<AllayObject> {
+        if let AllayData::Object(obj) = self {
+            Ok(obj)
+        } else {
+            Err(AllayDataError::TypeConversion("not an object".to_string()))
+        }
+    }
 }
 
 impl fmt::Display for AllayData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AllayData::String(s) => write!(f, "{}", s),
-            AllayData::Int(i) => write!(f, "{}", i),
-            AllayData::Bool(b) => write!(f, "{}", b),
+            AllayData::String(str) => write!(f, "{}", str),
+            AllayData::Int(int) => write!(f, "{}", int),
+            AllayData::Bool(bool) => write!(f, "{}", bool),
             AllayData::List(list) => {
                 write!(f, "[")?;
                 for (i, item) in list.iter().enumerate() {
@@ -237,14 +270,14 @@ impl From<bool> for AllayData {
     }
 }
 
-impl<T: Into<AllayData>> From<Vec<T>> for AllayData {
-    fn from(vec: Vec<T>) -> Self {
-        AllayData::List(vec.into_iter().map(|x| x.into()).collect())
+impl From<AllayList> for AllayData {
+    fn from(list: AllayList) -> Self {
+        AllayData::List(list)
     }
 }
 
-impl From<HashMap<String, AllayData>> for AllayData {
-    fn from(obj: HashMap<String, AllayData>) -> Self {
+impl From<AllayObject> for AllayData {
+    fn from(obj: AllayObject) -> Self {
         AllayData::Object(obj)
     }
 }

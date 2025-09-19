@@ -2,20 +2,20 @@
 
 use crate::InterpretResult;
 use crate::ast::GetField;
-use crate::interpret::scope::PageScope;
-use crate::interpret::traits::{DataProvider, Scope, Variable};
-use allay_base::data::AllayData;
+use crate::interpret::traits::{DataProvider, Variable};
+use allay_base::data::{AllayData, AllayList};
+use std::sync::Arc;
 
 /// The global site variable, usually from site config
 /// TODO: Implement it as a singleton
 #[derive(Debug, Clone)]
 pub(crate) struct SiteVar {
-    pub data: AllayData,
+    pub data: Arc<AllayData>,
 }
 
 impl DataProvider for SiteVar {
-    fn get_data(&self) -> &AllayData {
-        &self.data
+    fn get_data(&self) -> Arc<AllayData> {
+        self.data.clone()
     }
 }
 
@@ -24,122 +24,108 @@ impl Variable for SiteVar {}
 /// The special variable `this`, which points to the current scope data
 #[derive(Clone)]
 pub(crate) struct ThisVar<'a> {
-    pub scope: &'a dyn Scope,
+    provider: &'a dyn DataProvider,
 }
 
 impl<'a> ThisVar<'a> {
-    pub fn create(scope: &'a dyn Scope) -> ThisVar<'a> {
-        ThisVar { scope }
+    pub fn create(scope: &'a dyn DataProvider) -> Self {
+        ThisVar { provider: scope }
     }
 }
 
 impl DataProvider for ThisVar<'_> {
-    fn get_data(&self) -> &AllayData {
-        self.scope.get_data()
+    fn get_data(&self) -> Arc<AllayData> {
+        self.provider.get_data()
     }
 
-    fn get_field(&self, fields: &[GetField]) -> InterpretResult<&AllayData> {
-        self.scope.get_field(fields)
+    fn get_field(&self, fields: &[GetField]) -> InterpretResult<Arc<AllayData>> {
+        self.provider.get_field(fields)
     }
 }
 
 impl Variable for ThisVar<'_> {}
 
-/// The special variable `param`, which is often set by parents
-#[derive(Clone, Debug)]
-pub(crate) struct ParamVar<'a> {
-    pub scope: &'a PageScope<'a>,
-    pub index: usize,
+/// The special variable `param`, which is often set by parents.
+/// It is actually an [`AllayList`]` of different parameters
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ParamVar {
+    data: Arc<AllayData>,
 }
 
-impl<'a> ParamVar<'a> {
-    pub fn create(scope: &'a PageScope, index: usize) -> ParamVar<'a> {
-        ParamVar { scope, index }
+impl ParamVar {
+    pub fn create(data: AllayList) -> Self {
+        ParamVar {
+            data: Arc::new(AllayData::List(data)),
+        }
     }
 }
 
-impl DataProvider for ParamVar<'_> {
-    fn get_data(&self) -> &AllayData {
-        self.scope.params.get(self.index).unwrap_or(&AllayData::Null)
+impl DataProvider for ParamVar {
+    fn get_data(&self) -> Arc<AllayData> {
+        self.data.clone()
     }
 }
 
-impl Variable for ParamVar<'_> {}
+impl Variable for ParamVar {}
 
 /// A local variable defined in template, like `for $item: .items`
+/// or the implicit(anonymous) variables
 #[derive(Debug, Clone)]
-pub(crate) struct LocalVar<'a> {
-    pub id: String,
-    pub data: &'a AllayData,
+pub(crate) struct LocalVar {
+    data: Arc<AllayData>,
 }
 
-impl LocalVar<'_> {
-    pub fn create(id: String, data: &AllayData) -> LocalVar<'_> {
-        LocalVar { id, data }
+impl LocalVar {
+    pub fn create(data: Arc<AllayData>) -> Self {
+        LocalVar { data }
     }
 }
 
-impl DataProvider for LocalVar<'_> {
-    fn get_data(&self) -> &AllayData {
-        self.data
+impl DataProvider for LocalVar {
+    fn get_data(&self) -> Arc<AllayData> {
+        self.data.clone()
     }
 }
 
-impl Variable for LocalVar<'_> {}
-
-/// An anonymous variable, used for interpreting expressions
-#[derive(Debug, Clone)]
-pub(crate) struct AnonymousVar<'a> {
-    pub data: &'a AllayData,
-}
-
-impl AnonymousVar<'_> {
-    pub fn create(data: &AllayData) -> AnonymousVar<'_> {
-        AnonymousVar { data }
-    }
-}
-
-impl DataProvider for AnonymousVar<'_> {
-    fn get_data(&self) -> &AllayData {
-        self.data
-    }
-}
-
-impl Variable for AnonymousVar<'_> {}
+impl Variable for LocalVar {}
 
 #[cfg(test)]
 mod tests {
-    use std::sync::LazyLock;
-
-    use crate::interpret::scope::LocalScope;
-
     use super::*;
+    use crate::interpret::{
+        scope::{LocalScope, PageScope},
+        traits::Scope,
+    };
     use allay_base::data::{AllayList, AllayObject};
+    use std::sync::{Arc, LazyLock};
 
-    static PARENT: LazyLock<AllayObject> = LazyLock::new(|| {
-        AllayObject::from([
-            ("author".into(), AllayData::from("Alice")),
-            ("date".into(), AllayData::from("2023-10-01")),
-        ])
+    static PARENT: LazyLock<Arc<AllayObject>> = LazyLock::new(|| {
+        Arc::new(AllayObject::from([
+            ("author".into(), Arc::new(AllayData::from("Alice"))),
+            ("date".into(), Arc::new(AllayData::from("2023-10-01"))),
+        ]))
     });
 
-    fn gen_page_scope() -> PageScope<'static> {
+    fn gen_page_scope() -> PageScope {
         // owned: {"title": "My Page", "tags": ["test", "markdown"]}
         let owned = AllayObject::from([
-            ("title".into(), AllayData::from("My Page")),
+            ("title".into(), Arc::new(AllayData::from("My Page"))),
             (
                 "tags".into(),
-                AllayData::from(AllayList::from([
-                    AllayData::from("test"),
-                    AllayData::from("markdown"),
-                ])),
+                Arc::new(AllayData::from(AllayList::from([
+                    Arc::new(AllayData::from("test")),
+                    Arc::new(AllayData::from("markdown")),
+                ]))),
             ),
         ]);
         // inherited: {"author": "Alice", "date": "2023-10-01"}
         // params: ["param1", 42]
-        let params = AllayList::from([AllayData::from("param1"), AllayData::from(42)]);
+        let params = AllayList::from([
+            Arc::new(AllayData::from("param1")),
+            Arc::new(AllayData::from(42)),
+        ]);
 
-        PageScope::new(owned, &PARENT, params)
+        PageScope::new_from(owned, params, PARENT.clone())
     }
 
     #[test]
@@ -168,10 +154,9 @@ mod tests {
     fn test_local_scope() {
         let scope = gen_page_scope();
         let this = scope.create_this();
-        let local = LocalScope::new(
-            &scope,
+        let local = LocalScope::new(LocalVar::create(
             this.get_field(&[GetField::Name("tags".into())]).unwrap(),
-        );
+        ));
         assert_eq!(local.create_this().get_data().as_list().unwrap().len(), 2);
     }
 }

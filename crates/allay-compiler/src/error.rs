@@ -38,6 +38,10 @@ pub enum InterpretError {
     /// Index out of bounds when accessing a list
     #[error("Index out of bounds: {0}")]
     IndexOutOfBounds(usize),
+
+    /// Variable not found in the scope
+    #[error("Variable not found: {0}")]
+    VariableNotFound(String),
 }
 
 /// The result type for interpreter.
