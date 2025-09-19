@@ -9,13 +9,13 @@ macro_rules! parser_unreachable {
         unreachable!(
             "This is a bug of AST parser, please report it to the developers on https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."
         )
-    };
+    }
 }
 
 macro_rules! parser_unwrap {
     ($expr: expr) => {
         $expr.unwrap_or_else(|| parser_unreachable!())
-    };
+    }
 }
 
 fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
