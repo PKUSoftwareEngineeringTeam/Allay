@@ -29,10 +29,9 @@ pub(crate) struct PageScope {
 }
 
 impl PageScope {
-    pub fn new(owned: AllayObject, params: AllayList) -> PageScope {
+    pub fn new(owned: AllayObject) -> PageScope {
         PageScope {
             owned: Arc::new(owned),
-            param: ParamVar::create(params),
             ..Default::default()
         }
     }
@@ -42,7 +41,8 @@ impl PageScope {
         params: AllayList,
         inherited: Arc<AllayObject>,
     ) -> PageScope {
-        let mut page = PageScope::new(owned, params);
+        let mut page = PageScope::new(owned);
+        page.param = ParamVar::create(params);
         page.inherited = Some(inherited);
         page
     }

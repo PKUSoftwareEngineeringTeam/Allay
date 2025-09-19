@@ -20,10 +20,10 @@ use std::path::Path;
 ///
 /// # Returns
 /// The compiled HTML string or a [`CompileError`]
-pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
+pub fn compile<P: AsRef<Path>>(
     source: P,
-    include_dir: Q,
-    shortcode_dir: R,
+    include_dir: P,
+    shortcode_dir: P,
 ) -> CompileResult<String> {
     // read source file, convert to html if source is markdown
     let source_path = source.as_ref();
@@ -41,11 +41,8 @@ pub fn compile<P: AsRef<Path>, Q: AsRef<Path>, R: AsRef<Path>>(
     };
 
     loop {
-        let new_content = driver::compile_once(
-            &source_content,
-            include_dir.as_ref(),
-            shortcode_dir.as_ref(),
-        )?;
+        let new_content =
+            driver::compile_once(source_content.as_str(), &include_dir, &shortcode_dir)?;
         if new_content == source_content {
             return Ok(new_content);
         }

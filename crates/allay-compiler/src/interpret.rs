@@ -4,22 +4,21 @@ mod traits;
 mod var;
 
 use crate::InterpretResult;
-use crate::ast::{self, Control};
+use crate::ast;
+use crate::interpret::interpreter::{Interpretable, Interpreter};
 use std::path::Path;
 
 /// Interpret the AST and return the rendered HTML string
-pub(crate) fn interpret_template(
+pub(crate) fn interpret_template<P: AsRef<Path>>(
     ast: &ast::File,
-    _include_dir: &Path,
-    _shortcode_dir: &Path,
+    include_dir: P,
+    shortcode_dir: P,
 ) -> InterpretResult<String> {
-    if ast.0.controls.is_empty() {
-        return Ok("".into());
-    }
-    if ast.0.controls.len() == 1
-        && let Control::Text(text) = ast.0.controls.first().unwrap()
-    {
-        return Ok(text.clone());
-    }
-    todo!()
+    let mut intepreter = Interpreter::new(
+        include_dir.as_ref().to_path_buf(),
+        shortcode_dir.as_ref().to_path_buf(),
+    );
+    let mut res = Vec::new();
+    ast.interpret(&mut intepreter, &mut res)?;
+    Ok(res.join(" "))
 }

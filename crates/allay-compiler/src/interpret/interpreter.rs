@@ -5,8 +5,9 @@ use crate::interpret::scope::PageScope;
 use crate::interpret::traits::Variable;
 use crate::interpret::var::LocalVar;
 use crate::{InterpretError, InterpretResult};
-use allay_base::data::AllayData;
 use allay_base::data::AllayDataError;
+use allay_base::data::{AllayData, AllayObject};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 fn converse_error(err: String) -> InterpretError {
@@ -27,30 +28,48 @@ macro_rules! interpret_unwrap {
     };
 }
 
-#[derive(Default)]
-struct Interpreter {
+/// The global Allay interpreter context
+#[derive(Debug)]
+pub(super) struct Interpreter {
     stack: Vec<PageScope>,
+
+    include_dir: PathBuf,
+    shortcode_dir: PathBuf,
 }
 
 impl Interpreter {
+    /// Create a new interpreter with the given include and shortcode directories
+    pub fn new(include_dir: PathBuf, shortcode_dir: PathBuf) -> Interpreter {
+        Interpreter {
+            stack: Vec::new(),
+            include_dir,
+            shortcode_dir,
+        }
+    }
+
+    /// Create a news page subscope
     fn new_page(&mut self, page: PageScope) {
         self.stack.push(page);
     }
 
+    /// Get the current page scope
     fn page(&self) -> &PageScope {
         interpret_unwrap!(self.stack.last())
     }
 
-    fn exit_page(&mut self) -> Option<PageScope> {
-        self.stack.pop()
-    }
-
+    /// Get the current page scope mutably
     fn page_mut(&mut self) -> &mut PageScope {
         interpret_unwrap!(self.stack.last_mut())
     }
+
+    /// Exit the current page scope
+    fn exit_page(&mut self) -> Option<PageScope> {
+        self.stack.pop()
+    }
 }
 
-trait Interpretable {
+/// The main trait for interpreting AST nodes
+pub(super) trait Interpretable {
     /// The output type of the interpretation
     type Output;
 
@@ -67,6 +86,20 @@ trait Interpretable {
         ctx: &mut Interpreter,
         res: &mut Vec<String>,
     ) -> InterpretResult<Self::Output>;
+}
+
+impl Interpretable for File {
+    type Output = ();
+
+    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+        // TODO: pass the real page data here
+        let page = PageScope::new(AllayObject::default());
+
+        ctx.new_page(page);
+        self.0.interpret(ctx, res)?;
+        interpret_unwrap!(ctx.exit_page());
+        Ok(())
+    }
 }
 
 impl Interpretable for Template {
