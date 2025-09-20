@@ -83,4 +83,4 @@ This is a warning message.
 {</ warning >}
 ```
 
-> Shortcode is actually a syntactic sugar for including templates. `{< note "Hello!" />}` is equivalent to `{- include "note" this "Hello" -}`. You can use `include` directly if you prefer.
+> Shortcode is actually a syntactic sugar for including templates. `{< note "Hello!" />}` is equivalent to `{- include "note" this "Hello" -}`. But note that they are not in the same folder.
