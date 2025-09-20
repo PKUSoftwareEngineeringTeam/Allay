@@ -1,12 +1,12 @@
 mod implement;
 pub mod initialize;
 
-use allay_base::config::{AllayCLI, CLI_CONFIG, CLICommand};
+use allay_base::config::{AllayCLI, CLICommand, get_cli_config};
 use implement::*;
 
 pub fn execute() -> anyhow::Result<()> {
     initialize::initialize()?;
-    execute_cli(&CLI_CONFIG)
+    execute_cli(get_cli_config())
 }
 
 pub fn execute_cli(cli: &AllayCLI) -> anyhow::Result<()> {

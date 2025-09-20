@@ -1,6 +1,6 @@
 use config::Config;
 use serde::{Deserialize, Serialize};
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AllayConfig {
@@ -78,25 +78,28 @@ pub struct LogConfig {
     pub dir: String,
 }
 
-fn get_environment() -> Environment {
-    let env = std::env::var("ALLAY_ENV")
-        .unwrap_or_else(|_| "production".into())
-        .to_lowercase();
-    match env.as_str() {
-        "dev" | "development" => Environment::Development,
-        _ => Environment::Production,
-    }
+pub fn get_env() -> &'static Environment {
+    static INSTANCE: OnceLock<Environment> = OnceLock::new();
+
+    INSTANCE.get_or_init(|| {
+        let env = std::env::var("ALLAY_ENV")
+            .unwrap_or_else(|_| "production".into())
+            .to_lowercase();
+        match env.as_str() {
+            "dev" | "development" => Environment::Development,
+            _ => Environment::Production,
+        }
+    })
 }
 
-fn load_allay_config() -> AllayConfig {
-    let config = Config::builder()
-        .add_source(config::File::with_name("config/allay-config.toml"))
-        .build()
-        .unwrap();
+pub fn get_allay_config() -> &'static AllayConfig {
+    static INSTANCE: OnceLock<AllayConfig> = OnceLock::new();
 
-    config.try_deserialize().unwrap()
+    INSTANCE.get_or_init(|| {
+        let config = Config::builder()
+            .add_source(config::File::with_name("config/allay-config.toml"))
+            .build()
+            .unwrap();
+        config.try_deserialize().unwrap()
+    })
 }
-
-// Configs exposed
-pub static ENVRIONMENT: LazyLock<Environment> = LazyLock::new(get_environment);
-pub static ALLAY_CONFIG: LazyLock<AllayConfig> = LazyLock::new(load_allay_config);

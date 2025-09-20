@@ -13,12 +13,13 @@ pub fn init(_args: &InitArgs) -> anyhow::Result<()> {
 #[instrument(name = "initializing the site", skip(_args))]
 pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
     file::create_dir_recursively(file::root())?;
+    let config = get_allay_config();
 
     let dirs = [
-        &ALLAY_CONFIG.content.dir,
-        &ALLAY_CONFIG.publish.dir,
-        &ALLAY_CONFIG.theme.dir,
-        &ALLAY_CONFIG.statics.dir,
+        &config.content.dir,
+        &config.publish.dir,
+        &config.theme.dir,
+        &config.statics.dir,
     ];
 
     for dir_name in dirs {
@@ -27,7 +28,7 @@ pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
 
     file::write_file(file::workspace(SITE_CONFIG_FILE), DEFAULT_SITE_CONFIG)?;
 
-    if !ALLAY_CONFIG.theme.default.repository.is_empty() {
+    if !config.theme.default.repository.is_empty() {
         ask_to_clone_default_theme()?;
     }
 
@@ -40,7 +41,7 @@ pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
 }
 
 fn ask_to_clone_default_theme() -> anyhow::Result<()> {
-    let theme_url = &ALLAY_CONFIG.theme.default.repository;
+    let theme_url = &get_allay_config().theme.default.repository;
 
     let should_clone = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
@@ -60,7 +61,7 @@ fn ask_to_clone_default_theme() -> anyhow::Result<()> {
 }
 
 fn clone_default_theme(url: &str) -> anyhow::Result<()> {
-    let theme_config = &ALLAY_CONFIG.theme;
+    let theme_config = &get_allay_config().theme;
 
     let target_dir = file::workspace(&theme_config.dir).join(&theme_config.default.name);
 
