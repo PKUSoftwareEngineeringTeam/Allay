@@ -2,7 +2,7 @@
 
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Scope, get_field_once};
-use crate::interpret::var::{LocalVar, ParamVar};
+use crate::interpret::var::{LocalVar, ParamVar, ThisVar};
 use crate::{InterpretError, InterpretResult};
 use allay_base::data::{AllayData, AllayDataError, AllayList, AllayObject};
 use std::cell::OnceCell;
@@ -29,10 +29,9 @@ pub(crate) struct PageScope {
 }
 
 impl PageScope {
-    pub fn new(owned: AllayObject, params: AllayList) -> PageScope {
+    pub fn new(owned: AllayObject) -> PageScope {
         PageScope {
             owned: Arc::new(owned),
-            param: ParamVar::create(params),
             ..Default::default()
         }
     }
@@ -42,7 +41,8 @@ impl PageScope {
         params: AllayList,
         inherited: Arc<AllayObject>,
     ) -> PageScope {
-        let mut page = PageScope::new(owned, params);
+        let mut page = PageScope::new(owned);
+        page.param = ParamVar::create(params);
         page.inherited = Some(inherited);
         page
     }
@@ -50,6 +50,10 @@ impl PageScope {
     pub fn create_sub_scope(&mut self, var: LocalVar) -> &mut LocalScope {
         self.sub_stack.push(LocalScope::new(var));
         self.sub_stack.last_mut().unwrap()
+    }
+
+    pub fn exit_sub_scope(&mut self) -> Option<LocalScope> {
+        self.sub_stack.pop()
     }
 
     pub fn cur_scope(&self) -> &dyn Scope {
@@ -129,7 +133,11 @@ impl DataProvider for PageScope {
 }
 
 impl Scope for PageScope {
-    fn create_local(&mut self, id: String, data: LocalVar) {
+    fn create_this(&self) -> ThisVar<'_> {
+        ThisVar::create(self)
+    }
+
+    fn create_local_var(&mut self, id: String, data: LocalVar) {
         self.locals.insert(id, data);
     }
 }
@@ -157,7 +165,11 @@ impl DataProvider for LocalScope {
 }
 
 impl Scope for LocalScope {
-    fn create_local(&mut self, id: String, data: LocalVar) {
+    fn create_this(&self) -> ThisVar<'_> {
+        ThisVar::create(self)
+    }
+
+    fn create_local_var(&mut self, id: String, data: LocalVar) {
         self.locals.insert(id, data);
     }
 }

@@ -43,6 +43,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "pulldown-cmark",
+ "tempfile",
  "thiserror 2.0.16",
 ]
 

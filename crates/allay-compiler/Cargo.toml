@@ -9,5 +9,7 @@ pest = "2.8.2"
 pest_derive = "2.8.2"
 itertools = { workspace = true }
 thiserror = { workspace = true }
-
 allay-base = { path = "../allay-base" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
