@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
@@ -39,7 +40,12 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
         self.depended_by.entry(point).or_default().insert(dependency);
     }
 
-    fn remove_depend_on(&mut self, point: &T, dependent: &T) {
+    fn remove_depend_on<Q, R>(&mut self, point: &Q, dependent: &R)
+    where
+        Q: ?Sized + Eq + Hash,
+        R: ?Sized + Eq + Hash,
+        T: Borrow<Q> + Borrow<R>,
+    {
         if let Some(deps) = self.depends_on.get_mut(point) {
             deps.remove(dependent);
             if deps.is_empty() {
@@ -48,7 +54,12 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
         }
     }
 
-    fn remove_depended_by(&mut self, point: &T, dependency: &T) {
+    fn remove_depended_by<Q, R>(&mut self, point: &Q, dependency: &R)
+    where
+        Q: ?Sized + Eq + Hash,
+        R: ?Sized + Eq + Hash,
+        T: Borrow<Q> + Borrow<R>,
+    {
         if let Some(deps) = self.depended_by.get_mut(point) {
             deps.remove(dependency);
             if deps.is_empty() {
@@ -58,17 +69,28 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Get all points that depend on the given point directly
-    pub fn depends_on(&self, point: &T) -> Option<&HashSet<T>> {
+    pub fn depends_on<Q: ?Sized + Eq + Hash>(&self, point: &Q) -> Option<&HashSet<T>>
+    where
+        T: Borrow<Q>,
+    {
         self.depends_on.get(point)
     }
 
     /// Get all points that the given point directly depends on
-    pub fn depended_by(&self, point: &T) -> Option<&HashSet<T>> {
+    pub fn depended_by<Q: ?Sized + Eq + Hash>(&self, point: &Q) -> Option<&HashSet<T>>
+    where
+        T: Borrow<Q>,
+    {
         self.depended_by.get(point)
     }
 
     /// Check if `downstream` depends on `upstream` directly
-    pub fn is_dependent(&self, downstream: &T, upstream: &T) -> bool {
+    pub fn is_dependent<Q, R>(&self, downstream: &Q, upstream: &R) -> bool
+    where
+        Q: ?Sized + Eq + Hash,
+        R: ?Sized + Eq + Hash,
+        T: Borrow<Q> + Borrow<R>,
+    {
         if let Some(deps) = self.depends_on(upstream) {
             deps.contains(downstream)
         } else {
@@ -77,19 +99,28 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Check if a point exists in the graph
-    pub fn exists(&self, point: &T) -> bool {
+    pub fn exists<Q: ?Sized + Eq + Hash>(&self, point: &Q) -> bool
+    where
+        T: Borrow<Q>,
+    {
         self.depends_on.contains_key(point) || self.depended_by.contains_key(point)
     }
 
     /// Check if a point is a root (no dependencies)
     /// Returns true if the point does not exist in the graph
-    pub fn is_root(&self, point: &T) -> bool {
+    pub fn is_root<Q: ?Sized + Eq + Hash>(&self, point: &Q) -> bool
+    where
+        T: Borrow<Q>,
+    {
         self.depended_by(point).is_none_or(|deps| deps.is_empty())
     }
 
     /// Check if a point is a leaf (no dependents)
     /// Returns true if the point does not exist in the graph
-    pub fn is_leaf(&self, point: &T) -> bool {
+    pub fn is_leaf<Q: ?Sized + Eq + Hash>(&self, point: &Q) -> bool
+    where
+        T: Borrow<Q>,
+    {
         self.depends_on(point).is_none_or(|deps| deps.is_empty())
     }
 
@@ -108,7 +139,12 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Remove a dependency line
-    pub fn remove_dependency(&mut self, downstream: &T, upstream: &T) {
+    pub fn remove_dependency<Q, R>(&mut self, downstream: &Q, upstream: &R)
+    where
+        Q: ?Sized + Eq + Hash + PartialEq<R>,
+        R: ?Sized + Eq + Hash,
+        T: Borrow<Q> + Borrow<R>,
+    {
         if downstream == upstream {
             return;
         }
@@ -118,7 +154,10 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Remove all dependencies related to a point
-    pub fn remove_point(&mut self, point: &T) {
+    pub fn remove_point<Q: ?Sized + Eq + Hash>(&mut self, point: &Q)
+    where
+        T: Borrow<Q> + Borrow<T>,
+    {
         if let Some(down) = self.depends_on.remove(point) {
             for dep in down {
                 self.remove_depended_by(&dep, point);
@@ -132,7 +171,12 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Replace a point with another
-    pub fn replace_point(&mut self, from: &T, to: &T) -> DependencyResult<()> {
+    pub fn replace_point<Q, R>(&mut self, from: &Q, to: &R) -> DependencyResult<()>
+    where
+        Q: Eq + Hash + PartialEq<R> + Clone,
+        R: Eq + Hash + Clone,
+        T: Borrow<Q> + Borrow<R> + From<Q> + From<R>,
+    {
         if from == to {
             return Ok(());
         }
@@ -144,23 +188,28 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
             for dep in down.iter() {
                 let deps_of_dep = self.depended_by.get_mut(dep).unwrap();
                 deps_of_dep.remove(from);
-                deps_of_dep.insert(to.clone());
+                deps_of_dep.insert(to.clone().into());
             }
-            self.depends_on.insert(to.clone(), down);
+            self.depends_on.insert(to.clone().into(), down);
         }
         if let Some(up) = self.depended_by.remove(from) {
             for dep in up.iter() {
                 let deps_of_dep = self.depends_on.get_mut(dep).unwrap();
                 deps_of_dep.remove(from);
-                deps_of_dep.insert(to.clone());
+                deps_of_dep.insert(to.clone().into());
             }
-            self.depended_by.insert(to.clone(), up);
+            self.depended_by.insert(to.clone().into(), up);
         }
         Ok(())
     }
 
     /// Check if `downstream` depends on `upstream` directly or indirectly
-    pub fn is_dependent_recursively(&self, downstream: &T, upstream: &T) -> bool {
+    pub fn is_dependent_recursively<Q, R>(&self, downstream: &Q, upstream: &R) -> bool
+    where
+        Q: Eq + Hash + PartialEq<R>,
+        R: Eq + Hash + PartialEq<Q> + Clone,
+        T: Borrow<Q> + Borrow<R> + Into<R>,
+    {
         if downstream == upstream || self.is_leaf(upstream) || self.is_root(downstream) {
             return false;
         }
@@ -177,7 +226,7 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
                 && let Some(dependencies) = self.depends_on(&current)
             {
                 for dep in dependencies {
-                    stack.push(dep.clone());
+                    stack.push(dep.clone().into());
                 }
             }
         }
@@ -186,7 +235,11 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Get all points that depend on the given point directly or indirectly
-    pub fn depends_on_recursively(&self, point: &T) -> HashSet<T> {
+    pub fn depends_on_recursively<Q>(&self, point: &Q) -> HashSet<T>
+    where
+        T: Borrow<Q> + Into<Q>,
+        Q: Eq + Hash + Clone,
+    {
         let mut result = HashSet::new();
         let mut stack = vec![point.clone()];
 
@@ -194,7 +247,7 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
             if let Some(deps) = self.depends_on.get(&current) {
                 for dep in deps {
                     if result.insert(dep.clone()) {
-                        stack.push(dep.clone());
+                        stack.push(dep.clone().into());
                     }
                 }
             }
@@ -203,7 +256,11 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
     }
 
     /// Get all points that the given point depends on directly or indirectly
-    pub fn depended_by_recursively(&self, point: &T) -> HashSet<T> {
+    pub fn depended_by_recursively<Q>(&self, point: &Q) -> HashSet<T>
+    where
+        T: Borrow<Q> + Into<Q>,
+        Q: Eq + Hash + Clone,
+    {
         let mut result = HashSet::new();
         let mut stack = vec![point.clone()];
 
@@ -211,7 +268,7 @@ impl<T: Hash + Eq + Clone> DependencyGraph<T> {
             if let Some(deps) = self.depended_by.get(&current) {
                 for dep in deps {
                     if result.insert(dep.clone()) {
-                        stack.push(dep.clone());
+                        stack.push(dep.clone().into());
                     }
                 }
             }
