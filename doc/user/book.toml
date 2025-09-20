@@ -1,0 +1,14 @@
+[book]
+authors = ["rzb"]
+language = "en"
+src = "src"
+
+[preprocessor.theme]
+pagetoc = true
+
+[output.html]
+additional-css = ["theme/pagetoc.css"]
+additional-js = ["theme/pagetoc.js"]
+smart-punctuation = true
+git-repository-url = "https://github.com/PKUSoftwareEngineeringTeam/Allay"
+git-repository-icon = "fa-github"
