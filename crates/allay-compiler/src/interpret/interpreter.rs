@@ -1,12 +1,11 @@
-#![allow(dead_code)] // TODO: remove this line when the interpreter is complete
-
 use crate::ast::*;
 use crate::interpret::scope::PageScope;
-use crate::interpret::traits::Variable;
+use crate::interpret::traits::{DataProvider, Variable};
 use crate::interpret::var::LocalVar;
-use crate::{InterpretError, InterpretResult};
-use allay_base::data::AllayDataError;
-use allay_base::data::{AllayData, AllayObject};
+use crate::{InterpretError, InterpretResult, compile_on};
+use allay_base::data::AllayData;
+use allay_base::data::{AllayDataError, AllayList};
+use itertools::Itertools;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -30,7 +29,7 @@ macro_rules! interpret_unwrap {
 
 /// The global Allay interpreter context
 #[derive(Debug)]
-pub(super) struct Interpreter {
+pub(crate) struct Interpreter {
     stack: Vec<PageScope>,
 
     include_dir: PathBuf,
@@ -41,7 +40,7 @@ impl Interpreter {
     /// Create a new interpreter with the given include and shortcode directories
     pub fn new(include_dir: PathBuf, shortcode_dir: PathBuf) -> Interpreter {
         Interpreter {
-            stack: Vec::new(),
+            stack: vec![PageScope::new()],
             include_dir,
             shortcode_dir,
         }
@@ -88,14 +87,16 @@ pub(super) trait Interpretable {
     ) -> InterpretResult<Self::Output>;
 }
 
+pub(super) fn concat_res(res: &[String]) -> String {
+    res.join(" ")
+}
+
 impl Interpretable for File {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        // TODO: pass the real page data here
-        let page = PageScope::new(AllayObject::default());
-
-        ctx.new_page(page);
+        // the page scope is pushed into stack before interpreting
+        // TODO: read the metadata here
         self.0.interpret(ctx, res)?;
         interpret_unwrap!(ctx.exit_page());
         Ok(())
@@ -206,19 +207,111 @@ impl Interpretable for IfCommand {
     }
 }
 
+mod file_finder {
+    use crate::{InterpretError, InterpretResult};
+    use allay_base::template::TemplateKind;
+    use std::path::{Path, PathBuf};
+
+    pub(super) fn find_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+        for ext in [
+            TemplateKind::Markdown.extension(),
+            TemplateKind::Html.extension(),
+        ] {
+            let p = path.as_ref().with_extension(ext);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+        None
+    }
+
+    pub(super) fn try_find_file<P: AsRef<Path>>(path: P) -> InterpretResult<PathBuf> {
+        let path = path.as_ref();
+        find_file(path).ok_or(InterpretError::IncludePathNotFound(
+            path.to_path_buf().to_str().unwrap_or("Invalid UTF-8 path").into(),
+        ))
+    }
+}
+
 impl Interpretable for IncludeCommand {
     type Output = ();
 
-    fn interpret(&self, _: &mut Interpreter, _: &mut Vec<String>) -> InterpretResult<()> {
-        todo!()
+    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+        let inherited = match self.parameters.first() {
+            Some(exp) => exp.interpret(ctx, res)?,
+            None => ctx.page().cur_scope().create_this().get_data(),
+        };
+
+        // from 1...n are params
+        let params = if self.parameters.len() > 1 {
+            self.parameters[1..].iter().map(|e| e.interpret(ctx, res)).try_collect()?
+        } else {
+            AllayList::default()
+        };
+
+        let page = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        ctx.new_page(page);
+
+        let path = file_finder::try_find_file(ctx.include_dir.join(&self.path))?;
+        let compile =
+            compile_on(&path, ctx).map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
+
+        res.push(compile);
+
+        Ok(())
     }
 }
 
 impl Interpretable for Shortcode {
     type Output = ();
 
-    fn interpret(&self, _: &mut Interpreter, _: &mut Vec<String>) -> InterpretResult<()> {
-        todo!()
+    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+        match self {
+            Shortcode::Single(sc) => sc.interpret(ctx, res),
+            Shortcode::Block(sc) => sc.interpret(ctx, res),
+        }
+    }
+}
+
+impl Interpretable for SingleShortcode {
+    type Output = ();
+
+    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+        let params = self.parameters.iter().map(|e| e.interpret(ctx, res)).try_collect()?;
+        let inherited = ctx.page().cur_scope().create_this().get_data();
+
+        let page = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        ctx.new_page(page);
+
+        let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
+        let compile =
+            compile_on(&path, ctx).map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
+        res.push(compile);
+
+        Ok(())
+    }
+}
+
+impl Interpretable for BlockShortcode {
+    type Output = ();
+
+    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+        let params = self.parameters.iter().map(|e| e.interpret(ctx, res)).try_collect()?;
+        let inherited = ctx.page().cur_scope().create_this().get_data();
+
+        let mut page = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        // add the "inner" key to the shortcode page
+        let mut inner_res = Vec::new();
+        self.inner.interpret(ctx, &mut inner_res)?;
+        page.add_key("inner".into(), AllayData::from(concat_res(&inner_res)));
+        ctx.new_page(page);
+
+        let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
+        let compile =
+            compile_on(&path, ctx).map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
+        res.push(compile);
+
+        Ok(())
     }
 }
 

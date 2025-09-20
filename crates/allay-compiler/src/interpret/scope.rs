@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO: remove this line when the module is complete
-
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Scope, get_field_once};
 use crate::interpret::var::{LocalVar, ParamVar, ThisVar};
@@ -29,22 +27,22 @@ pub(crate) struct PageScope {
 }
 
 impl PageScope {
-    pub fn new(owned: AllayObject) -> PageScope {
+    pub fn new() -> PageScope {
         PageScope {
-            owned: Arc::new(owned),
             ..Default::default()
         }
     }
 
-    pub fn new_from(
-        owned: AllayObject,
-        params: AllayList,
-        inherited: Arc<AllayObject>,
-    ) -> PageScope {
-        let mut page = PageScope::new(owned);
+    pub fn new_from(inherited: Arc<AllayObject>, params: AllayList) -> PageScope {
+        let mut page = PageScope::new();
         page.param = ParamVar::create(params);
         page.inherited = Some(inherited);
         page
+    }
+
+    pub fn add_key(&mut self, key: String, value: AllayData) {
+        Arc::make_mut(&mut self.owned).insert(key, Arc::new(value));
+        self.merged.take();
     }
 
     pub fn create_sub_scope(&mut self, var: LocalVar) -> &mut LocalScope {

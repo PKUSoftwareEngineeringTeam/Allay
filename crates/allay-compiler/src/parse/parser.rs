@@ -22,6 +22,11 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwrap!(pair.into_inner().next())
 }
 
+fn strip_string(string: &str) -> &str {
+    // remove the leading " and trailing "
+    &string[1..string.len() - 1]
+}
+
 pub(super) trait ASTBuilder: Sized {
     fn build(pair: Pair<Rule>) -> ParseResult<Self>;
 }
@@ -298,7 +303,7 @@ impl ASTBuilder for IncludeCommand {
             match inner.as_rule() {
                 Rule::include_pattern => continue,
                 Rule::string => {
-                    path = inner.as_str().to_string();
+                    path = strip_string(inner.as_str()).to_string();
                 }
                 Rule::expression => {
                     parameters.push(Expression::build(inner)?);
@@ -484,7 +489,7 @@ impl ASTBuilder for Primary {
                     .map_err(|e| ParseError::InvalidNumber(item.as_str().to_string(), e))?;
                 Ok(Primary::Number(num))
             }
-            Rule::string => Ok(Primary::String(item.as_str().to_string())),
+            Rule::string => Ok(Primary::String(strip_string(item.as_str()).to_string())),
             Rule::bool_literal => {
                 let val = match item.as_str() {
                     "#t" => true,
