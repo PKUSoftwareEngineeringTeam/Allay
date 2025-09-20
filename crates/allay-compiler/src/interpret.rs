@@ -14,11 +14,11 @@ pub(crate) fn interpret_template<P: AsRef<Path>>(
     include_dir: P,
     shortcode_dir: P,
 ) -> InterpretResult<String> {
-    let mut intepreter = Interpreter::new(
+    let mut interpreter = Interpreter::new(
         include_dir.as_ref().to_path_buf(),
         shortcode_dir.as_ref().to_path_buf(),
     );
     let mut res = Vec::new();
-    ast.interpret(&mut intepreter, &mut res)?;
+    ast.interpret(&mut interpreter, &mut res)?;
     Ok(res.join(" "))
 }

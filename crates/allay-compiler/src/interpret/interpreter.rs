@@ -17,7 +17,7 @@ fn converse_error(err: String) -> InterpretError {
 macro_rules! interpret_unreachable {
     () => {
         unreachable!(
-            "This is a bug of AST interpreter, please report it to the developers on https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."
+            "This is a bug of interpreter, please report it to the developers on https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."
         )
     }
 }
@@ -348,15 +348,18 @@ impl Interpretable for AddSub {
             return self.left.interpret(ctx, res);
         }
 
-        let mut acc = self.left.interpret(ctx, res)?.as_int()?;
-        for (op, right) in &self.rights {
-            let v = right.interpret(ctx, res)?.as_int()?;
-            match op {
-                AddSubOp::Add => acc += v,
-                AddSubOp::Subtract => acc -= v,
-            }
-        }
-        Ok(Arc::new(acc.into()))
+        let res = self.rights.iter().try_fold(
+            self.left.interpret(ctx, res)?.as_int()?,
+            |acc, (op, right)| {
+                let v = right.interpret(ctx, res)?.as_int()?;
+                match op {
+                    AddSubOp::Add => Ok(acc + v),
+                    AddSubOp::Subtract => Ok(acc - v),
+                }
+            },
+        );
+
+        res.map(|v| Arc::new(v.into()))
     }
 }
 
@@ -372,16 +375,19 @@ impl Interpretable for MulDiv {
             return self.left.interpret(ctx, res);
         }
 
-        let mut acc = self.left.interpret(ctx, res)?.as_int()?;
-        for (op, right) in &self.rights {
-            let v = right.interpret(ctx, res)?.as_int()?;
-            match op {
-                MulDivOp::Multiply => acc *= v,
-                MulDivOp::Divide => acc /= v,
-                MulDivOp::Modulo => acc %= v,
-            }
-        }
-        Ok(Arc::new(acc.into()))
+        let res = self.rights.iter().try_fold(
+            self.left.interpret(ctx, res)?.as_int()?,
+            |acc, (op, right)| {
+                let v = right.interpret(ctx, res)?.as_int()?;
+                match op {
+                    MulDivOp::Multiply => Ok(acc * v),
+                    MulDivOp::Divide => Ok(acc / v),
+                    MulDivOp::Modulo => Ok(acc % v),
+                }
+            },
+        );
+
+        res.map(|v| Arc::new(v.into()))
     }
 }
 
@@ -399,28 +405,26 @@ impl Interpretable for Unary {
 
         let data = self.exp.interpret(ctx, res)?;
         if data.is_int() {
-            let mut acc = data.as_int()?;
-            for op in self.ops.iter().rev() {
-                match op {
-                    UnaryOp::Positive => {}
-                    UnaryOp::Negative => acc = -acc,
-                    UnaryOp::Not => {
-                        return Err(converse_error("not a boolean".into()));
-                    }
-                }
-            }
-            Ok(Arc::new(acc.into()))
+            self.ops
+                .iter()
+                .rev()
+                .try_fold(data.as_int()?, |acc, op| match op {
+                    UnaryOp::Positive => Ok(acc),
+                    UnaryOp::Negative => Ok(-acc),
+                    UnaryOp::Not => Err(converse_error("not a boolean".into())),
+                })
+                .map(|v| Arc::new(v.into()))
         } else if data.is_bool() {
-            let mut bool = data.as_bool()?;
-            for op in self.ops.iter().rev() {
-                match op {
+            self.ops
+                .iter()
+                .rev()
+                .try_fold(data.as_bool()?, |acc, op| match op {
+                    UnaryOp::Not => Ok(!acc),
                     UnaryOp::Positive | UnaryOp::Negative => {
-                        return Err(converse_error("not an integer".into()));
+                        Err(converse_error("not an integer".into()))
                     }
-                    UnaryOp::Not => bool = !bool,
-                }
-            }
-            Ok(Arc::new(bool.into()))
+                })
+                .map(|v| Arc::new(v.into()))
         } else {
             Err(converse_error("not an integer or a boolean".into()))
         }
