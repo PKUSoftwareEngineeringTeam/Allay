@@ -2,12 +2,17 @@
 
 use std::path::Path;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TemplateKind {
     Markdown,
     Html,
-    #[default]
-    Other,
+    Other(String),
+}
+
+impl Default for TemplateKind {
+    fn default() -> Self {
+        TemplateKind::Other(String::new())
+    }
 }
 
 impl TemplateKind {
@@ -15,7 +20,7 @@ impl TemplateKind {
         match ext {
             "md" => TemplateKind::Markdown,
             "html" | "htm" => TemplateKind::Html,
-            _ => TemplateKind::Other,
+            e => TemplateKind::Other(e.to_string()),
         }
     }
 
@@ -25,6 +30,14 @@ impl TemplateKind {
             TemplateKind::from_extension(ext)
         } else {
             TemplateKind::default()
+        }
+    }
+
+    pub fn extension(&self) -> &str {
+        match self {
+            TemplateKind::Markdown => "md",
+            TemplateKind::Html => "html",
+            TemplateKind::Other(e) => e.as_str(),
         }
     }
 }

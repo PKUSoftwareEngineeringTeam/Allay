@@ -42,6 +42,14 @@ pub enum InterpretError {
     /// Variable not found in the scope
     #[error("Variable not found: {0}")]
     VariableNotFound(String),
+
+    /// Include path not found
+    #[error("Include path not found: {0}")]
+    IncludePathNotFound(String),
+
+    /// Include file error
+    #[error("Error in trying to include: {0}")]
+    IncludeError(#[from] Box<CompileError>),
 }
 
 /// The result type for interpreter.
