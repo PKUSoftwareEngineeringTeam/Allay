@@ -51,6 +51,7 @@ impl Page {
 
     /// Create a subpage with the given parent and scope.
     /// Usually called by `include` or `shortcode`.
+    /// This page will automatically be added to the parent's output.
     pub fn create_subpage(
         parent: &Rc<RefCell<Page>>,
         path: PathBuf,
