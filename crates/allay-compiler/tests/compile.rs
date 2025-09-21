@@ -38,19 +38,13 @@ fn to_tokens(s: String) -> Vec<String> {
 fn test_simple() {
     assert_eq!(get_compile_res("Hello, World!"), "<p>Hello, World!</p>\n");
     let content = "{- set $var = 10 -} {: $var :}";
-    assert_eq!(
-        to_tokens(get_compile_res(content)),
-        vec!["<p>", "10", "</p>"]
-    );
+    assert_eq!(to_tokens(get_compile_res(content)), vec!["<p>10</p>"]);
 }
 
 #[test]
 fn test_algorithm() {
     let content = "{- set $sum = 5+--(-6)*10 -} {: $sum :}";
-    assert_eq!(
-        to_tokens(get_compile_res(content)),
-        vec!["<p>", "-55", "</p>"]
-    );
+    assert_eq!(to_tokens(get_compile_res(content)), vec!["<p>-55</p>"]);
     // let content = "{- set $a = 10 -} {- set $b = 20 -} {: if $a < $b :}Less{: else :}Greater{: /if :}";
     let content = r#"{- set $a = 10 -}
 {- set $b = 20 -}
@@ -58,7 +52,7 @@ fn test_algorithm() {
 {- if $a == $b -}Equal{- else -}NotEq{- end -}"#;
     assert_eq!(
         to_tokens(get_compile_res(content)),
-        vec!["<p>", "2", "NotEq", "</p>"]
+        vec!["<p>2", "NotEq</p>"]
     );
 }
 
@@ -72,7 +66,7 @@ fn test_shortcode() {
     let source_file = create_test_file(&temp_dir, "source.md", "{< test />}");
 
     let res = compile(source_file, include_dir, shortcode_dir).unwrap();
-    assert_eq!(to_tokens(res), vec!["<p>", "<p>Shortcode</p>", "</p>"]);
+    assert_eq!(to_tokens(res), vec!["<p>Shortcode</p>"]);
 }
 
 #[test]
@@ -93,10 +87,7 @@ fn test_shortcode_with_params_and_inner() {
     );
 
     let res = compile(source_file, include_dir, shortcode_dir).unwrap();
-    assert_eq!(
-        to_tokens(res),
-        vec!["<p>", "<p>", "hello", "something", "114514", "</p>", "</p>"]
-    );
+    assert_eq!(to_tokens(res), vec!["<p>hello", "something", "114514</p>"]);
 }
 
 #[test]
@@ -109,10 +100,7 @@ fn test_include() {
     let source_file = create_test_file(&temp_dir, "source.md", "{- include \"header\" -} Body");
 
     let res = compile(source_file, include_dir, shortcode_dir).unwrap();
-    assert_eq!(
-        to_tokens(res),
-        vec!["<p>", "<header>Header</header>", "Body</p>"]
-    );
+    assert_eq!(to_tokens(res), vec!["<header>Header</header>", "Body"]);
 }
 
 #[test]
@@ -129,14 +117,6 @@ fn test_recursive_include() {
     let res = compile(source_file, include_dir, shortcode_dir).unwrap();
     assert_eq!(
         to_tokens(res),
-        vec![
-            "<p>",
-            "<p>Part1.",
-            "<p>Part2.",
-            "<p>Part3.</p>",
-            "</p>",
-            "</p>",
-            "</p>"
-        ]
+        vec!["<p>Part1.", "<p>Part2.", "<p>Part3.</p></p></p>",]
     )
 }

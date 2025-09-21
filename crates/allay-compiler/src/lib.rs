@@ -34,29 +34,23 @@ pub fn compile<P: AsRef<Path>>(
 }
 
 fn compile_on<P: AsRef<Path>>(source: P, interpreter: &mut Interpreter) -> CompileResult<String> {
-    let content = read_contents(source)?;
+    let source_path = source.as_ref();
+    let kind = TemplateKind::from_filename(source_path);
+    let content = match kind {
+        TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(source_path)?,
+        TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
+    };
     let ast = parse_template(&content)?;
     let res = interpret_template(&ast, interpreter)?;
+    let res = match kind {
+        TemplateKind::Markdown => convert_to_html(&res)?,
+        _ => res,
+    };
     Ok(res)
 }
 
-fn read_contents<P: AsRef<Path>>(source: P) -> CompileResult<String> {
-    // read source file, convert to html if source is markdown
-    let source_path = source.as_ref();
-    let content = file::read_file_string(source_path)?;
-    let kind = TemplateKind::from_filename(source_path);
-
-    let content = match kind {
-        TemplateKind::Markdown => {
-            let mut html_output = String::new();
-            html::push_html(&mut html_output, Parser::new(&content));
-            // FIXME: "<" will be transformed to "&lt;"
-            html_output = html_output.replace("&lt;", "<").replace("&gt;", ">");
-            html_output
-        }
-        TemplateKind::Html => content,
-        TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
-    };
-
-    Ok(content)
+fn convert_to_html(text: &str) -> CompileResult<String> {
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, Parser::new(text));
+    Ok(html_output)
 }
