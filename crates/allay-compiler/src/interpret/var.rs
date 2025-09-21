@@ -55,7 +55,7 @@ pub(crate) struct ParamVar {
 impl ParamVar {
     pub fn create(data: AllayList) -> Self {
         ParamVar {
-            data: Arc::new(AllayData::List(data)),
+            data: Arc::new(AllayData::from(data)),
         }
     }
 }
@@ -99,6 +99,7 @@ mod tests {
     use allay_base::data::{AllayList, AllayObject};
     use std::sync::{Arc, LazyLock};
 
+    // inherited: {"author": "Alice", "date": "2023-10-01"}
     static PARENT: LazyLock<Arc<AllayObject>> = LazyLock::new(|| {
         Arc::new(AllayObject::from([
             ("author".into(), Arc::new(AllayData::from("Alice"))),
@@ -107,25 +108,23 @@ mod tests {
     });
 
     fn gen_page_scope() -> PageScope {
-        // owned: {"title": "My Page", "tags": ["test", "markdown"]}
-        let owned = AllayObject::from([
-            ("title".into(), Arc::new(AllayData::from("My Page"))),
-            (
-                "tags".into(),
-                Arc::new(AllayData::from(AllayList::from([
-                    Arc::new(AllayData::from("test")),
-                    Arc::new(AllayData::from("markdown")),
-                ]))),
-            ),
-        ]);
-        // inherited: {"author": "Alice", "date": "2023-10-01"}
         // params: ["param1", 42]
         let params = AllayList::from([
             Arc::new(AllayData::from("param1")),
             Arc::new(AllayData::from(42)),
         ]);
 
-        PageScope::new_from(owned, params, PARENT.clone())
+        let mut page = PageScope::new_from(PARENT.clone(), params);
+        // owned: {"title": "My Page", "tags": ["test", "markdown"]}
+        page.add_key("title".into(), AllayData::from("My Page"));
+        page.add_key(
+            "tags".into(),
+            AllayData::from(AllayList::from([
+                Arc::new(AllayData::from("test")),
+                Arc::new(AllayData::from("markdown")),
+            ])),
+        );
+        page
     }
 
     #[test]

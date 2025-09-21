@@ -207,6 +207,15 @@ impl AllayData {
             Err(AllayDataError::TypeConversion("not an object".to_string()))
         }
     }
+
+    pub fn arc_to_list(data: Arc<AllayData>) -> DataResult<AllayList> {
+        Ok(data.as_list()?.iter().map(Arc::clone).collect())
+    }
+
+    /// NOTE: This function will copy the keys
+    pub fn arc_to_obj(data: Arc<AllayData>) -> DataResult<AllayObject> {
+        Ok(data.as_obj()?.iter().map(|(k, v)| (k.clone(), Arc::clone(v))).collect())
+    }
 }
 
 impl fmt::Display for AllayData {
