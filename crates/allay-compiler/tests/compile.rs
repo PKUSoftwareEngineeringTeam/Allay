@@ -87,7 +87,10 @@ fn test_shortcode_with_params_and_inner() {
     );
 
     let res = compile(source_file, include_dir, shortcode_dir).unwrap();
-    assert_eq!(to_tokens(res), vec!["<p>hello", "something", "114514</p>"]);
+    assert_eq!(
+        to_tokens(res),
+        vec!["<p>hello", "<p>something</p>", "114514</p>"]
+    );
 }
 
 #[test]
