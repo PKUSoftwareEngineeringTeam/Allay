@@ -31,7 +31,7 @@ fn get_compile_res(content: &str) -> String {
 }
 
 fn to_tokens(s: String) -> Vec<String> {
-    s.trim().split_whitespace().map(|s| s.to_string()).collect()
+    s.split_whitespace().map(|s| s.to_string()).collect()
 }
 
 #[test]

@@ -209,20 +209,12 @@ impl AllayData {
     }
 
     pub fn arc_to_list(data: Arc<AllayData>) -> DataResult<AllayList> {
-        let mut res = Vec::new();
-        for item in data.as_list()?.iter() {
-            res.push(Arc::clone(item));
-        }
-        Ok(res)
+        Ok(data.as_list()?.iter().map(Arc::clone).collect())
     }
 
     /// NOTE: This function will copy the keys
     pub fn arc_to_obj(data: Arc<AllayData>) -> DataResult<AllayObject> {
-        let mut res = AllayObject::new();
-        for (k, v) in data.as_obj()?.iter() {
-            res.insert(k.clone(), Arc::clone(v));
-        }
-        Ok(res)
+        Ok(data.as_obj()?.iter().map(|(k, v)| (k.clone(), Arc::clone(v))).collect())
     }
 }
 
