@@ -36,7 +36,7 @@ impl Compiler<String> {
     }
 
     /// Compile a source file with caching mechanism.
-    ///     
+    ///
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
