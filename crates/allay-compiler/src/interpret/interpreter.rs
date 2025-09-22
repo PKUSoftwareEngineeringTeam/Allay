@@ -267,7 +267,8 @@ impl Interpretable for BlockShortcode {
 
         // add the "inner" key to the shortcode page
         // Do not use the lazy evaluation here, because the inner text may be modified later
-        // FIXME: may have hot reload bug
+        // FIXME: If the inner text of the shortcode is modified after this point (e.g., during hot reload), those changes will not be reflected,
+        // because the "inner" key is set to the current compiled value. This may cause stale content to appear after hot reloads.
         let inner_page = page.borrow().clone_detached();
         let inner_page = Rc::new(RefCell::new(inner_page));
         let inner = inner_page
