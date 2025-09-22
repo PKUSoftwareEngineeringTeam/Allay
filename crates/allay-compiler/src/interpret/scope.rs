@@ -28,9 +28,7 @@ pub(crate) struct PageScope {
 
 impl PageScope {
     pub fn new() -> PageScope {
-        PageScope {
-            ..Default::default()
-        }
+        PageScope::default()
     }
 
     pub fn new_from(inherited: Arc<AllayObject>, params: AllayList) -> PageScope {

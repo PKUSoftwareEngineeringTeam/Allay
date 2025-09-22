@@ -1,12 +1,15 @@
 use crate::ast::*;
+use crate::compile::{Compiled, Page};
 use crate::interpret::scope::PageScope;
 use crate::interpret::traits::{DataProvider, Variable};
 use crate::interpret::var::LocalVar;
-use crate::{InterpretError, InterpretResult, compile_on};
+use crate::{InterpretError, InterpretResult};
 use allay_base::data::AllayData;
 use allay_base::data::{AllayDataError, AllayList};
 use itertools::Itertools;
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 fn converse_error(err: String) -> InterpretError {
@@ -30,8 +33,6 @@ macro_rules! interpret_unwrap {
 /// The global Allay interpreter context
 #[derive(Debug)]
 pub(crate) struct Interpreter {
-    stack: Vec<PageScope>,
-
     include_dir: PathBuf,
     shortcode_dir: PathBuf,
 }
@@ -40,65 +41,39 @@ impl Interpreter {
     /// Create a new interpreter with the given include and shortcode directories
     pub fn new(include_dir: PathBuf, shortcode_dir: PathBuf) -> Interpreter {
         Interpreter {
-            stack: vec![PageScope::new()],
             include_dir,
             shortcode_dir,
         }
     }
-
-    /// Create a news page subscope
-    fn new_page(&mut self, page: PageScope) {
-        self.stack.push(page);
-    }
-
-    /// Get the current page scope
-    fn page(&self) -> &PageScope {
-        interpret_unwrap!(self.stack.last())
-    }
-
-    /// Get the current page scope mutably
-    fn page_mut(&mut self) -> &mut PageScope {
-        interpret_unwrap!(self.stack.last_mut())
-    }
-
-    /// Exit the current page scope
-    fn exit_page(&mut self) -> Option<PageScope> {
-        self.stack.pop()
-    }
 }
 
 /// The main trait for interpreting AST nodes
-pub(super) trait Interpretable {
-    /// The output type of the interpretation
+pub(crate) trait Interpretable {
+    /// The return of the interpretation
     type Output;
 
     /// The main interpretation function
     ///
     /// # Parameters
     /// - `ctx`: The global interpreter context
-    /// - `res`: The string builder to accumulate the rendered result
+    /// - `page`: The page to interpret on
     ///
     /// # Returns
     /// The interpretation result
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Self::Output>;
-}
-
-pub(super) fn concat_res(res: &[String]) -> String {
-    res.join(" ")
 }
 
 impl Interpretable for File {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         // the page scope is pushed into stack before interpreting
         // TODO: read the metadata here
-        self.0.interpret(ctx, res)?;
-        interpret_unwrap!(ctx.exit_page());
+        self.0.interpret(ctx, page)?;
         Ok(())
     }
 }
@@ -106,23 +81,23 @@ impl Interpretable for File {
 impl Interpretable for Template {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        self.controls.iter().try_for_each(|c| c.interpret(ctx, res))
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        self.controls.iter().try_for_each(|c| c.interpret(ctx, page))
     }
 }
 
 impl Interpretable for Control {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         match self {
             Control::Text(text) => {
-                res.push(text.clone());
+                page.borrow_mut().insert(text.clone());
                 Ok(())
             }
-            Control::Command(cmd) => cmd.interpret(ctx, res),
-            Control::Substitution(sub) => sub.interpret(ctx, res),
-            Control::Shortcode(sc) => sc.interpret(ctx, res),
+            Control::Command(cmd) => cmd.interpret(ctx, page),
+            Control::Substitution(sub) => sub.interpret(ctx, page),
+            Control::Shortcode(sc) => sc.interpret(ctx, page),
         }
     }
 }
@@ -130,13 +105,13 @@ impl Interpretable for Control {
 impl Interpretable for Command {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         match self {
-            Command::Set(cmd) => cmd.interpret(ctx, res),
-            Command::For(cmd) => cmd.interpret(ctx, res),
-            Command::With(cmd) => cmd.interpret(ctx, res),
-            Command::If(cmd) => cmd.interpret(ctx, res),
-            Command::Include(cmd) => cmd.interpret(ctx, res),
+            Command::Set(cmd) => cmd.interpret(ctx, page),
+            Command::For(cmd) => cmd.interpret(ctx, page),
+            Command::With(cmd) => cmd.interpret(ctx, page),
+            Command::If(cmd) => cmd.interpret(ctx, page),
+            Command::Include(cmd) => cmd.interpret(ctx, page),
         }
     }
 }
@@ -144,13 +119,12 @@ impl Interpretable for Command {
 impl Interpretable for SetCommand {
     type Output = ();
 
-    fn interpret(
-        &self,
-        ctx: &mut Interpreter,
-        res: &mut Vec<String>,
-    ) -> InterpretResult<Self::Output> {
-        let value = self.value.interpret(ctx, res)?;
-        ctx.page_mut().cur_scope_mut().create_local(self.name.clone(), value);
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let value = self.value.interpret(ctx, page)?;
+        page.borrow_mut()
+            .scope_mut()
+            .cur_scope_mut()
+            .create_local(self.name.clone(), value);
         Ok(())
     }
 }
@@ -158,22 +132,22 @@ impl Interpretable for SetCommand {
 impl Interpretable for ForCommand {
     type Output = ();
 
-    fn interpret(
-        &self,
-        ctx: &mut Interpreter,
-        res: &mut Vec<String>,
-    ) -> InterpretResult<Self::Output> {
-        let list = self.list.interpret(ctx, res)?;
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let list = self.list.interpret(ctx, page)?;
         let list = list.as_list()?;
         for (index, item) in list.iter().enumerate() {
-            ctx.page_mut()
+            page.borrow_mut()
+                .scope_mut()
                 .cur_scope_mut()
                 .create_local(self.item_name.clone(), item.clone());
             if let Some(index_name) = &self.index_name {
                 let index = Arc::new((index as i32).into());
-                ctx.page_mut().cur_scope_mut().create_local(index_name.clone(), index);
+                page.borrow_mut()
+                    .scope_mut()
+                    .cur_scope_mut()
+                    .create_local(index_name.clone(), index);
             }
-            self.inner.interpret(ctx, res)?;
+            self.inner.interpret(ctx, page)?;
         }
         Ok(())
     }
@@ -182,12 +156,12 @@ impl Interpretable for ForCommand {
 impl Interpretable for WithCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        let scope_data = self.scope.interpret(ctx, res)?;
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let scope_data = self.scope.interpret(ctx, page)?;
         let var = LocalVar::create(scope_data);
-        ctx.page_mut().create_sub_scope(var);
-        self.inner.interpret(ctx, res)?;
-        interpret_unwrap!(ctx.page_mut().exit_sub_scope());
+        page.borrow_mut().scope_mut().create_sub_scope(var);
+        self.inner.interpret(ctx, page)?;
+        interpret_unwrap!(page.borrow_mut().scope_mut().exit_sub_scope());
         Ok(())
     }
 }
@@ -195,12 +169,12 @@ impl Interpretable for WithCommand {
 impl Interpretable for IfCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        let cond = self.condition.interpret(ctx, res)?.as_bool()?;
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let cond = self.condition.interpret(ctx, page)?.as_bool()?;
         if cond {
-            self.inner.interpret(ctx, res)
+            self.inner.interpret(ctx, page)
         } else if let Some(else_branch) = &self.else_inner {
-            else_branch.interpret(ctx, res)
+            else_branch.interpret(ctx, page)
         } else {
             Ok(())
         }
@@ -236,28 +210,22 @@ mod file_finder {
 impl Interpretable for IncludeCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         let inherited = match self.parameters.first() {
-            Some(exp) => exp.interpret(ctx, res)?,
-            None => ctx.page().cur_scope().create_this().get_data(),
+            Some(exp) => exp.interpret(ctx, page)?,
+            None => page.borrow().scope().cur_scope().create_this().get_data(),
         };
 
         // from 1...n are params
         let params = if self.parameters.len() > 1 {
-            self.parameters[1..].iter().map(|e| e.interpret(ctx, res)).try_collect()?
+            self.parameters[1..].iter().map(|e| e.interpret(ctx, page)).try_collect()?
         } else {
             AllayList::default()
         };
 
-        let page = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
-        ctx.new_page(page);
-
+        let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
         let path = file_finder::try_find_file(ctx.include_dir.join(&self.path))?;
-        let compile =
-            compile_on(&path, ctx).map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
-
-        res.push(compile);
-
+        Page::create_subpage(page, path, scope);
         Ok(())
     }
 }
@@ -265,10 +233,10 @@ impl Interpretable for IncludeCommand {
 impl Interpretable for Shortcode {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         match self {
-            Shortcode::Single(sc) => sc.interpret(ctx, res),
-            Shortcode::Block(sc) => sc.interpret(ctx, res),
+            Shortcode::Single(sc) => sc.interpret(ctx, page),
+            Shortcode::Block(sc) => sc.interpret(ctx, page),
         }
     }
 }
@@ -276,17 +244,13 @@ impl Interpretable for Shortcode {
 impl Interpretable for SingleShortcode {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        let params = self.parameters.iter().map(|e| e.interpret(ctx, res)).try_collect()?;
-        let inherited = ctx.page().cur_scope().create_this().get_data();
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
+        let inherited = page.borrow().scope().cur_scope().create_this().get_data();
 
-        let page = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
-        ctx.new_page(page);
-
+        let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
-        let compile =
-            compile_on(&path, ctx).map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
-        res.push(compile);
+        Page::create_subpage(page, path, scope);
 
         Ok(())
     }
@@ -295,22 +259,25 @@ impl Interpretable for SingleShortcode {
 impl Interpretable for BlockShortcode {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        let params = self.parameters.iter().map(|e| e.interpret(ctx, res)).try_collect()?;
-        let inherited = ctx.page().cur_scope().create_this().get_data();
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
+        let inherited = page.borrow().scope().cur_scope().create_this().get_data();
 
-        let mut page = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        let mut scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+
         // add the "inner" key to the shortcode page
-        let mut inner_res = Vec::new();
-        self.inner.interpret(ctx, &mut inner_res)?;
-        page.add_key("inner".into(), AllayData::from(concat_res(&inner_res)));
-        ctx.new_page(page);
+        // Do not use the lazy evaluation here, because the inner text may be modified later
+        let mut inner_page = page.borrow().clone();
+        inner_page.detach();
+        inner_page.clear();
+        let inner_page = Rc::new(RefCell::new(inner_page));
+        let inner = inner_page
+            .compile_on(&self.inner, ctx)
+            .map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
+        scope.add_key("inner".into(), AllayData::from(inner));
 
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
-        let compile =
-            compile_on(&path, ctx).map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
-        res.push(compile);
-
+        Page::create_subpage(page, path, scope);
         Ok(())
     }
 }
@@ -318,9 +285,9 @@ impl Interpretable for BlockShortcode {
 impl Interpretable for Substitution {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, res: &mut Vec<String>) -> InterpretResult<()> {
-        let value = self.expr.interpret(ctx, res)?;
-        res.push(value.to_string());
+    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+        let value = self.expr.interpret(ctx, page)?;
+        page.borrow_mut().insert(value.to_string());
         Ok(())
     }
 }
@@ -331,9 +298,9 @@ impl Interpretable for Expression {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
-        self.0.interpret(ctx, res)
+        self.0.interpret(ctx, page)
     }
 }
 
@@ -343,13 +310,13 @@ impl Interpretable for Or {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         let ands = &self.0;
         if ands.is_empty() {
             return Ok(Arc::new(AllayData::default()));
         }
-        let value = ands[0].interpret(ctx, res);
+        let value = ands[0].interpret(ctx, page);
         if ands.len() == 1 {
             return value;
         }
@@ -360,7 +327,7 @@ impl Interpretable for Or {
             return Ok(Arc::new(true.into()));
         }
         for and in &ands[1..] {
-            let v = and.interpret(ctx, res)?.as_bool()?;
+            let v = and.interpret(ctx, page)?.as_bool()?;
             if v {
                 return Ok(Arc::new(true.into()));
             }
@@ -375,13 +342,13 @@ impl Interpretable for And {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         let comps = &self.0;
         if comps.is_empty() {
             return Ok(Arc::new(AllayData::default()));
         }
-        let value = comps[0].interpret(ctx, res);
+        let value = comps[0].interpret(ctx, page);
         if comps.len() == 1 {
             return value;
         }
@@ -392,7 +359,7 @@ impl Interpretable for And {
             return Ok(Arc::new(false.into()));
         }
         for comp in &comps[1..] {
-            let v = comp.interpret(ctx, res)?.as_bool()?;
+            let v = comp.interpret(ctx, page)?.as_bool()?;
             if !v {
                 return Ok(Arc::new(false.into()));
             }
@@ -407,15 +374,15 @@ impl Interpretable for Comparison {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.right.is_none() {
-            return self.left.interpret(ctx, res);
+            return self.left.interpret(ctx, page);
         }
 
-        let left = self.left.interpret(ctx, res)?.as_int()?;
+        let left = self.left.interpret(ctx, page)?.as_int()?;
         let (op, right) = self.right.as_ref().unwrap();
-        let right = right.interpret(ctx, res)?.as_int()?;
+        let right = right.interpret(ctx, page)?.as_int()?;
 
         let bool = match op {
             ComparisonOp::Equal => left == right,
@@ -435,16 +402,16 @@ impl Interpretable for AddSub {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.rights.is_empty() {
-            return self.left.interpret(ctx, res);
+            return self.left.interpret(ctx, page);
         }
 
         let res = self.rights.iter().try_fold(
-            self.left.interpret(ctx, res)?.as_int()?,
+            self.left.interpret(ctx, page)?.as_int()?,
             |acc, (op, right)| {
-                let v = right.interpret(ctx, res)?.as_int()?;
+                let v = right.interpret(ctx, page)?.as_int()?;
                 match op {
                     AddSubOp::Add => Ok(acc + v),
                     AddSubOp::Subtract => Ok(acc - v),
@@ -462,16 +429,16 @@ impl Interpretable for MulDiv {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.rights.is_empty() {
-            return self.left.interpret(ctx, res);
+            return self.left.interpret(ctx, page);
         }
 
         let res = self.rights.iter().try_fold(
-            self.left.interpret(ctx, res)?.as_int()?,
+            self.left.interpret(ctx, page)?.as_int()?,
             |acc, (op, right)| {
-                let v = right.interpret(ctx, res)?.as_int()?;
+                let v = right.interpret(ctx, page)?.as_int()?;
                 match op {
                     MulDivOp::Multiply => Ok(acc * v),
                     MulDivOp::Divide => Ok(acc / v),
@@ -490,13 +457,13 @@ impl Interpretable for Unary {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.ops.is_empty() {
-            return self.exp.interpret(ctx, res);
+            return self.exp.interpret(ctx, page);
         }
 
-        let data = self.exp.interpret(ctx, res)?;
+        let data = self.exp.interpret(ctx, page)?;
         if data.is_int() {
             self.ops
                 .iter()
@@ -530,15 +497,15 @@ impl Interpretable for Primary {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        res: &mut Vec<String>,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         match self {
             Primary::Number(num) => Ok(Arc::new((*num as i32).into())),
             Primary::Boolean(bool) => Ok(Arc::new((*bool).into())),
             Primary::String(str) => Ok(Arc::new(str.clone().into())),
-            Primary::Expression(exp) => exp.interpret(ctx, res),
-            Primary::Field(field) => field.interpret(ctx, res),
-            Primary::TopLevel(top) => top.interpret(ctx, res),
+            Primary::Expression(exp) => exp.interpret(ctx, page),
+            Primary::Field(field) => field.interpret(ctx, page),
+            Primary::TopLevel(top) => top.interpret(ctx, page),
         }
     }
 }
@@ -548,14 +515,16 @@ impl Interpretable for Field {
 
     fn interpret(
         &self,
-        ctx: &mut Interpreter,
-        _: &mut Vec<String>,
+        _: &mut Interpreter,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Self::Output> {
+        let page = page.borrow();
+        let scope = page.scope();
         let var: &dyn Variable = match &self.top_level {
-            None | Some(TopLevel::This) => &ctx.page().cur_scope().create_this(),
-            Some(TopLevel::Param) => ctx.page().get_param(),
+            None | Some(TopLevel::This) => &scope.cur_scope().create_this(),
+            Some(TopLevel::Param) => scope.get_param(),
             Some(TopLevel::Variable(id)) => {
-                ctx.page().get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
+                scope.get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
             }
         };
         var.get_field(&self.parts)
@@ -567,14 +536,16 @@ impl Interpretable for TopLevel {
 
     fn interpret(
         &self,
-        ctx: &mut Interpreter,
-        _: &mut Vec<String>,
+        _: &mut Interpreter,
+        page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Self::Output> {
+        let page = page.borrow();
+        let scope = page.scope();
         let var: &dyn Variable = match self {
-            TopLevel::This => &ctx.page().cur_scope().create_this(),
-            TopLevel::Param => ctx.page().get_param(),
+            TopLevel::This => &scope.cur_scope().create_this(),
+            TopLevel::Param => scope.get_param(),
             TopLevel::Variable(id) => {
-                ctx.page().get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
+                scope.get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
             }
         };
         Ok(var.get_data())
