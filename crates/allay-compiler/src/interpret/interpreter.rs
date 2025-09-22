@@ -1,9 +1,9 @@
-use crate::ast::*;
-use crate::compile::{Compiled, Page};
+use crate::env::{Compiled, Page, TokenInserter};
 use crate::interpret::scope::PageScope;
 use crate::interpret::traits::{DataProvider, Variable};
 use crate::interpret::var::LocalVar;
 use crate::{InterpretError, InterpretResult};
+use crate::{ast::*, magic};
 use allay_base::data::AllayData;
 use allay_base::data::{AllayDataError, AllayList};
 use itertools::Itertools;
@@ -92,7 +92,7 @@ impl Interpretable for Control {
     fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         match self {
             Control::Text(text) => {
-                page.borrow_mut().insert(text.clone());
+                page.insert_text(text.clone());
                 Ok(())
             }
             Control::Command(cmd) => cmd.interpret(ctx, page),
@@ -225,7 +225,7 @@ impl Interpretable for IncludeCommand {
 
         let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
         let path = file_finder::try_find_file(ctx.include_dir.join(&self.path))?;
-        Page::create_subpage(page, path, scope);
+        page.insert_subpage(path, scope);
         Ok(())
     }
 }
@@ -250,7 +250,7 @@ impl Interpretable for SingleShortcode {
 
         let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
-        Page::create_subpage(page, path, scope);
+        page.insert_subpage(path, scope);
 
         Ok(())
     }
@@ -267,17 +267,16 @@ impl Interpretable for BlockShortcode {
 
         // add the "inner" key to the shortcode page
         // Do not use the lazy evaluation here, because the inner text may be modified later
-        let mut inner_page = page.borrow().clone();
-        inner_page.detach();
-        inner_page.clear();
+        // FIXME: may have hot reload bug
+        let inner_page = page.borrow().clone_detached();
         let inner_page = Rc::new(RefCell::new(inner_page));
         let inner = inner_page
             .compile_on(&self.inner, ctx)
             .map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
-        scope.add_key("inner".into(), AllayData::from(inner));
+        scope.add_key(magic::INNER.into(), AllayData::from(inner));
 
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
-        Page::create_subpage(page, path, scope);
+        page.insert_subpage(path, scope);
         Ok(())
     }
 }
@@ -287,7 +286,7 @@ impl Interpretable for Substitution {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
         let value = self.expr.interpret(ctx, page)?;
-        page.borrow_mut().insert(value.to_string());
+        page.insert_text(value.to_string());
         Ok(())
     }
 }
@@ -518,6 +517,15 @@ impl Interpretable for Field {
         _: &mut Interpreter,
         page: &Rc<RefCell<Page>>,
     ) -> InterpretResult<Self::Output> {
+        // check magic fields
+        if self.top_level.is_none()
+            && self.parts.len() == 1
+            && let GetField::Name(name) = &self.parts[0]
+            && page.insert_stash(name).is_some()
+        {
+            return Ok(Arc::new(AllayData::default()));
+        }
+
         let page = page.borrow();
         let scope = page.scope();
         let var: &dyn Variable = match &self.top_level {

@@ -4,12 +4,12 @@ use crate::{CompileError, CompileResult};
 use allay_base::{file, template::TemplateKind};
 use pulldown_cmark::{Parser, html};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
 /// The page environment to record the state of a page during compiling
 /// Fully optimized for increment compiling
-#[derive(Debug, Clone)]
 pub(crate) struct Page {
     /// the parent page, if any
     parent: Option<Weak<RefCell<Page>>>,
@@ -17,6 +17,9 @@ pub(crate) struct Page {
     path: PathBuf,
     /// the interpret scope of the page
     scope: PageScope,
+    /// subpages which are planned to be added to output when compiling
+    /// like the ".inner", ".content" magic words in the template
+    stash: HashMap<String, Rc<RefCell<Page>>>,
     /// the output tokens
     output: Vec<Token>,
 
@@ -28,7 +31,6 @@ pub(crate) struct Page {
     dirty: bool,
 }
 
-#[derive(Debug, Clone)]
 enum Token {
     Text(String),
     Page(Rc<RefCell<Page>>),
@@ -41,31 +43,13 @@ impl Page {
             parent: None,
             path,
             scope: PageScope::new(),
+            stash: HashMap::new(),
             output: Vec::new(),
 
             ready: false,
             cache: String::new(),
             dirty: true,
         }
-    }
-
-    /// Create a subpage with the given parent and scope.
-    /// Usually called by `include` or `shortcode`.
-    /// This page will automatically be added to the parent's output.
-    pub fn create_subpage(
-        parent: &Rc<RefCell<Page>>,
-        path: PathBuf,
-        scope: PageScope,
-    ) -> Rc<RefCell<Page>> {
-        let page = Page::new(path);
-        let page = Page {
-            parent: Some(Rc::downgrade(parent)),
-            scope,
-            ..page
-        };
-        let page = Rc::new(RefCell::new(page));
-        parent.borrow_mut().output.push(Token::Page(page.clone()));
-        page
     }
 
     pub fn scope(&self) -> &PageScope {
@@ -76,15 +60,23 @@ impl Page {
         &mut self.scope
     }
 
-    /// Detach the page from its parent,
-    /// which means the parent won't be notified when this page is modified.
-    pub fn detach(&mut self) {
-        self.parent = None;
+    /// Clone the page without parent and output
+    pub fn clone_detached(&self) -> Self {
+        Page {
+            parent: None,
+            path: self.path.clone(),
+            scope: self.scope.clone(),
+            stash: self.stash.clone(),
+            output: Vec::new(),
+            ready: false,
+            cache: String::new(),
+            dirty: true,
+        }
     }
 
-    /// Insert text to the output
-    pub fn insert(&mut self, text: String) {
-        self.output.push(Token::Text(text));
+    /// Stash a subpage with the given key.
+    pub fn add_stash(&mut self, key: String, page: Rc<RefCell<Page>>) {
+        self.stash.insert(key, page);
     }
 
     /// Clear the compiled state, so that the page will be recompiled on next `compile` call.
@@ -104,12 +96,57 @@ impl Page {
             parent.borrow_mut().spread_dirty();
         }
     }
+
+    /// Convert the page into a reference-counted pointer
+    pub fn into(self) -> Rc<RefCell<Page>> {
+        Rc::new(RefCell::new(self))
+    }
 }
 
 fn convert_to_html(text: &str) -> CompileResult<String> {
     let mut html_output = String::new();
     html::push_html(&mut html_output, Parser::new(text));
     Ok(html_output)
+}
+
+pub(crate) trait TokenInserter: Sized {
+    /// Insert text to the output
+    fn insert_text(&self, text: String);
+
+    /// Insert a subpage with the given parent and scope.
+    /// Usually called by `include` or `shortcode`.
+    /// This page's reference count will be returned.
+    fn insert_subpage(&self, path: PathBuf, scope: PageScope) -> Self;
+
+    /// Insert a stashed page with the given key.
+    /// This page's reference count will be returned if the key exists.
+    fn insert_stash(&self, key: &str) -> Option<Self>;
+}
+
+impl TokenInserter for Rc<RefCell<Page>> {
+    fn insert_text(&self, text: String) {
+        self.borrow_mut().output.push(Token::Text(text));
+    }
+
+    fn insert_subpage(&self, path: PathBuf, scope: PageScope) -> Self {
+        let page = Page::new(path);
+        let page = Page {
+            parent: Some(Rc::downgrade(self)),
+            scope,
+            ..page
+        };
+        let page = page.into();
+        self.borrow_mut().output.push(Token::Page(page.clone()));
+        page
+    }
+
+    fn insert_stash(&self, key: &str) -> Option<Self> {
+        self.borrow_mut().stash.get(key).map(|p| {
+            p.borrow_mut().parent = Some(Rc::downgrade(self));
+            self.borrow_mut().output.push(Token::Page(p.clone()));
+            p.clone()
+        })
+    }
 }
 
 pub(crate) trait Compiled {
