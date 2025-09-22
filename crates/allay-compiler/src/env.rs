@@ -141,13 +141,10 @@ impl TokenInserter for Rc<RefCell<Page>> {
     }
 
     fn insert_stash(&self, key: &str) -> Option<Self> {
-        // Take a single mutable borrow of self to avoid repeated borrow checks
-        let mut this = self.borrow_mut();
-        this.stash.get(key).map(|p| {
-            p.borrow_mut().parent = Some(Rc::downgrade(self));
-            this.output.push(Token::Page(p.clone()));
-            p.clone()
-        })
+        let p = self.borrow().stash.get(key)?.clone();
+        p.borrow_mut().parent = Some(Rc::downgrade(self));
+        self.borrow_mut().output.push(Token::Page(p.clone()));
+        Some(p)
     }
 }
 
