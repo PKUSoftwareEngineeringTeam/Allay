@@ -1,5 +1,5 @@
 //! Miscellaneous utility functions for the Allay compiler.
-//! These functions provide implementation for compiling
+//! These functions provide implementation for compiling source files (such as Markdown or HTML) into HTML strings.
 
 use crate::env::{Compiled, Page};
 use crate::interpret::Interpreter;
