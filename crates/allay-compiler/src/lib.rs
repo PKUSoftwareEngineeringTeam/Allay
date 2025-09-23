@@ -1,36 +1,69 @@
 #![doc = include_str!("../../../doc/dev/compiler.md")]
 
 mod ast;
-mod compile;
+mod env;
 mod error;
 mod interpret;
+mod misc;
 mod parse;
 
-use crate::compile::Compiled;
-use compile::Page;
+use allay_base::config::{get_allay_config, get_theme_path};
+use env::Page;
 pub use error::*;
 use interpret::Interpreter;
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
-/// Compile a source file (markdown or html) into HTML string.
-///
-/// # Arguments
-/// - `source`: The path to the source file (markdown or html)
-/// - `include_dir`: The directory to look for included templates
-/// - `shortcode_dir`: The directory to look for shortcodes
-///
-/// # Returns
-/// The compiled HTML string or a [`CompileError`]
-pub fn compile<P: AsRef<Path>>(
-    source: P,
-    include_dir: P,
-    shortcode_dir: P,
-) -> CompileResult<String> {
-    let mut interpreter = Interpreter::new(
-        include_dir.as_ref().to_path_buf(),
-        shortcode_dir.as_ref().to_path_buf(),
-    );
-    let page = Page::new(source.as_ref().to_path_buf());
-    let page = Rc::new(RefCell::new(page));
-    page.compile(&mut interpreter)
+mod magic {
+    //! Common magic words used in Allay templates
+
+    pub const INNER: &str = "inner";
+    pub const CONTENT: &str = "content";
+}
+
+/// The main Allay compiler structure with caching optimization.
+/// See all the implementations in [`misc`] submodule.
+#[derive(Default)]
+pub struct Compiler<K: Hash + Eq> {
+    /// A mapping from source files to the set of cache keys they influence.
+    influenced: HashMap<PathBuf, HashSet<K>>,
+    /// A mapping from cache keys to their compiled pages.
+    cached: HashMap<K, Rc<RefCell<Page>>>,
+}
+
+impl<K> Compiler<K>
+where
+    K: Hash + Eq,
+{
+    /// Create a new compiler instance with default settings.
+    fn default_interpreter() -> Interpreter {
+        let theme = get_theme_path();
+        let include_dir = theme.join(&get_allay_config().theme.template.dir);
+        let shortcode_dir = theme.join(&get_allay_config().shortcode.dir);
+        Interpreter::new(include_dir, shortcode_dir)
+    }
+
+    /// Add a listener for a source file, so that when the source file is modified,
+    /// all cached pages depending on it will be cleared.
+    fn add_listener<P: AsRef<Path>>(&mut self, source: P, key: K) {
+        self.influenced.entry(source.as_ref().to_path_buf()).or_default().insert(key);
+    }
+
+    /// Mark a source file as modified, so that all cached pages depending on it will be cleared.
+    /// This is useful when a source file is changed.
+    pub fn modify<P: AsRef<Path>>(&mut self, source: P) {
+        if let Some(deps) = self.influenced.get(source.as_ref()) {
+            for dep in deps {
+                self.cached.get(dep).unwrap().borrow_mut().clear();
+            }
+        }
+    }
+
+    /// Remember a compiled page with the given key.
+    fn remember(&mut self, key: K, page: Rc<RefCell<Page>>) {
+        self.cached.insert(key, page);
+    }
 }

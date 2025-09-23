@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO: Remove this line when the module is fully utilized.
-
 use std::path::Path;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,4 +38,13 @@ impl TemplateKind {
             TemplateKind::Other(e) => e.as_str(),
         }
     }
+}
+
+pub enum ContentKind {
+    /// The article content, usually in markdown format
+    Article,
+    /// The general page template, like `index.html`
+    General,
+    /// A static file, like CSS, JS, images, etc.
+    Static,
 }
