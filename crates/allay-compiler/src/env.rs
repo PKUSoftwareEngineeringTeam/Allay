@@ -3,23 +3,28 @@ use crate::parse::parse_template;
 use crate::{CompileError, CompileResult};
 use allay_base::{file, template::TemplateKind};
 use pulldown_cmark::{Parser, html};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::rc::{Rc, Weak};
+use std::sync::{Arc, Mutex, Weak};
+
+macro_rules! get_lock {
+    ($e:expr) => {
+        $e.lock().unwrap_or_else(|_| panic!("Lock poisoned! This is a bug of Allay, please report it to the developers on https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."))
+    };
+}
 
 /// The page environment to record the state of a page during compiling
 /// Fully optimized for increment compiling
 pub(crate) struct Page {
     /// the parent page, if any
-    parent: Option<Weak<RefCell<Page>>>,
+    parent: Option<Weak<Mutex<Page>>>,
     /// the path of the page
     path: PathBuf,
     /// the interpret scope of the page
     scope: PageScope,
     /// subpages which are planned to be added to output when compiling
     /// like the ".inner", ".content" magic words in the template
-    stash: HashMap<String, Rc<RefCell<Page>>>,
+    stash: HashMap<String, Arc<Mutex<Page>>>,
     /// the output tokens
     output: Vec<Token>,
 
@@ -33,7 +38,7 @@ pub(crate) struct Page {
 
 enum Token {
     Text(String),
-    Page(Rc<RefCell<Page>>),
+    Page(Arc<Mutex<Page>>),
 }
 
 impl Page {
@@ -75,7 +80,7 @@ impl Page {
     }
 
     /// Stash a subpage with the given key.
-    pub fn add_stash(&mut self, key: String, page: Rc<RefCell<Page>>) {
+    pub fn add_stash(&mut self, key: String, page: Arc<Mutex<Page>>) {
         self.stash.insert(key, page);
     }
 
@@ -93,13 +98,13 @@ impl Page {
         if let Some(parent) = &self.parent
             && let Some(parent) = parent.upgrade()
         {
-            parent.borrow_mut().spread_dirty();
+            get_lock!(parent).spread_dirty();
         }
     }
 
     /// Convert the page into a reference-counted pointer
-    pub fn into(self) -> Rc<RefCell<Page>> {
-        Rc::new(RefCell::new(self))
+    pub fn into(self) -> Arc<Mutex<Page>> {
+        Arc::new(Mutex::new(self))
     }
 }
 
@@ -123,28 +128,28 @@ pub(crate) trait TokenInserter: Sized {
     fn insert_stash(&self, key: &str) -> Option<Self>;
 }
 
-impl TokenInserter for Rc<RefCell<Page>> {
+impl TokenInserter for Arc<Mutex<Page>> {
     fn insert_text(&self, text: String) {
-        self.borrow_mut().output.push(Token::Text(text));
+        get_lock!(self).output.push(Token::Text(text));
     }
 
     fn insert_subpage(&self, path: PathBuf, scope: PageScope) -> Self {
         let page = Page::new(path);
         let page = Page {
-            parent: Some(Rc::downgrade(self)),
+            parent: Some(Arc::downgrade(self)),
             scope,
             ..page
         };
         let page = page.into();
-        self.borrow_mut().output.push(Token::Page(page.clone()));
+        get_lock!(self).output.push(Token::Page(page.clone()));
         page
     }
 
     fn insert_stash(&self, key: &str) -> Option<Self> {
-        let p = self.borrow().stash.get(key)?.clone();
-        p.borrow_mut().parent = Some(Rc::downgrade(self));
-        self.borrow_mut().output.push(Token::Page(p.clone()));
-        Some(p)
+        let page = { get_lock!(self).stash.get(key)?.clone() };
+        get_lock!(page).parent = Some(Arc::downgrade(self));
+        get_lock!(self).output.push(Token::Page(page.clone()));
+        Some(page)
     }
 }
 
@@ -161,26 +166,34 @@ pub(crate) trait Compiled {
     fn gen_result_str(&self, interpreter: &mut Interpreter) -> CompileResult<String>;
 }
 
-impl Compiled for Rc<RefCell<Page>> {
+impl Compiled for Arc<Mutex<Page>> {
     // The optimized version for compiling a page (by caching the result)
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<String> {
-        if !self.borrow().ready {
+        let page = get_lock!(self);
+        if !page.ready {
             // compile only when modified
-            let kind = TemplateKind::from_filename(&self.borrow().path);
+            let kind = TemplateKind::from_filename(&page.path);
             let content = match kind {
-                TemplateKind::Html | TemplateKind::Markdown => {
-                    file::read_file_string(&self.borrow().path)?
-                }
+                TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&page.path)?,
                 TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
             };
+            drop(page);
+
             let ast = parse_template(&content)?;
             self.compile_on(&ast, interpreter)?;
-            self.borrow_mut().ready = true;
+
+            get_lock!(self).ready = true;
+        } else {
+            drop(page);
         }
-        if !self.borrow().dirty {
+
+        let page = get_lock!(self);
+        if !page.dirty {
             // use cached result
-            return Ok(self.borrow().cache.clone());
+            return Ok(page.cache.clone());
         }
+        drop(page);
+
         self.gen_result_str(interpreter)
     }
 
@@ -195,20 +208,24 @@ impl Compiled for Rc<RefCell<Page>> {
 
     fn gen_result_str(&self, interpreter: &mut Interpreter) -> CompileResult<String> {
         let mut result = String::new();
-        for token in &self.borrow().output {
+        let page = get_lock!(self);
+        for token in page.output.iter() {
             result.push(' ');
             match token {
                 Token::Text(t) => result.push_str(t),
                 Token::Page(p) => result.push_str(&p.compile(interpreter)?),
             }
         }
-        let kind = TemplateKind::from_filename(&self.borrow().path);
+        drop(page);
+
+        let kind = { TemplateKind::from_filename(&get_lock!(self).path) };
         if matches!(kind, TemplateKind::Markdown) {
             result = convert_to_html(&result)?;
         }
 
-        self.borrow_mut().dirty = false;
-        self.borrow_mut().cache = result.clone();
+        let mut page = get_lock!(self);
+        page.dirty = false;
+        page.cache = result.clone();
         Ok(result)
     }
 }

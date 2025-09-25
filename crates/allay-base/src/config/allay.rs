@@ -8,6 +8,7 @@ pub struct AllayConfig {
     pub description: String,
     pub version: String,
     pub repository: String,
+    pub issue: String,
     pub content: ContentConfig,
     pub publish: PublishConfig,
     pub statics: StaticConfig,
