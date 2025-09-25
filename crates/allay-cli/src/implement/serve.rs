@@ -1,6 +1,5 @@
-use std::time::Duration;
-
 use allay_base::config::ServerArgs;
+use std::time::Duration;
 use tracing::instrument;
 
 /// CLI Server Command

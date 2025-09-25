@@ -1,7 +1,11 @@
 use allay_base::file::{self, FileResult};
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, new_debouncer};
-use std::{path::PathBuf, sync::mpsc, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    sync::mpsc,
+    time::Duration,
+};
 use tracing::{info, warn};
 
 /// A trait for listening to file system events in a specified root directory.
@@ -65,7 +69,7 @@ pub trait FileListener: Send + Sync {
 
     /// Convert an absolute path provided by [`notify`] to a path relative to the root directory.
     /// Do not override this function unless necessary.
-    fn to_relative(&self, path: &PathBuf) -> PathBuf {
+    fn to_relative(&self, path: &Path) -> PathBuf {
         let root = file::absolute_workspace(self.root());
         path.strip_prefix(root).unwrap_or(path).to_path_buf()
     }
@@ -112,19 +116,19 @@ pub trait FileMapper {
     /// The rule to map the path from source to destination.
     /// Note: the path parameters are the paths relative to the respective roots.
     /// Default: identity mapping
-    fn path_mapping(&self, src: &PathBuf) -> PathBuf {
-        src.clone()
+    fn path_mapping(&self, src: &Path) -> PathBuf {
+        src.to_path_buf()
     }
 
     /// Utility function to get the source path in the workspace.
     /// Do not override this function unless necessary.
-    fn src_workspace(&self, src: &PathBuf) -> PathBuf {
+    fn src_workspace(&self, src: &Path) -> PathBuf {
         file::workspace(self.src_root()).join(src)
     }
 
     /// Utility function to get the destination path in the workspace.
     /// Do not override this function unless necessary.
-    fn dest_workspace(&self, src: &PathBuf) -> PathBuf {
+    fn dest_workspace(&self, src: &Path) -> PathBuf {
         file::workspace(self.dest_root()).join(self.path_mapping(src))
     }
 }
