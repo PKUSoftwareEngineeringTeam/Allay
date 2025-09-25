@@ -7,10 +7,8 @@ use crate::{ast::*, magic};
 use allay_base::data::AllayData;
 use allay_base::data::{AllayDataError, AllayList};
 use itertools::Itertools;
-use std::cell::RefCell;
 use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 fn converse_error(err: String) -> InterpretError {
     InterpretError::DataError(AllayDataError::TypeConversion(err))
@@ -26,7 +24,7 @@ macro_rules! interpret_unreachable {
 
 macro_rules! interpret_unwrap {
     ($expr: expr) => {
-        $expr.unwrap_or_else(|| interpret_unreachable!())
+        $expr.unwrap_or_else(|_| interpret_unreachable!())
     };
 }
 
@@ -63,14 +61,14 @@ pub(crate) trait Interpretable {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output>;
 }
 
 impl Interpretable for File {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         // the page scope is pushed into stack before interpreting
         // TODO: read the metadata here
         self.0.interpret(ctx, page)?;
@@ -81,7 +79,7 @@ impl Interpretable for File {
 impl Interpretable for Template {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         self.controls.iter().try_for_each(|c| c.interpret(ctx, page))
     }
 }
@@ -89,7 +87,7 @@ impl Interpretable for Template {
 impl Interpretable for Control {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         match self {
             Control::Text(text) => {
                 page.insert_text(text.clone());
@@ -105,7 +103,7 @@ impl Interpretable for Control {
 impl Interpretable for Command {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         match self {
             Command::Set(cmd) => cmd.interpret(ctx, page),
             Command::For(cmd) => cmd.interpret(ctx, page),
@@ -119,9 +117,9 @@ impl Interpretable for Command {
 impl Interpretable for SetCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let value = self.value.interpret(ctx, page)?;
-        page.borrow_mut()
+        interpret_unwrap!(page.lock())
             .scope_mut()
             .cur_scope_mut()
             .create_local(self.name.clone(), value);
@@ -132,17 +130,17 @@ impl Interpretable for SetCommand {
 impl Interpretable for ForCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let list = self.list.interpret(ctx, page)?;
         let list = list.as_list()?;
         for (index, item) in list.iter().enumerate() {
-            page.borrow_mut()
+            interpret_unwrap!(page.lock())
                 .scope_mut()
                 .cur_scope_mut()
                 .create_local(self.item_name.clone(), item.clone());
             if let Some(index_name) = &self.index_name {
                 let index = Arc::new((index as i32).into());
-                page.borrow_mut()
+                interpret_unwrap!(page.lock())
                     .scope_mut()
                     .cur_scope_mut()
                     .create_local(index_name.clone(), index);
@@ -156,12 +154,14 @@ impl Interpretable for ForCommand {
 impl Interpretable for WithCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let scope_data = self.scope.interpret(ctx, page)?;
         let var = LocalVar::create(scope_data);
-        page.borrow_mut().scope_mut().create_sub_scope(var);
+        {
+            interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
+        }
         self.inner.interpret(ctx, page)?;
-        interpret_unwrap!(page.borrow_mut().scope_mut().exit_sub_scope());
+        interpret_unwrap!(page.lock()).scope_mut().exit_sub_scope();
         Ok(())
     }
 }
@@ -169,7 +169,7 @@ impl Interpretable for WithCommand {
 impl Interpretable for IfCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let cond = self.condition.interpret(ctx, page)?.as_bool()?;
         if cond {
             self.inner.interpret(ctx, page)
@@ -210,10 +210,10 @@ mod file_finder {
 impl Interpretable for IncludeCommand {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let inherited = match self.parameters.first() {
             Some(exp) => exp.interpret(ctx, page)?,
-            None => page.borrow().scope().cur_scope().create_this().get_data(),
+            None => interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data(),
         };
 
         // from 1...n are params
@@ -233,7 +233,7 @@ impl Interpretable for IncludeCommand {
 impl Interpretable for Shortcode {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         match self {
             Shortcode::Single(sc) => sc.interpret(ctx, page),
             Shortcode::Block(sc) => sc.interpret(ctx, page),
@@ -244,9 +244,9 @@ impl Interpretable for Shortcode {
 impl Interpretable for SingleShortcode {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
-        let inherited = page.borrow().scope().cur_scope().create_this().get_data();
+        let inherited = interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data();
 
         let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
@@ -259,9 +259,9 @@ impl Interpretable for SingleShortcode {
 impl Interpretable for BlockShortcode {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
-        let inherited = page.borrow().scope().cur_scope().create_this().get_data();
+        let inherited = interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data();
 
         let mut scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
 
@@ -269,8 +269,8 @@ impl Interpretable for BlockShortcode {
         // Do not use the lazy evaluation here, because the inner text may be modified later
         // FIXME: If the inner text of the shortcode is modified after this point (e.g., during hot reload), those changes will not be reflected,
         // because the "inner" key is set to the current compiled value. This may cause stale content to appear after hot reloads.
-        let inner_page = page.borrow().clone_detached();
-        let inner_page = Rc::new(RefCell::new(inner_page));
+        let inner_page = interpret_unwrap!(page.lock()).clone_detached();
+        let inner_page = Arc::new(Mutex::new(inner_page));
         let inner = inner_page
             .compile_on(&self.inner, ctx)
             .map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
@@ -285,7 +285,7 @@ impl Interpretable for BlockShortcode {
 impl Interpretable for Substitution {
     type Output = ();
 
-    fn interpret(&self, ctx: &mut Interpreter, page: &Rc<RefCell<Page>>) -> InterpretResult<()> {
+    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let value = self.expr.interpret(ctx, page)?;
         page.insert_text(value.to_string());
         Ok(())
@@ -298,7 +298,7 @@ impl Interpretable for Expression {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         self.0.interpret(ctx, page)
     }
@@ -310,7 +310,7 @@ impl Interpretable for Or {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         let ands = &self.0;
         if ands.is_empty() {
@@ -342,7 +342,7 @@ impl Interpretable for And {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         let comps = &self.0;
         if comps.is_empty() {
@@ -374,7 +374,7 @@ impl Interpretable for Comparison {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.right.is_none() {
             return self.left.interpret(ctx, page);
@@ -402,7 +402,7 @@ impl Interpretable for AddSub {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.rights.is_empty() {
             return self.left.interpret(ctx, page);
@@ -429,7 +429,7 @@ impl Interpretable for MulDiv {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.rights.is_empty() {
             return self.left.interpret(ctx, page);
@@ -457,7 +457,7 @@ impl Interpretable for Unary {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         if self.ops.is_empty() {
             return self.exp.interpret(ctx, page);
@@ -497,7 +497,7 @@ impl Interpretable for Primary {
     fn interpret(
         &self,
         ctx: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Arc<AllayData>> {
         match self {
             Primary::Number(num) => Ok(Arc::new((*num as i32).into())),
@@ -516,7 +516,7 @@ impl Interpretable for Field {
     fn interpret(
         &self,
         _: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output> {
         // check magic fields
         if self.top_level.is_none()
@@ -527,7 +527,7 @@ impl Interpretable for Field {
             return Ok(Arc::new(AllayData::default()));
         }
 
-        let page = page.borrow();
+        let page = interpret_unwrap!(page.lock());
         let scope = page.scope();
         let var: &dyn Variable = match &self.top_level {
             None | Some(TopLevel::This) => &scope.cur_scope().create_this(),
@@ -546,9 +546,9 @@ impl Interpretable for TopLevel {
     fn interpret(
         &self,
         _: &mut Interpreter,
-        page: &Rc<RefCell<Page>>,
+        page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output> {
-        let page = page.borrow();
+        let page = interpret_unwrap!(page.lock());
         let scope = page.scope();
         let var: &dyn Variable = match self {
             TopLevel::This => &scope.cur_scope().create_this(),

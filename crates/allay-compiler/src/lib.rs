@@ -11,11 +11,10 @@ use allay_base::config::{get_allay_config, get_theme_path};
 use env::Page;
 pub use error::*;
 use interpret::Interpreter;
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 mod magic {
     //! Common magic words used in Allay templates
@@ -31,7 +30,7 @@ pub struct Compiler<K: Hash + Eq> {
     /// A mapping from source files to the set of cache keys they influence.
     influenced: HashMap<PathBuf, HashSet<K>>,
     /// A mapping from cache keys to their compiled pages.
-    cached: HashMap<K, Rc<RefCell<Page>>>,
+    cached: HashMap<K, Arc<Mutex<Page>>>,
 }
 
 impl<K> Compiler<K>
@@ -57,13 +56,14 @@ where
     pub fn modify<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.get(source.as_ref()) {
             for dep in deps {
-                self.cached.get(dep).unwrap().borrow_mut().clear();
+                let mut page = self.cached.get(dep).unwrap().lock().unwrap();
+                page.clear();
             }
         }
     }
 
     /// Remember a compiled page with the given key.
-    fn remember(&mut self, key: K, page: Rc<RefCell<Page>>) {
+    fn remember(&mut self, key: K, page: Arc<Mutex<Page>>) {
         self.cached.insert(key, page);
     }
 }
