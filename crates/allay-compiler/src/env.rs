@@ -187,7 +187,7 @@ impl Compiled for Arc<Mutex<Page>> {
 
             let ast = parse_template(&content)?;
             self.compile_on(&ast, interpreter)?;
-            
+
             get_lock!(self).ready = true;
         } else {
             drop(page);
