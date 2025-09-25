@@ -52,8 +52,10 @@ name = "allay-publish"
 version = "0.1.0"
 dependencies = [
  "allay-base",
+ "allay-compiler",
  "notify",
  "notify-debouncer-full",
+ "tracing",
 ]
 
 [[package]]

@@ -1,10 +1,3 @@
-use crate::listener::FileMapper;
-use crate::publish::StaticPublisher;
+#![allow(dead_code)]
 
-pub mod listener;
-pub mod publish;
-
-pub fn start() {
-    // make clippy happy
-    StaticPublisher::src_root();
-}
+mod generate;
