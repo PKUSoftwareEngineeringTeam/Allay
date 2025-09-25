@@ -146,16 +146,10 @@ impl TokenInserter for Arc<Mutex<Page>> {
     }
 
     fn insert_stash(&self, key: &str) -> Option<Self> {
-        let self_page = get_lock!(self);
-        let p = self_page.stash.get(key)?.clone();
-        drop(self_page);
-
-        let mut p_page = get_lock!(p);
-        p_page.parent = Some(Arc::downgrade(self));
-        drop(p_page);
-
-        get_lock!(self).output.push(Token::Page(p.clone()));
-        Some(p)
+        let page = { get_lock!(self).stash.get(key)?.clone() };
+        get_lock!(page).parent = Some(Arc::downgrade(self));
+        get_lock!(self).output.push(Token::Page(page.clone()));
+        Some(page)
     }
 }
 
@@ -224,10 +218,7 @@ impl Compiled for Arc<Mutex<Page>> {
         }
         drop(page);
 
-        let kind = {
-            let page = get_lock!(self);
-            TemplateKind::from_filename(&page.path)
-        };
+        let kind = { TemplateKind::from_filename(&get_lock!(self).path) };
         if matches!(kind, TemplateKind::Markdown) {
             result = convert_to_html(&result)?;
         }
