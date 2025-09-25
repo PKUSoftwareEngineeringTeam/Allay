@@ -8,6 +8,7 @@ mod misc;
 mod parse;
 
 use allay_base::config::{get_allay_config, get_theme_path};
+use allay_base::file;
 use env::Page;
 pub use error::*;
 use interpret::Interpreter;
@@ -39,7 +40,7 @@ where
 {
     /// Create a new compiler instance with default settings.
     fn default_interpreter() -> Interpreter {
-        let theme = get_theme_path();
+        let theme = file::workspace(get_theme_path());
         let include_dir = theme.join(&get_allay_config().theme.template.dir);
         let shortcode_dir = theme.join(&get_allay_config().shortcode.dir);
         Interpreter::new(include_dir, shortcode_dir)

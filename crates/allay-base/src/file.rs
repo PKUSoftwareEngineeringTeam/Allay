@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -37,6 +38,10 @@ pub fn set_root<P: AsRef<Path>>(path: P) {
     ROOT.set(path).ok();
 }
 
+pub fn absolute<P: AsRef<Path>>(path: P) -> PathBuf {
+    env::current_dir().expect("Failed to get current directory").join(path)
+}
+
 /// Get the root directory for the site
 pub fn root() -> PathBuf {
     if ROOT.get().is_none() {
@@ -46,9 +51,19 @@ pub fn root() -> PathBuf {
     ROOT.get().unwrap().clone()
 }
 
+/// Get the absolute path of the root directory
+pub fn absolute_root() -> PathBuf {
+    absolute(root())
+}
+
 /// Get the actual workspace path by of the given path
 pub fn workspace<P: AsRef<Path>>(path: P) -> PathBuf {
     root().join(path)
+}
+
+/// Get the actual absolute workspace path by of the given path
+pub fn absolute_workspace<P: AsRef<Path>>(path: P) -> PathBuf {
+    absolute_root().join(path)
 }
 
 /// Check if a file exists

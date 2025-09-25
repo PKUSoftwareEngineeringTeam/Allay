@@ -26,6 +26,7 @@ name = "allay-cli"
 version = "0.1.0"
 dependencies = [
  "allay-base",
+ "allay-publish",
  "anyhow",
  "dialoguer",
  "git2",

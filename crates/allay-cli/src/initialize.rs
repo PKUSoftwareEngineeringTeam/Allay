@@ -46,7 +46,7 @@ fn init_logger() -> anyhow::Result<()> {
 
     if get_env().is_dev() {
         tracing_subscriber::fmt()
-            .with_max_level(Level::TRACE)
+            .with_max_level(Level::DEBUG)
             .with_writer(io::stdout)
             .with_span_events(FmtSpan::ENTER)
             .event_format(format.with_ansi(true))

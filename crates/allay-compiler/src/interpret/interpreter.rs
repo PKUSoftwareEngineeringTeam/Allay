@@ -287,7 +287,9 @@ impl Interpretable for Substitution {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let value = self.expr.interpret(ctx, page)?;
-        page.insert_text(value.to_string());
+        if !value.is_null() {
+            page.insert_text(value.to_string());
+        }
         Ok(())
     }
 }
