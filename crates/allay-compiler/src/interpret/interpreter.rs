@@ -70,7 +70,15 @@ impl Interpretable for File {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         // the page scope is pushed into stack before interpreting
-        // TODO: read the metadata here
+        if self.meta.is_some() {
+            let meta = self.meta.as_ref().unwrap();
+            let meta = match meta {
+                Meta::Yaml(yaml) => AllayData::from_yaml(yaml)?,
+                Meta::Toml(toml) => AllayData::from_toml(toml)?,
+            };
+            let page_scope = PageScope::new_from(Arc::new(meta), AllayList::default());
+            interpret_unwrap!(page.lock()).set_scope(page_scope);
+        }
         self.template.interpret(ctx, page)?;
         Ok(())
     }

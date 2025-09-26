@@ -28,12 +28,12 @@ impl Compiler<String> {
         include_dir: P,
         shortcode_dir: P,
     ) -> CompileResult<String> {
-        let interpreter = &mut Interpreter::new(
+        let mut interpreter = Interpreter::new(
             include_dir.as_ref().to_path_buf(),
             shortcode_dir.as_ref().to_path_buf(),
         );
         let page = Page::new(source.as_ref().to_path_buf());
-        page.into().compile(interpreter)
+        page.into().compile(&mut interpreter)
     }
 
     /// Compile a source file with caching mechanism.
