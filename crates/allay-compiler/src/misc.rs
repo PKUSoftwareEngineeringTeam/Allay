@@ -6,6 +6,7 @@ use crate::interpret::Interpreter;
 use crate::magic;
 use crate::{CompileError, CompileResult, Compiler};
 use allay_base::config::{get_allay_config, get_theme_path};
+use allay_base::file;
 use allay_base::template::ContentKind;
 use std::path::{Path, PathBuf};
 
@@ -89,7 +90,7 @@ impl Compiler<String> {
     /// Get the template path for an article
     fn get_article_template<P: AsRef<Path>>(_article: P) -> PathBuf {
         // TODO: Support custom templates for articles (currently use the default "page.html")
-        get_theme_path().join(&get_allay_config().theme.template.content)
+        file::workspace(get_theme_path().join(&get_allay_config().theme.template.content))
     }
 
     /// Generate a unique cache key for an article with its template

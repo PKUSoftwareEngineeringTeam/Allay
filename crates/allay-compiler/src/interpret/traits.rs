@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO: remove this line when the module is complete
-
 use crate::ast::GetField;
 use crate::interpret::var::{LocalVar, ThisVar};
 use crate::{InterpretError, InterpretResult};
@@ -35,12 +33,7 @@ pub(crate) trait DataProvider {
 }
 
 /// A variable in the template, which can provide data
-pub(crate) trait Variable: DataProvider {
-    /// What the element renders to in template
-    fn render(&self) -> String {
-        self.get_data().to_string()
-    }
-}
+pub(crate) trait Variable: DataProvider {}
 
 /// The variable scope for template, organized as a tree like json object
 /// [`DataProvider`] here is the `this` variable

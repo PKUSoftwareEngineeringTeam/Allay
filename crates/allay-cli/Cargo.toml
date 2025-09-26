@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 allay-base = { path = "../allay-base" }
+allay-publish = { path = "../allay-publish" }
 git2 = "0.20.2"
 dialoguer = { version = "0.12" }
 anyhow = { workspace = true }

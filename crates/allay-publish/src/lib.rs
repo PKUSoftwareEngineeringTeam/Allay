@@ -1,10 +1,9 @@
-use crate::listener::FileMapper;
-use crate::publish::StaticPublisher;
+mod generate;
+use generate::GeneratorWorker;
+use std::sync::OnceLock;
 
-pub mod listener;
-pub mod publish;
-
+/// Start the publish worker.
 pub fn start() {
-    // make clippy happy
-    StaticPublisher::src_root();
+    pub static GENERATOR: OnceLock<GeneratorWorker> = OnceLock::new();
+    GENERATOR.get_or_init(GeneratorWorker::create).start();
 }
