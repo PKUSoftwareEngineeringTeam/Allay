@@ -23,7 +23,7 @@ impl SiteVar {
     pub fn get_instance() -> &'static SiteVar {
         static SITE_INSTANCE: OnceLock<SiteVar> = OnceLock::new();
         SITE_INSTANCE.get_or_init(|| {
-            let site_data = get_site_config().get("params").cloned().unwrap_or_default().into();
+            let site_data = get_site_config().get("params").cloned().unwrap_or_default();
             SiteVar { data: site_data }
         })
     }
