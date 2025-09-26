@@ -156,6 +156,7 @@ pub enum Primary {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TopLevel {
     This,
+    Site,
     Param,
     Variable(String),
 }

@@ -4,10 +4,9 @@ use crate::InterpretResult;
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Variable};
 use allay_base::data::{AllayData, AllayList};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 /// The global site variable, usually from site config
-/// TODO: Implement it as a singleton
 #[derive(Debug, Clone)]
 pub(crate) struct SiteVar {
     pub data: Arc<AllayData>,
@@ -20,6 +19,17 @@ impl DataProvider for SiteVar {
 }
 
 impl Variable for SiteVar {}
+
+impl SiteVar {
+    pub fn get_instance() -> &'static SiteVar {
+        static SITE_INSTANCE: OnceLock<SiteVar> = OnceLock::new();
+        SITE_INSTANCE.get_or_init(|| {
+            let site_config = allay_base::config::site::get_site_config();
+            let site_data = Arc::new(AllayData::from(site_config.clone()));
+            SiteVar { data: site_data }
+        })
+    }
+}
 
 /// The special variable `this`, which points to the current scope data
 #[derive(Clone)]
