@@ -1,7 +1,7 @@
 use crate::env::{Compiled, Page, TokenInserter};
 use crate::interpret::scope::PageScope;
 use crate::interpret::traits::{DataProvider, Variable};
-use crate::interpret::var::LocalVar;
+use crate::interpret::var::{LocalVar, SiteVar};
 use crate::{InterpretError, InterpretResult};
 use crate::{ast::*, magic};
 use allay_base::data::AllayData;
@@ -533,6 +533,7 @@ impl Interpretable for Field {
         let scope = page.scope();
         let var: &dyn Variable = match &self.top_level {
             None | Some(TopLevel::This) => &scope.cur_scope().create_this(),
+            Some(TopLevel::Site) => SiteVar::get_instance(),
             Some(TopLevel::Param) => scope.get_param(),
             Some(TopLevel::Variable(id)) => {
                 scope.get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
@@ -554,6 +555,7 @@ impl Interpretable for TopLevel {
         let scope = page.scope();
         let var: &dyn Variable = match self {
             TopLevel::This => &scope.cur_scope().create_this(),
+            TopLevel::Site => SiteVar::get_instance(),
             TopLevel::Param => scope.get_param(),
             TopLevel::Variable(id) => {
                 scope.get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?

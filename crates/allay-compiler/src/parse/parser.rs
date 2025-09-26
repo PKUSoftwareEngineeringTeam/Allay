@@ -552,6 +552,7 @@ impl ASTBuilder for TopLevel {
         match inner.as_rule() {
             Rule::this => Ok(TopLevel::This),
             Rule::param => Ok(TopLevel::Param),
+            Rule::site => Ok(TopLevel::Site),
             Rule::variable => Ok(TopLevel::Variable(single_inner(inner).as_str().to_string())),
             _ => parser_unreachable!(),
         }
