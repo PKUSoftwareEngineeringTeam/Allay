@@ -34,13 +34,21 @@ pub trait FileListener: Send + Sync {
     /// and triggering the `on_create` event for each file.
     fn cold_start(&self) {
         let root = file::absolute_workspace(self.root());
-        for entry in WalkDir::new(&root).follow_links(true).into_iter().filter_map(|e| e.ok()) {
-            if entry.file_type().is_file() {
-                let path = self.to_relative(&entry.path());
-                self.on_create(path.clone()).unwrap_or_else(|e| {
-                    warn!("Error handling cold start file {:?}: {}", path, e);
-                });
-            }
+        for entry in WalkDir::new(&root).follow_links(true) {
+            match entry {
+                Ok(entry) => {
+                    if entry.file_type().is_file() {
+                        let path = self.to_relative(entry.path());
+                        self.on_create(path.clone()).unwrap_or_else(|e| {
+                            warn!("Error handling cold start file {:?}: {}", path, e);
+                        });
+                    }
+                }
+                Err(e) => {
+                    warn!("Error reading file in cold start in {:?}: {}", root, e);
+                    continue;
+                }
+            };
         }
     }
 
