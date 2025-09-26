@@ -34,7 +34,7 @@ pub fn set_root<P: AsRef<Path>>(path: P) {
         warn!("Root directory is already set. Ignoring subsequent set_root call.");
         return;
     }
-    let path = path.as_ref().to_path_buf();
+    let path = path.as_ref().into();
     ROOT.set(path).ok();
 }
 
@@ -88,7 +88,7 @@ pub fn read_file_info<P: AsRef<Path>>(file_path: P) -> FileResult<fs::Metadata> 
     let file_path = file_path.as_ref();
 
     if !file_exists(file_path) {
-        return Err(FileError::FileNotFound(file_path.to_path_buf()));
+        return Err(FileError::FileNotFound(file_path.into()));
     }
 
     let metadata = fs::metadata(file_path)?;
@@ -100,7 +100,7 @@ pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     let file_path = file_path.as_ref();
 
     if !file_exists(file_path) {
-        return Err(FileError::FileNotFound(file_path.to_path_buf()));
+        return Err(FileError::FileNotFound(file_path.into()));
     }
 
     let content = fs::read_to_string(file_path)?;
@@ -108,7 +108,7 @@ pub fn read_file<P: AsRef<Path>>(file_path: P) -> FileResult<FileContent> {
     let size = content.len();
 
     Ok(FileContent {
-        path: file_path.to_path_buf(),
+        path: file_path.into(),
         content,
         size,
         line_count,
@@ -120,7 +120,7 @@ pub fn read_file_string<P: AsRef<Path>>(file_path: P) -> FileResult<String> {
     let file_path = file_path.as_ref();
 
     if !file_exists(file_path) {
-        return Err(FileError::FileNotFound(file_path.to_path_buf()));
+        return Err(FileError::FileNotFound(file_path.into()));
     }
 
     let content = fs::read_to_string(file_path)?;
@@ -222,7 +222,7 @@ pub fn rename<P: AsRef<Path>>(old: P, new: P) -> FileResult<()> {
         fs::rename(old, new)?;
         Ok(())
     } else {
-        Err(FileError::FileNotFound(old.as_ref().to_path_buf()))
+        Err(FileError::FileNotFound(old.as_ref().into()))
     }
 }
 
@@ -231,6 +231,6 @@ pub fn copy<P: AsRef<Path>>(src: P, dest: P) -> FileResult<()> {
         fs::copy(src, dest)?;
         Ok(())
     } else {
-        Err(FileError::FileNotFound(src.as_ref().to_path_buf()))
+        Err(FileError::FileNotFound(src.as_ref().into()))
     }
 }

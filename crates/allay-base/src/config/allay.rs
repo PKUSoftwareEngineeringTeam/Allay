@@ -72,6 +72,7 @@ pub struct DefaultThemeConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateConfig {
     pub dir: String,
+    pub custom_dir: String,
     pub index: String,
     pub content: String,
     pub not_found: String,

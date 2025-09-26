@@ -28,11 +28,9 @@ impl Compiler<String> {
         include_dir: P,
         shortcode_dir: P,
     ) -> CompileResult<String> {
-        let interpreter = &mut Interpreter::new(
-            include_dir.as_ref().to_path_buf(),
-            shortcode_dir.as_ref().to_path_buf(),
-        );
-        let page = Page::new(source.as_ref().to_path_buf());
+        let interpreter =
+            &mut Interpreter::new(include_dir.as_ref().into(), shortcode_dir.as_ref().into());
+        let page = Page::new(source.as_ref().into());
         page.into().compile(interpreter)
     }
 
@@ -104,7 +102,7 @@ impl Compiler<String> {
 
     /// Compile an article
     fn article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<String> {
-        let article = article.as_ref().to_path_buf();
+        let article = article.as_ref().into();
         let template = Self::get_article_template(&article);
         let article_key = Self::default_key(&article);
         let template_article_key = Self::template_article_key(&template, &article);
@@ -147,7 +145,7 @@ impl Compiler<String> {
 
     /// Remove an article and its associated template page from the cache and influenced mapping.
     fn remove_article<P: AsRef<Path>>(&mut self, article: P) {
-        let article = article.as_ref().to_path_buf();
+        let article = article.as_ref().into();
         let template = Self::get_article_template(&article);
         let article_key = Self::default_key(&article);
         let template_article_key = Self::template_article_key(&template, &article);

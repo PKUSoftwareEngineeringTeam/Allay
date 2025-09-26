@@ -57,6 +57,7 @@ dependencies = [
  "notify",
  "notify-debouncer-full",
  "tracing",
+ "walkdir",
 ]
 
 [[package]]
