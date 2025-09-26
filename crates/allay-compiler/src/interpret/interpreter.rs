@@ -71,7 +71,7 @@ impl Interpretable for File {
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         // the page scope is pushed into stack before interpreting
         // TODO: read the metadata here
-        self.0.interpret(ctx, page)?;
+        self.template.interpret(ctx, page)?;
         Ok(())
     }
 }

@@ -1,7 +1,11 @@
 WHITESPACE = _{ " " | "\t" | "\r" }
 
-file = { SOI ~ template ~ EOI }
+file = { SOI ~ (yaml_front_matter | toml_front_matter)? ~ template ~ EOI }
 
+yaml_mata = @{ (!"---\n" ~ ANY)* }
+toml_mata = @{ (!"+++\n" ~ ANY)* }
+yaml_front_matter = { "---\n" ~ yaml_mata ~ "---\n" }
+toml_front_matter = { "+++\n" ~ toml_mata ~ "+++\n" }
 template = { control* }
 control = { text | shortcode | command | substitution }
 
