@@ -1,8 +1,7 @@
-#![allow(dead_code)] // TODO: remove this line when the module is complete
-
 use crate::InterpretResult;
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Variable};
+use allay_base::config::get_site_config;
 use allay_base::data::{AllayData, AllayList};
 use std::sync::{Arc, OnceLock};
 
@@ -24,8 +23,7 @@ impl SiteVar {
     pub fn get_instance() -> &'static SiteVar {
         static SITE_INSTANCE: OnceLock<SiteVar> = OnceLock::new();
         SITE_INSTANCE.get_or_init(|| {
-            let site_config = allay_base::config::site::get_site_config();
-            let site_data = Arc::new(AllayData::from(site_config.clone()));
+            let site_data = Arc::new(get_site_config().clone().into());
             SiteVar { data: site_data }
         })
     }
