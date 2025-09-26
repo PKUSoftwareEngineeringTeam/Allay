@@ -9,7 +9,7 @@ Allay templates support several commands to control the flow of the template ren
 `set` directive is used to create a variable in the current scope.
 
 ```html
-{- set $var .something -}
+{- set $var = .something -}
 {: $var :} <!-- use the variable -->
 ```
 

@@ -22,11 +22,6 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwrap!(pair.into_inner().next())
 }
 
-fn strip_string(string: &str) -> &str {
-    // remove the leading " and trailing "
-    &string[1..string.len() - 1]
-}
-
 pub(super) trait ASTBuilder: Sized {
     fn build(pair: Pair<Rule>) -> ParseResult<Self>;
 }
@@ -47,6 +42,20 @@ impl ASTBuilder for File {
                 template: Template::build(second)?,
             })
         }
+    }
+}
+
+impl ASTBuilder for String {
+    fn build(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = single_inner(pair);
+        let s = inner
+            .as_str()
+            .replace(r#"\""#, "\"")
+            .replace(r#"\\"#, "\\")
+            .replace(r#"\n"#, "\n")
+            .replace(r#"\t"#, "\t")
+            .replace(r#"\r"#, "\r");
+        Ok(s.to_string())
     }
 }
 
@@ -332,7 +341,7 @@ impl ASTBuilder for IncludeCommand {
             match inner.as_rule() {
                 Rule::include_pattern => continue,
                 Rule::string => {
-                    path = strip_string(inner.as_str()).to_string();
+                    path = String::build(inner)?;
                 }
                 Rule::expression => {
                     parameters.push(Expression::build(inner)?);
@@ -518,7 +527,7 @@ impl ASTBuilder for Primary {
                     .map_err(|e| ParseError::InvalidNumber(item.as_str().to_string(), e))?;
                 Ok(Primary::Number(num))
             }
-            Rule::string => Ok(Primary::String(strip_string(item.as_str()).to_string())),
+            Rule::string => Ok(Primary::String(String::build(item)?)),
             Rule::bool_literal => {
                 let val = match item.as_str() {
                     "#t" => true,
@@ -615,6 +624,39 @@ This is a simple text.
                 }
             }
         )
+    }
+
+    #[test]
+    fn test_string_var() {
+        let source = r#"{- set $str = "this is a \"string\"" -}"#;
+        let ast = parse_template(source);
+        assert!(ast.is_ok());
+        let ast = ast.unwrap();
+
+        assert_eq!(
+            ast,
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::Command(Command::Set(SetCommand {
+                        name: "str".to_string(),
+                        value: Expression(Or(vec![And(vec![Comparison {
+                            left: AddSub {
+                                left: MulDiv {
+                                    left: Unary {
+                                        ops: vec![],
+                                        exp: Primary::String("this is a \"string\"".to_string())
+                                    },
+                                    rights: vec![],
+                                },
+                                rights: vec![],
+                            },
+                            right: None,
+                        }])]))
+                    })),],
+                }
+            }
+        );
     }
 
     #[test]
