@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tokio = { version = "1.47", features = ["net", "fs"] }
+tokio-util = { version = "0.7", features = ["io"] }
+mime_guess = "2.0"
+axum = "0.8"
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[[example]]
+name = "server-example"
