@@ -22,18 +22,56 @@ fn single_inner(pair: Pair<Rule>) -> Pair<Rule> {
     parser_unwrap!(pair.into_inner().next())
 }
 
-fn strip_string(string: &str) -> &str {
-    // remove the leading " and trailing "
-    &string[1..string.len() - 1]
-}
-
 pub(super) trait ASTBuilder: Sized {
     fn build(pair: Pair<Rule>) -> ParseResult<Self>;
 }
 
 impl ASTBuilder for File {
     fn build(pair: Pair<Rule>) -> ParseResult<File> {
-        Ok(File(Template::build(single_inner(pair))?))
+        let mut inner = pair.into_inner();
+        let first = parser_unwrap!(inner.next());
+        if matches!(first.as_rule(), Rule::template) {
+            Ok(File {
+                meta: None,
+                template: Template::build(first)?,
+            })
+        } else {
+            let second = parser_unwrap!(inner.next());
+            Ok(File {
+                meta: Some(Meta::build(first)?),
+                template: Template::build(second)?,
+            })
+        }
+    }
+}
+
+impl ASTBuilder for String {
+    fn build(pair: Pair<Rule>) -> ParseResult<String> {
+        let inner = single_inner(pair);
+        let s = inner
+            .as_str()
+            .replace(r#"\""#, "\"")
+            .replace(r#"\\"#, "\\")
+            .replace(r#"\n"#, "\n")
+            .replace(r#"\t"#, "\t")
+            .replace(r#"\r"#, "\r");
+        Ok(s.to_string())
+    }
+}
+
+impl ASTBuilder for Meta {
+    fn build(pair: Pair<Rule>) -> ParseResult<Meta> {
+        match pair.as_rule() {
+            Rule::yaml_front_matter => {
+                let inner = single_inner(pair);
+                Ok(Meta::Yaml(inner.as_str().to_string()))
+            }
+            Rule::toml_front_matter => {
+                let inner = single_inner(pair);
+                Ok(Meta::Toml(inner.as_str().to_string()))
+            }
+            _ => parser_unreachable!(),
+        }
     }
 }
 
@@ -303,7 +341,7 @@ impl ASTBuilder for IncludeCommand {
             match inner.as_rule() {
                 Rule::include_pattern => continue,
                 Rule::string => {
-                    path = strip_string(inner.as_str()).to_string();
+                    path = String::build(inner)?;
                 }
                 Rule::expression => {
                     parameters.push(Expression::build(inner)?);
@@ -489,7 +527,7 @@ impl ASTBuilder for Primary {
                     .map_err(|e| ParseError::InvalidNumber(item.as_str().to_string(), e))?;
                 Ok(Primary::Number(num))
             }
-            Rule::string => Ok(Primary::String(strip_string(item.as_str()).to_string())),
+            Rule::string => Ok(Primary::String(String::build(item)?)),
             Rule::bool_literal => {
                 let val = match item.as_str() {
                     "#t" => true,
@@ -562,22 +600,63 @@ impl ASTBuilder for TopLevel {
 #[cfg(test)]
 mod tests {
     use crate::ParseError;
+    use crate::ast::Meta::Yaml;
     use crate::ast::*;
     use crate::parse::parse_template;
 
     #[test]
     fn test_parse_only_text() {
-        let source = "This is a simple text.";
+        let source = r#"---
+name: "Test Page"
+---
+This is a simple text.
+        "#;
         let ast = parse_template(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![Control::Text(source.to_string())],
-            })
+            File {
+                meta: Some(Yaml("name: \"Test Page\"\n".to_string())),
+                template: Template {
+                    controls: vec![Control::Text("This is a simple text.\n".to_string())],
+                }
+            }
         )
+    }
+
+    #[test]
+    fn test_string_var() {
+        let source = r#"{- set $str = "this is a \"string\"" -}"#;
+        let ast = parse_template(source);
+        assert!(ast.is_ok());
+        let ast = ast.unwrap();
+
+        assert_eq!(
+            ast,
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::Command(Command::Set(SetCommand {
+                        name: "str".to_string(),
+                        value: Expression(Or(vec![And(vec![Comparison {
+                            left: AddSub {
+                                left: MulDiv {
+                                    left: Unary {
+                                        ops: vec![],
+                                        exp: Primary::String("this is a \"string\"".to_string())
+                                    },
+                                    rights: vec![],
+                                },
+                                rights: vec![],
+                            },
+                            right: None,
+                        }])]))
+                    })),],
+                }
+            }
+        );
     }
 
     #[test]
@@ -589,15 +668,18 @@ mod tests {
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![
-                    Control::Text("This is a simple text.".to_string()),
-                    Control::Shortcode(Shortcode::Single(SingleShortcode {
-                        name: "my_shortcode".to_string(),
-                        parameters: vec![],
-                    })),
-                ],
-            })
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![
+                        Control::Text("This is a simple text.".to_string()),
+                        Control::Shortcode(Shortcode::Single(SingleShortcode {
+                            name: "my_shortcode".to_string(),
+                            parameters: vec![],
+                        })),
+                    ],
+                }
+            }
         );
     }
 
@@ -610,18 +692,21 @@ mod tests {
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![
-                    Control::Text("This is a simple text.".to_string()),
-                    Control::Shortcode(Shortcode::Block(BlockShortcode {
-                        name: "my_shortcode".to_string(),
-                        parameters: vec![],
-                        inner: Template {
-                            controls: vec![Control::Text("Inner content".to_string()),],
-                        },
-                    })),
-                ],
-            })
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![
+                        Control::Text("This is a simple text.".to_string()),
+                        Control::Shortcode(Shortcode::Block(BlockShortcode {
+                            name: "my_shortcode".to_string(),
+                            parameters: vec![],
+                            inner: Template {
+                                controls: vec![Control::Text("Inner content".to_string()),],
+                            },
+                        })),
+                    ],
+                }
+            }
         );
     }
 
@@ -649,24 +734,27 @@ mod tests {
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![Control::Command(Command::Set(SetCommand {
-                    name: "my_var".to_string(),
-                    value: Expression(Or(vec![And(vec![Comparison {
-                        left: AddSub {
-                            left: MulDiv {
-                                left: Unary {
-                                    ops: vec![UnaryOp::Positive, UnaryOp::Negative],
-                                    exp: Primary::Number(42)
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::Command(Command::Set(SetCommand {
+                        name: "my_var".to_string(),
+                        value: Expression(Or(vec![And(vec![Comparison {
+                            left: AddSub {
+                                left: MulDiv {
+                                    left: Unary {
+                                        ops: vec![UnaryOp::Positive, UnaryOp::Negative],
+                                        exp: Primary::Number(42)
+                                    },
+                                    rights: vec![],
                                 },
                                 rights: vec![],
                             },
-                            rights: vec![],
-                        },
-                        right: None,
-                    }])]))
-                })),],
-            })
+                            right: None,
+                        }])]))
+                    })),],
+                }
+            }
         );
     }
 
@@ -679,31 +767,34 @@ mod tests {
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![Control::Command(Command::For(ForCommand {
-                    item_name: "item".to_string(),
-                    index_name: Some("index".to_string()),
-                    list: Expression(Or(vec![And(vec![Comparison {
-                        left: AddSub {
-                            left: MulDiv {
-                                left: Unary {
-                                    ops: vec![],
-                                    exp: Primary::Field(Field {
-                                        top_level: None,
-                                        parts: vec![GetField::Name("ref".to_string())],
-                                    })
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::Command(Command::For(ForCommand {
+                        item_name: "item".to_string(),
+                        index_name: Some("index".to_string()),
+                        list: Expression(Or(vec![And(vec![Comparison {
+                            left: AddSub {
+                                left: MulDiv {
+                                    left: Unary {
+                                        ops: vec![],
+                                        exp: Primary::Field(Field {
+                                            top_level: None,
+                                            parts: vec![GetField::Name("ref".to_string())],
+                                        })
+                                    },
+                                    rights: vec![],
                                 },
                                 rights: vec![],
                             },
-                            rights: vec![],
+                            right: None,
+                        }])])),
+                        inner: Template {
+                            controls: vec![Control::Text("Inner Text".to_string())],
                         },
-                        right: None,
-                    }])])),
-                    inner: Template {
-                        controls: vec![Control::Text("Inner Text".to_string())],
-                    },
-                }))],
-            })
+                    }))],
+                }
+            }
         );
     }
 
@@ -716,29 +807,32 @@ mod tests {
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![Control::Command(Command::If(IfCommand {
-                    condition: Expression(Or(vec![And(vec![Comparison {
-                        left: AddSub {
-                            left: MulDiv {
-                                left: Unary {
-                                    ops: vec![],
-                                    exp: Primary::Boolean(true)
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::Command(Command::If(IfCommand {
+                        condition: Expression(Or(vec![And(vec![Comparison {
+                            left: AddSub {
+                                left: MulDiv {
+                                    left: Unary {
+                                        ops: vec![],
+                                        exp: Primary::Boolean(true)
+                                    },
+                                    rights: vec![],
                                 },
                                 rights: vec![],
                             },
-                            rights: vec![],
+                            right: None,
+                        }])])),
+                        inner: Template {
+                            controls: vec![Control::Text("It's true!".to_string())],
                         },
-                        right: None,
-                    }])])),
-                    inner: Template {
-                        controls: vec![Control::Text("It's true!".to_string())],
-                    },
-                    else_inner: Some(Template {
-                        controls: vec![Control::Text("It's false!".to_string())],
-                    }),
-                }))],
-            })
+                        else_inner: Some(Template {
+                            controls: vec![Control::Text("It's false!".to_string())],
+                        }),
+                    }))],
+                }
+            }
         );
     }
 
@@ -751,85 +845,88 @@ mod tests {
 
         assert_eq!(
             ast,
-            File(Template {
-                controls: vec![
-                    Control::Text("Value:".to_string()),
-                    Control::Substitution(Substitution {
-                        expr: Expression(Or(vec![And(vec![Comparison {
-                            left: AddSub {
-                                left: MulDiv {
-                                    left: Unary {
-                                        ops: vec![],
-                                        exp: Primary::Field(Field {
-                                            top_level: Some(TopLevel::Variable(
-                                                "my_var".to_string()
-                                            )),
-                                            parts: vec![GetField::Name("my_field".to_string())],
-                                        })
-                                    },
-                                    rights: vec![],
-                                },
-                                rights: vec![(
-                                    AddSubOp::Add,
-                                    MulDiv {
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![
+                        Control::Text("Value:".to_string()),
+                        Control::Substitution(Substitution {
+                            expr: Expression(Or(vec![And(vec![Comparison {
+                                left: AddSub {
+                                    left: MulDiv {
                                         left: Unary {
                                             ops: vec![],
-                                            exp: Primary::Number(1),
+                                            exp: Primary::Field(Field {
+                                                top_level: Some(TopLevel::Variable(
+                                                    "my_var".to_string()
+                                                )),
+                                                parts: vec![GetField::Name("my_field".to_string())],
+                                            })
                                         },
                                         rights: vec![],
                                     },
-                                )],
-                            },
-                            right: None,
-                        }])])),
-                    }),
-                    Control::Text(", Expression:".to_string()),
-                    Control::Substitution(Substitution {
-                        expr: Expression(Or(vec![And(vec![Comparison {
-                            left: AddSub {
-                                left: MulDiv {
-                                    left: Unary {
-                                        ops: vec![],
-                                        exp: Primary::Expression(Expression(Or(vec![And(vec![
-                                            Comparison {
-                                                left: AddSub {
-                                                    left: MulDiv {
-                                                        left: Unary {
-                                                            ops: vec![],
-                                                            exp: Primary::Number(1),
-                                                        },
-                                                        rights: vec![],
-                                                    },
-                                                    rights: vec![(
-                                                        AddSubOp::Add,
-                                                        MulDiv {
-                                                            left: Unary {
-                                                                ops: vec![],
-                                                                exp: Primary::Number(2),
-                                                            },
-                                                            rights: vec![],
-                                                        },
-                                                    )],
-                                                },
-                                                right: None,
-                                            },
-                                        ])]))),
-                                    },
                                     rights: vec![(
-                                        MulDivOp::Multiply,
-                                        Unary {
-                                            ops: vec![],
-                                            exp: Primary::Number(3),
+                                        AddSubOp::Add,
+                                        MulDiv {
+                                            left: Unary {
+                                                ops: vec![],
+                                                exp: Primary::Number(1),
+                                            },
+                                            rights: vec![],
                                         },
                                     )],
                                 },
-                                rights: vec![],
-                            },
-                            right: None,
-                        }])])),
-                    })
-                ],
-            })
+                                right: None,
+                            }])])),
+                        }),
+                        Control::Text(", Expression:".to_string()),
+                        Control::Substitution(Substitution {
+                            expr: Expression(Or(vec![And(vec![Comparison {
+                                left: AddSub {
+                                    left: MulDiv {
+                                        left: Unary {
+                                            ops: vec![],
+                                            exp: Primary::Expression(Expression(Or(vec![And(
+                                                vec![Comparison {
+                                                    left: AddSub {
+                                                        left: MulDiv {
+                                                            left: Unary {
+                                                                ops: vec![],
+                                                                exp: Primary::Number(1),
+                                                            },
+                                                            rights: vec![],
+                                                        },
+                                                        rights: vec![(
+                                                            AddSubOp::Add,
+                                                            MulDiv {
+                                                                left: Unary {
+                                                                    ops: vec![],
+                                                                    exp: Primary::Number(2),
+                                                                },
+                                                                rights: vec![],
+                                                            },
+                                                        )],
+                                                    },
+                                                    right: None,
+                                                },]
+                                            )]))),
+                                        },
+                                        rights: vec![(
+                                            MulDivOp::Multiply,
+                                            Unary {
+                                                ops: vec![],
+                                                exp: Primary::Number(3),
+                                            },
+                                        )],
+                                    },
+                                    rights: vec![],
+                                },
+                                right: None,
+                            }])])),
+                        })
+                    ],
+                }
+            }
         );
     }
 }

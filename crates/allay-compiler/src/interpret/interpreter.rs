@@ -70,8 +70,19 @@ impl Interpretable for File {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         // the page scope is pushed into stack before interpreting
-        // TODO: read the metadata here
-        self.0.interpret(ctx, page)?;
+        if self.meta.is_some() {
+            let meta = self.meta.as_ref().unwrap();
+            let meta = match meta {
+                Meta::Yaml(yaml) => AllayData::from_yaml(yaml)?,
+                Meta::Toml(toml) => AllayData::from_toml(toml)?,
+            };
+            let mut page = interpret_unwrap!(page.lock());
+            let scope = page.scope_mut();
+            meta.into_iter().for_each(|(key, value)| {
+                scope.add_key(key, value);
+            })
+        }
+        self.template.interpret(ctx, page)?;
         Ok(())
     }
 }
@@ -274,7 +285,7 @@ impl Interpretable for BlockShortcode {
         let inner = inner_page
             .compile_on(&self.inner, ctx)
             .map_err(|e| InterpretError::IncludeError(Box::new(e)))?;
-        scope.add_key(magic::INNER.into(), AllayData::from(inner));
+        scope.add_key(magic::INNER.into(), Arc::new(AllayData::from(inner)));
 
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
         page.insert_subpage(path, scope);

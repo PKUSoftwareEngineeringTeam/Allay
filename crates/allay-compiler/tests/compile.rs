@@ -123,3 +123,22 @@ fn test_recursive_include() {
         vec!["<p>Part1.", "<p>Part2.", "<p>Part3.</p></p></p>",]
     )
 }
+
+#[test]
+fn test_markdown_meta() {
+    let temp_dir = tempdir().unwrap();
+    let include_dir = create_include_dir(&temp_dir);
+    let shortcode_dir = create_shortcode_dir(&temp_dir);
+
+    let source_file = create_test_file(
+        &temp_dir,
+        "source.md",
+        r#"---
+name: "Test Page"
+---
+{: .name :}
+    "#,
+    );
+    let res = Compiler::raw(source_file, include_dir, shortcode_dir).unwrap();
+    assert_eq!(to_tokens(res), vec!["<p>Test", "Page</p>"])
+}

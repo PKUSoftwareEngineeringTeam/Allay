@@ -1,5 +1,14 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct File(pub Template);
+pub struct File {
+    pub meta: Option<Meta>,
+    pub template: Template,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Meta {
+    Yaml(String),
+    Toml(String),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Template {
