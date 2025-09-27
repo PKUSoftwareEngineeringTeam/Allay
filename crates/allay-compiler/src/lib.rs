@@ -48,17 +48,27 @@ where
 
     /// Add a listener for a source file, so that when the source file is modified,
     /// all cached pages depending on it will be cleared.
-    fn add_listener<P: AsRef<Path>>(&mut self, source: P, key: K) {
+    fn add<P: AsRef<Path>>(&mut self, source: P, key: K) {
         self.influenced.entry(source.as_ref().into()).or_default().insert(key);
     }
 
     /// Mark a source file as modified, so that all cached pages depending on it will be cleared.
     /// This is useful when a source file is changed.
-    pub fn modify<P: AsRef<Path>>(&mut self, source: P) {
+    fn modify<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.get(source.as_ref()) {
             for dep in deps {
                 let mut page = self.cached.get(dep).unwrap().lock().unwrap();
                 page.clear();
+            }
+        }
+    }
+
+    /// Remove a source file from the cache and influenced mapping.
+    /// This is useful when a source file is deleted.
+    fn remove<P: AsRef<Path>>(&mut self, source: P) {
+        if let Some(deps) = self.influenced.remove(source.as_ref()) {
+            for dep in deps {
+                self.cached.remove(&dep);
             }
         }
     }

@@ -13,6 +13,7 @@ macro_rules! get_lock {
     };
 }
 
+#[derive(Debug)]
 /// The page environment to record the state of a page during compiling
 /// Fully optimized for increment compiling
 pub(crate) struct Page {
@@ -36,6 +37,7 @@ pub(crate) struct Page {
     dirty: bool,
 }
 
+#[derive(Debug)]
 enum Token {
     Text(String),
     Page(Arc<Mutex<Page>>),
@@ -170,6 +172,7 @@ impl Compiled for Arc<Mutex<Page>> {
     // The optimized version for compiling a page (by caching the result)
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<String> {
         let page = get_lock!(self);
+        dbg!(&page);
         if !page.ready {
             // compile only when modified
             let kind = TemplateKind::from_filename(&page.path);
