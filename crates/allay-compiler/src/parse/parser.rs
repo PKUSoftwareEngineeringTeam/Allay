@@ -46,7 +46,7 @@ impl ASTBuilder for File {
 }
 
 impl ASTBuilder for String {
-    fn build(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn build(pair: Pair<Rule>) -> ParseResult<String> {
         let inner = single_inner(pair);
         let s = inner
             .as_str()
@@ -60,7 +60,7 @@ impl ASTBuilder for String {
 }
 
 impl ASTBuilder for Meta {
-    fn build(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn build(pair: Pair<Rule>) -> ParseResult<Meta> {
         match pair.as_rule() {
             Rule::yaml_front_matter => {
                 let inner = single_inner(pair);

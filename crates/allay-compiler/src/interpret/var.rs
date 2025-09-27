@@ -124,13 +124,13 @@ mod tests {
 
         let mut page = PageScope::new_from(PARENT.clone(), params);
         // owned: {"title": "My Page", "tags": ["test", "markdown"]}
-        page.add_key("title".into(), AllayData::from("My Page"));
+        page.add_key("title".into(), Arc::new(AllayData::from("My Page")));
         page.add_key(
             "tags".into(),
-            AllayData::from(AllayList::from([
+            Arc::new(AllayData::from(AllayList::from([
                 Arc::new(AllayData::from("test")),
                 Arc::new(AllayData::from("markdown")),
-            ])),
+            ]))),
         );
         page
     }

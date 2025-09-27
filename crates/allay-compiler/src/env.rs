@@ -65,10 +65,6 @@ impl Page {
         &mut self.scope
     }
 
-    pub fn set_scope(&mut self, scope: PageScope) {
-        self.scope = scope
-    }
-
     /// Clone the page without parent and output
     pub fn clone_detached(&self) -> Self {
         Page {

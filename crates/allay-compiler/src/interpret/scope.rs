@@ -38,8 +38,8 @@ impl PageScope {
         page
     }
 
-    pub fn add_key(&mut self, key: String, value: AllayData) {
-        Arc::make_mut(&mut self.owned).insert(key, Arc::new(value));
+    pub fn add_key(&mut self, key: String, value: Arc<AllayData>) {
+        Arc::make_mut(&mut self.owned).insert(key, value);
         self.merged.take();
     }
 
