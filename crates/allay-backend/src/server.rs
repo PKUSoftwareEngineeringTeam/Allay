@@ -1,3 +1,5 @@
+//! A simple HTTP file server.
+
 use crate::ServerResult;
 use axum::Router;
 use axum::body::Body;
@@ -18,6 +20,11 @@ struct DownloadParams {
     attachment: Option<bool>,
 }
 
+///
+/// Represents a server configuration.
+///
+/// The `Server` struct holds the necessary information to configure and
+/// identify a server, including its file path, port number, and host address.
 pub struct Server {
     path: PathBuf,
     port: u16,
@@ -25,6 +32,21 @@ pub struct Server {
 }
 
 impl Server {
+    /// Creates a new `Server` instance.
+    ///
+    /// # Arguments
+    /// * `path` - A reference to the path of the server's directory. This can be any type that can be referenced as a `std::path::Path`.
+    /// * `port` - The port number on which the server will listen for incoming connections. Must be a 16-bit unsigned integer.
+    /// * `host` - The hostname or IP address from which the server will accept connections. This should be provided as a `String`.
+    ///
+    /// # Returns
+    /// A new `Server` instance configured with the provided path, port, and host.
+    ///
+    /// # Examples
+    /// ```
+    /// use allay_backend::server::Server;
+    /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
+    /// ```
     pub fn new<P: AsRef<path::Path>>(path: P, port: u16, host: String) -> Self {
         Server {
             path: path.as_ref().into(),
@@ -33,6 +55,26 @@ impl Server {
         }
     }
 
+    /// Starts the server to serve files from the specified path.
+    ///
+    /// # Returns
+    ///
+    /// * `ServerResult<()>` - A result that indicates whether the operation was successful or an error occurred.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The runtime cannot be built.
+    /// - Binding to the specified address fails.
+    /// - There is an error in serving the application.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use allay_backend::server::Server;
+    /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
+    /// server.serve().unwrap();
+    /// ```
     pub fn serve(&self) -> ServerResult<()> {
         let addr = format!("{}:{}", self.host, self.port);
         let app = Router::new()
