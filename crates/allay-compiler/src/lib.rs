@@ -49,7 +49,7 @@ where
     /// Add a listener for a source file, so that when the source file is modified,
     /// all cached pages depending on it will be cleared.
     fn add_listener<P: AsRef<Path>>(&mut self, source: P, key: K) {
-        self.influenced.entry(source.as_ref().to_path_buf()).or_default().insert(key);
+        self.influenced.entry(source.as_ref().into()).or_default().insert(key);
     }
 
     /// Mark a source file as modified, so that all cached pages depending on it will be cleared.

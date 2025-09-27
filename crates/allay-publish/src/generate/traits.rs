@@ -1,12 +1,11 @@
 use allay_base::file::{self, FileResult};
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, new_debouncer};
-use std::{
-    path::{Path, PathBuf},
-    sync::mpsc,
-    time::Duration,
-};
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::Duration;
 use tracing::{info, warn};
+use walkdir::WalkDir;
 
 /// A trait for listening to file system events in a specified root directory.
 pub trait FileListener: Send + Sync {
@@ -31,8 +30,30 @@ pub trait FileListener: Send + Sync {
         self.on_create(new)
     }
 
+    /// Perform a cold start by scanning all existing files in the root directory
+    /// and triggering the `on_create` event for each file.
+    fn cold_start(&self) {
+        let root = file::absolute_workspace(self.root());
+        for entry in WalkDir::new(&root).follow_links(true) {
+            match entry {
+                Ok(entry) => {
+                    if entry.file_type().is_file() {
+                        let path = self.to_relative(entry.path());
+                        self.on_create(path.clone()).unwrap_or_else(|e| {
+                            warn!("Error handling cold start file {:?}: {}", path, e);
+                        });
+                    }
+                }
+                Err(e) => {
+                    warn!("Error reading file in cold start in {:?}: {}", root, e);
+                    continue;
+                }
+            };
+        }
+    }
+
     /// Start watching the root directory for file events.
-    fn watch(&'static self) {
+    fn watch(&self) {
         let root = file::workspace(self.root());
         let (tx, rx) = mpsc::channel();
 
@@ -41,20 +62,20 @@ pub trait FileListener: Send + Sync {
         let mut debouncer = match debouncer {
             Ok(debouncer) => debouncer,
             Err(e) => {
-                return warn!("Failed to create file watcher: {}", e);
+                return warn!("Failed to create file watcher in {:?}: {}", root, e);
             }
         };
 
         if let Err(e) = debouncer.watch(root.clone(), notify::RecursiveMode::Recursive) {
-            warn!("Failed to watch directory: {}", e);
+            warn!("Failed to watch directory {:?}: {}", root, e);
         }
 
         while let Ok(event) = rx.recv() {
             self.notify_event_handler(event).unwrap_or_else(|e| {
-                warn!("Error handling file event: {}", e);
+                warn!("Error handling file event in {:?}: {}", root, e);
             });
         }
-        info!("File watcher channel closed!");
+        info!("File watcher channel in {:?} closed!", root);
     }
 
     /// The main event handler to be called by the file watcher.
@@ -71,7 +92,7 @@ pub trait FileListener: Send + Sync {
     /// Do not override this function unless necessary.
     fn to_relative(&self, path: &Path) -> PathBuf {
         let root = file::absolute_workspace(self.root());
-        path.strip_prefix(root).unwrap_or(path).to_path_buf()
+        path.strip_prefix(root).unwrap_or(path).into()
     }
 
     /// An implementation detail for handling a single notify event.
@@ -117,7 +138,7 @@ pub trait FileMapper {
     /// Note: the path parameters are the paths relative to the respective roots.
     /// Default: identity mapping
     fn path_mapping(&self, src: &Path) -> PathBuf {
-        src.to_path_buf()
+        src.into()
     }
 
     /// Utility function to get the source path in the workspace.
