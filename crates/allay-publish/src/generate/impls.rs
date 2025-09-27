@@ -56,7 +56,7 @@ impl FileMapper for ArticleGenerator {
 
 impl FileGenerator for ArticleGenerator {
     fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        match COMPILER.lock().unwrap().compile(&src, ContentKind::Article) {
+        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::Article) {
             Ok(html) => file::write_file(dest, &html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
@@ -64,13 +64,13 @@ impl FileGenerator for ArticleGenerator {
     }
 
     fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().remove(src.clone(), ContentKind::Article);
+        COMPILER.lock().unwrap().remove_file(src.clone(), ContentKind::Article);
         file::remove(dest)
     }
 
     fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().modify(&src);
-        match COMPILER.lock().unwrap().compile(&src, ContentKind::Article) {
+        COMPILER.lock().unwrap().modify_file(&src, ContentKind::Article);
+        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::Article) {
             Ok(html) => file::write_file(dest, &html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
@@ -80,7 +80,9 @@ impl FileGenerator for ArticleGenerator {
 
 impl FileMapper for GeneralGenerator {
     fn src_root(&self) -> PathBuf {
-        get_theme_path().join(&get_allay_config().theme.template.custom_dir)
+        get_theme_path()
+            .join(&get_allay_config().theme.template.dir)
+            .join(&get_allay_config().theme.template.custom_dir)
     }
 
     fn dest_root(&self) -> PathBuf {
@@ -90,7 +92,7 @@ impl FileMapper for GeneralGenerator {
 
 impl FileGenerator for GeneralGenerator {
     fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        match COMPILER.lock().unwrap().compile(&src, ContentKind::General) {
+        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::General) {
             Ok(html) => file::write_file(dest, &html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
@@ -98,13 +100,13 @@ impl FileGenerator for GeneralGenerator {
     }
 
     fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().remove(src.clone(), ContentKind::General);
+        COMPILER.lock().unwrap().remove_file(src.clone(), ContentKind::General);
         file::remove(dest)
     }
 
     fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().modify(&src);
-        match COMPILER.lock().unwrap().compile(&src, ContentKind::General) {
+        COMPILER.lock().unwrap().modify_file(&src, ContentKind::General);
+        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::General) {
             Ok(html) => file::write_file(dest, &html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }

@@ -39,7 +39,7 @@ impl Compiler<String> {
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
-    pub fn compile<P: AsRef<Path>>(
+    pub fn compile_file<P: AsRef<Path>>(
         &mut self,
         source: P,
         kind: ContentKind,
@@ -53,16 +53,28 @@ impl Compiler<String> {
         }
     }
 
-    /// Remove a source file from the cache and influenced mapping.
-    /// This is useful when a source file is deleted.
+    /// Mark an article source file as modified, so that all cached pages depending on it will be cleared.
     ///
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
-    pub fn remove<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
+    pub fn modify_file<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
+        match kind {
+            ContentKind::Article => self.modify_article(source),
+            ContentKind::General => self.modify(source),
+            ContentKind::Static => {}
+        }
+    }
+
+    /// Remove a source file from the cache and influenced mapping.
+    ///
+    /// # Arguments
+    /// - `source`: The path to the source file (markdown or html)
+    /// - `kind`: The kind of content
+    pub fn remove_file<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
         match kind {
             ContentKind::Article => self.remove_article(source),
-            ContentKind::General => self.remove_general(source),
+            ContentKind::General => self.remove(source),
             ContentKind::Static => {}
         }
     }
@@ -80,7 +92,7 @@ impl Compiler<String> {
 
         let page = Page::new(source.clone()).into();
         let res = page.compile(interpreter)?;
-        self.add_listener(source.clone(), key.clone());
+        self.add(source.clone(), key.clone());
         self.remember(key, page);
         Ok(res)
     }
@@ -88,7 +100,11 @@ impl Compiler<String> {
     /// Get the template path for an article
     fn get_article_template<P: AsRef<Path>>(_article: P) -> PathBuf {
         // TODO: Support custom templates for articles (currently use the default "page.html")
-        file::workspace(get_theme_path().join(&get_allay_config().theme.template.content))
+        file::workspace(
+            get_theme_path()
+                .join(&get_allay_config().theme.template.dir)
+                .join(&get_allay_config().theme.template.content),
+        )
     }
 
     /// Generate a unique cache key for an article with its template
@@ -117,7 +133,7 @@ impl Compiler<String> {
         // listening to the article's changes with cache key `foo.md` (`article_key` here)
         // this page is just a <p>...</p> wrapper of the article content
         let sub = Page::new(article.clone()).into();
-        self.add_listener(article.clone(), article_key.clone());
+        self.add(article.clone(), article_key.clone());
         self.remember(article_key, sub.clone());
 
         // then generate the final page based on the template (`page` here)
@@ -128,29 +144,24 @@ impl Compiler<String> {
         // replace the "content" key with the article page
         page.add_stash(magic::CONTENT.into(), sub);
         let page = page.into();
-        self.add_listener(template.clone(), template_article_key.clone());
+        self.add(template.clone(), template_article_key.clone());
         self.remember(template_article_key, page.clone());
 
         page.compile(interpreter)
     }
 
-    /// Remove a general file from the cache and influenced mapping.
-    fn remove_general<P: AsRef<Path>>(&mut self, source: P) {
-        if let Some(deps) = self.influenced.remove(source.as_ref()) {
-            for dep in deps {
-                self.cached.remove(&dep);
-            }
-        }
+    fn modify_article<P: AsRef<Path>>(&mut self, article: P) {
+        let template = Self::get_article_template(&article);
+
+        self.modify(&article);
+        self.modify(&template);
     }
 
     /// Remove an article and its associated template page from the cache and influenced mapping.
     fn remove_article<P: AsRef<Path>>(&mut self, article: P) {
-        let article = article.as_ref().into();
         let template = Self::get_article_template(&article);
-        let article_key = Self::default_key(&article);
-        let template_article_key = Self::template_article_key(&template, &article);
 
-        self.remove_general(&article_key);
-        self.remove_general(&template_article_key);
+        self.remove(&article);
+        self.remove(&template);
     }
 }

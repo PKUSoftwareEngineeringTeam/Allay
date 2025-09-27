@@ -23,10 +23,10 @@ name = "Axolotl"
 repository = "https://github.com/PKUSoftwareEngineeringTeam/Axolotl"
 [theme.template]
 dir = "templates"
-custom_dir = "templates/custom"
-index = "templates/index.html"
-content = "templates/page.html"
-not_found = "templates/404.html"
+custom_dir = "custom"
+index = "index.html"
+content = "page.html"
+not_found = "404.html"
 
 [log]
 dir = "logs"
