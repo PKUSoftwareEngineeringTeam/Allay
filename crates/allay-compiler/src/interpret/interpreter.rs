@@ -202,7 +202,7 @@ mod file_finder {
     pub(super) fn try_find_file<P: AsRef<Path>>(path: P) -> InterpretResult<PathBuf> {
         let path = path.as_ref();
         find_file(path).ok_or(InterpretError::IncludePathNotFound(
-            path.to_path_buf().to_str().unwrap_or("Invalid UTF-8 path").into(),
+            path.to_path_buf().to_string_lossy().to_string(),
         ))
     }
 }
