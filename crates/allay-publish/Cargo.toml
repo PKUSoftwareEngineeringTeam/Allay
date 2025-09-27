@@ -9,4 +9,4 @@ allay-compiler = { path = "../allay-compiler" }
 notify = "8.2.0"
 notify-debouncer-full = "0.6.0"
 tracing = { workspace = true }
-walkdir = "2.3.3"
+walkdir = "2.5"
