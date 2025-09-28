@@ -118,7 +118,7 @@ impl Server {
             // TODO: Redirect to 404.html
             return Err((StatusCode::NOT_FOUND, "Not Found".to_string()));
         }
-        if path.strip_prefix(&*root).is_err() {
+        if path.strip_prefix(root.as_ref()).is_err() {
             return Err((StatusCode::FORBIDDEN, "Forbidden".to_string()));
         }
 
