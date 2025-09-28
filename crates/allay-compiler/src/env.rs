@@ -13,6 +13,7 @@ macro_rules! get_lock {
     };
 }
 
+#[derive(Debug)]
 /// The page environment to record the state of a page during compiling
 /// Fully optimized for increment compiling
 pub(crate) struct Page {
@@ -36,6 +37,7 @@ pub(crate) struct Page {
     dirty: bool,
 }
 
+#[derive(Debug)]
 enum Token {
     Text(String),
     Page(Arc<Mutex<Page>>),
