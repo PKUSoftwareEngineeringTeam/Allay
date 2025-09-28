@@ -20,7 +20,6 @@ struct DownloadParams {
     attachment: Option<bool>,
 }
 
-///
 /// Represents a server configuration.
 ///
 /// The `Server` struct holds the necessary information to configure and
@@ -35,9 +34,9 @@ impl Server {
     /// Creates a new `Server` instance.
     ///
     /// # Arguments
-    /// * `path` - A reference to the path of the server's directory. This can be any type that can be referenced as a `std::path::Path`.
-    /// * `port` - The port number on which the server will listen for incoming connections. Must be a 16-bit unsigned integer.
-    /// * `host` - The hostname or IP address from which the server will accept connections. This should be provided as a `String`.
+    /// - `path` - A reference to the path of the server's directory. This can be any type that can be referenced as a `std::path::Path`.
+    /// - `port` - The port number on which the server will listen for incoming connections. Must be a 16-bit unsigned integer.
+    /// - `host` - The hostname or IP address from which the server will accept connections. This should be provided as a `String`.
     ///
     /// # Returns
     /// A new `Server` instance configured with the provided path, port, and host.
