@@ -43,7 +43,7 @@ impl Server {
     ///
     /// # Examples
     /// ```
-    /// use allay_backend::server::Server;
+    /// use allay_web::server::Server;
     /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
     /// ```
     pub fn new<P: AsRef<path::Path>>(path: P, port: u16, host: String) -> Self {
@@ -70,7 +70,7 @@ impl Server {
     /// # Examples
     ///
     /// ```ignore
-    /// use allay_backend::server::Server;
+    /// use allay_web::server::Server;
     /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
     /// server.serve().unwrap();
     /// ```
