@@ -43,7 +43,7 @@ impl Server {
     ///
     /// # Examples
     /// ```
-    /// use allay_backend::server::Server;
+    /// use allay_web::server::Server;
     /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
     /// ```
     pub fn new<P: AsRef<path::Path>>(path: P, port: u16, host: String) -> Self {
@@ -70,7 +70,7 @@ impl Server {
     /// # Examples
     ///
     /// ```ignore
-    /// use allay_backend::server::Server;
+    /// use allay_web::server::Server;
     /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
     /// server.serve().unwrap();
     /// ```
@@ -118,7 +118,7 @@ impl Server {
             // TODO: Redirect to 404.html
             return Err((StatusCode::NOT_FOUND, "Not Found".to_string()));
         }
-        if path.strip_prefix(&*root).is_err() {
+        if path.strip_prefix(root.as_ref()).is_err() {
             return Err((StatusCode::FORBIDDEN, "Forbidden".to_string()));
         }
 
