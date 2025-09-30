@@ -38,6 +38,7 @@ version = "0.1.0"
 dependencies = [
  "allay-base",
  "allay-publish",
+ "allay-web",
  "anyhow",
  "dialoguer",
  "git2",

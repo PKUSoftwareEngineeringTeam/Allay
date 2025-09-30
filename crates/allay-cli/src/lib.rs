@@ -14,6 +14,6 @@ pub fn execute_cli(cli: &AllayCLI) -> anyhow::Result<()> {
         CLICommand::New(args) => new(args),
         CLICommand::Init(args) => init(args),
         CLICommand::Build(args) => build(args),
-        CLICommand::Server(args) => server(args),
+        CLICommand::Serve(args) => serve(args),
     }
 }

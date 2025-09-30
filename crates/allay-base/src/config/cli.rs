@@ -37,7 +37,7 @@ pub enum CLICommand {
     /// Build all the contents and publish it to the output directory
     Build(BuildArgs),
     /// Start the embedded server to preview the site
-    Server(ServerArgs),
+    Serve(ServeArgs),
 }
 
 #[derive(Args, Debug)]
@@ -53,7 +53,7 @@ pub struct InitArgs {}
 pub struct BuildArgs {}
 
 #[derive(Args, Debug)]
-pub struct ServerArgs {
+pub struct ServeArgs {
     /// Port to listen on
     #[arg(short, long, default_value_t = 8000)]
     pub port: u16,
