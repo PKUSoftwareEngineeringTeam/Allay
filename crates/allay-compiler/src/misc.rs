@@ -3,8 +3,8 @@
 
 use crate::env::{Compiled, Page};
 use crate::interpret::Interpreter;
-use crate::magic;
 use crate::{CompileError, CompileResult, Compiler};
+use crate::{CompileOutput, magic};
 use allay_base::config::{get_allay_config, get_theme_path};
 use allay_base::file;
 use allay_base::template::ContentKind;
@@ -31,7 +31,7 @@ impl Compiler<String> {
         let mut interpreter =
             Interpreter::new(include_dir.as_ref().into(), shortcode_dir.as_ref().into());
         let page = Page::new(source.as_ref().into());
-        page.into().compile(&mut interpreter)
+        page.into().compile(&mut interpreter).map(|o| o.html)
     }
 
     /// Compile a source file with caching mechanism.
@@ -43,7 +43,7 @@ impl Compiler<String> {
         &mut self,
         source: P,
         kind: ContentKind,
-    ) -> CompileResult<String> {
+    ) -> CompileResult<CompileOutput> {
         match kind {
             ContentKind::Article => self.article(source),
             ContentKind::General => self.general(source),
@@ -80,7 +80,7 @@ impl Compiler<String> {
     }
 
     /// Compile a general file
-    fn general<P: AsRef<Path>>(&mut self, source: P) -> CompileResult<String> {
+    fn general<P: AsRef<Path>>(&mut self, source: P) -> CompileResult<CompileOutput> {
         let key = Self::default_key(&source);
         let source = source.as_ref().to_path_buf();
 
@@ -117,7 +117,7 @@ impl Compiler<String> {
     }
 
     /// Compile an article
-    fn article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<String> {
+    fn article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<CompileOutput> {
         let article = article.as_ref().into();
         let template = Self::get_article_template(&article);
         let article_key = Self::default_key(&article);

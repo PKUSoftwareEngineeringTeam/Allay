@@ -602,7 +602,7 @@ mod tests {
     use crate::ParseError;
     use crate::ast::Meta::Yaml;
     use crate::ast::*;
-    use crate::parse::parse_template;
+    use crate::parse::parse_file;
 
     #[test]
     fn test_parse_only_text() {
@@ -611,7 +611,7 @@ name: "Test Page"
 ---
 This is a simple text.
         "#;
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -632,7 +632,7 @@ This is a simple text.
 <!-- this should not appear -->
 After comment.
         "#;
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -652,7 +652,7 @@ After comment.
     #[test]
     fn test_string_var() {
         let source = r#"{- set $str = "this is a \"string\"" -}"#;
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -685,7 +685,7 @@ After comment.
     #[test]
     fn test_single_shortcode() {
         let source = "This is a simple text. {< my_shortcode />}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -709,7 +709,7 @@ After comment.
     #[test]
     fn test_block_shortcode() {
         let source = "This is a simple text. {< my_shortcode >}Inner content{</ my_shortcode >}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -736,7 +736,7 @@ After comment.
     #[test]
     fn test_block_shortcode_inconsistent() {
         let source = "{< my_shortcode >}Inner content{</ another_shortcode >}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_err());
 
         let err = ast.err().unwrap();
@@ -751,7 +751,7 @@ After comment.
     #[test]
     fn test_set_command() {
         let source = "{- set $my_var = +-42 -}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -784,7 +784,7 @@ After comment.
     #[test]
     fn test_for_command() {
         let source = "{- for $item, $index : .ref -}Inner Text{- end -}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -824,7 +824,7 @@ After comment.
     #[test]
     fn test_if_command_with_else() {
         let source = "{- if #t -}It's true!{- else -}It's false!{- end -}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 
@@ -862,7 +862,7 @@ After comment.
     #[test]
     fn test_substitution() {
         let source = "Value: {:$my_var.my_field + 1:}, Expression: {:(1 + 2) * 3:}";
-        let ast = parse_template(source);
+        let ast = parse_file(source);
         assert!(ast.is_ok());
         let ast = ast.unwrap();
 

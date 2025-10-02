@@ -1,6 +1,6 @@
-use crate::interpret::{Interpretable, Interpreter, PageScope};
-use crate::parse::parse_template;
-use crate::{CompileError, CompileResult};
+use crate::interpret::{Interpretable, Interpreter, PageScope, interpret_meta};
+use crate::parse::parse_file;
+use crate::{CompileError, CompileOutput, CompileResult};
 use allay_base::{file, template::TemplateKind};
 use pulldown_cmark::{Parser, html};
 use std::collections::HashMap;
@@ -29,10 +29,12 @@ pub(crate) struct Page {
     /// the output tokens
     output: Vec<Token>,
 
+    /// if the page is cachable
+    cachable: bool,
     /// if the page itself is compiled
     ready: bool,
     /// the cache of compiling
-    cache: String,
+    cache: CompileOutput,
     /// if the page's dependencies need recompiling
     dirty: bool,
 }
@@ -53,8 +55,9 @@ impl Page {
             stash: HashMap::new(),
             output: Vec::new(),
 
+            cachable: true,
             ready: false,
-            cache: String::new(),
+            cache: CompileOutput::default(),
             dirty: true,
         }
     }
@@ -67,6 +70,22 @@ impl Page {
         &mut self.scope
     }
 
+    #[allow(dead_code)]
+    pub fn set_cachable(&mut self, cachable: bool) {
+        self.cachable = cachable;
+        self.ready = false;
+        self.dirty = true;
+        if !cachable
+            && let Some(parent) = &self.parent
+            && let Some(parent) = parent.upgrade()
+        {
+            let mut parent = get_lock!(parent);
+            if parent.cachable {
+                parent.set_cachable(false);
+            }
+        }
+    }
+
     /// Clone the page without parent and output
     pub fn clone_detached(&self) -> Self {
         Page {
@@ -75,8 +94,10 @@ impl Page {
             scope: self.scope.clone(),
             stash: self.stash.clone(),
             output: Vec::new(),
+
+            cachable: self.cachable,
             ready: false,
-            cache: String::new(),
+            cache: CompileOutput::default(),
             dirty: true,
         }
     }
@@ -95,12 +116,18 @@ impl Page {
 
     /// Spread the dirty state to parent pages
     fn spread_dirty(&mut self) {
+        if !self.cachable {
+            return;
+        }
         self.dirty = true;
         self.output.clear();
         if let Some(parent) = &self.parent
             && let Some(parent) = parent.upgrade()
         {
-            get_lock!(parent).spread_dirty();
+            let mut parent = get_lock!(parent);
+            if !parent.dirty {
+                parent.spread_dirty();
+            }
         }
     }
 
@@ -157,7 +184,7 @@ impl TokenInserter for Arc<Mutex<Page>> {
 
 pub(crate) trait Compiled {
     /// Compile the page and return the rendered HTML string
-    fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<String>;
+    fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput>;
     /// Compile the page on the given AST node in the page
     fn compile_on<T>(
         &self,
@@ -170,24 +197,31 @@ pub(crate) trait Compiled {
 
 impl Compiled for Arc<Mutex<Page>> {
     // The optimized version for compiling a page (by caching the result)
-    fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<String> {
-        let page = get_lock!(self);
-        if !page.ready {
-            // compile only when modified
+    fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput> {
+        let mut page = get_lock!(self);
+        let meta = if !page.cachable || !page.ready {
             let kind = TemplateKind::from_filename(&page.path);
             let content = match kind {
                 TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&page.path)?,
                 TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
             };
+            let ast = parse_file(&content)?;
+            let meta = ast.meta.map(|m| interpret_meta(&m)).transpose()?;
+            if let Some(m) = &meta {
+                m.iter().for_each(|(k, v)| {
+                    page.scope.add_key(k.clone(), v.clone());
+                });
+            }
             drop(page);
 
-            let ast = parse_template(&content)?;
-            self.compile_on(&ast, interpreter)?;
-
+            self.compile_on(&ast.template, interpreter)?;
             get_lock!(self).ready = true;
+            meta
         } else {
+            let meta = page.cache.meta.clone();
             drop(page);
-        }
+            meta
+        };
 
         let page = get_lock!(self);
         if !page.dirty {
@@ -196,7 +230,14 @@ impl Compiled for Arc<Mutex<Page>> {
         }
         drop(page);
 
-        self.gen_result_str(interpreter)
+        let output = CompileOutput {
+            html: self.gen_result_str(interpreter)?,
+            meta,
+        };
+        let mut page = get_lock!(self);
+        page.dirty = false;
+        page.cache = output.clone();
+        Ok(output)
     }
 
     fn compile_on<T>(
@@ -215,7 +256,7 @@ impl Compiled for Arc<Mutex<Page>> {
             result.push(' ');
             match token {
                 Token::Text(t) => result.push_str(t),
-                Token::Page(p) => result.push_str(&p.compile(interpreter)?),
+                Token::Page(p) => result.push_str(&p.compile(interpreter)?.html),
             }
         }
         drop(page);
@@ -225,9 +266,6 @@ impl Compiled for Arc<Mutex<Page>> {
             result = convert_to_html(&result)?;
         }
 
-        let mut page = get_lock!(self);
-        page.dirty = false;
-        page.cache = result.clone();
         Ok(result)
     }
 }

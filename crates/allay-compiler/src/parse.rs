@@ -2,7 +2,7 @@ mod parser;
 
 use crate::ParseResult;
 use crate::ast::File;
-use crate::parse::parser::ASTBuilder;
+use parser::ASTBuilder;
 use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
@@ -18,7 +18,7 @@ fn remove_html_comments(html: &'_ str) -> Cow<'_, str> {
     re.replace_all(html, "")
 }
 
-pub(crate) fn parse_template(source: &str) -> ParseResult<File> {
+pub fn parse_file(source: &str) -> ParseResult<File> {
     let source = remove_html_comments(source);
     let tokens = TemplateParser::parse(Rule::file, source.as_ref())
         .map_err(Box::new)?

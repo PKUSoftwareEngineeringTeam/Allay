@@ -13,7 +13,7 @@ use std::sync::Arc;
 /// Note: Owned data has higher priority, which means if both inherited and owned have the same key,
 /// the value in extra will be used.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct PageScope {
+pub struct PageScope {
     owned: Arc<AllayObject>,
     inherited: Option<Arc<AllayObject>>,
 
