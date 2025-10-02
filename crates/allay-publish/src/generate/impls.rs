@@ -1,5 +1,5 @@
 use super::traits::{FileGenerator, FileMapper};
-use allay_base::config::{get_allay_config, get_theme_path};
+use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_theme_path};
 use allay_base::file::{self, FileResult};
 use allay_base::template::{ContentKind, TemplateKind};
 use allay_compiler::Compiler;
@@ -59,14 +59,18 @@ impl FileMapper for ArticleGenerator {
 }
 
 fn write_with_wrapper(dest: PathBuf, html: &str) -> FileResult<()> {
-    file::write_file(
-        dest,
-        &format!(
-            include_str!("wrapper.html"),
-            html,
-            include_str!("auto-reload.js")
-        ),
-    )
+    if matches!(get_cli_config().command, CLICommand::Serve(_)) {
+        file::write_file(
+            dest,
+            &format!(
+                include_str!("wrapper.html"),
+                html,
+                include_str!("auto-reload.js")
+            ),
+        )
+    } else {
+        file::write_file(dest, html)
+    }
 }
 
 macro_rules! file_generator_impl {
