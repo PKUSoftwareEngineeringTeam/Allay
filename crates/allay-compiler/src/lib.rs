@@ -8,6 +8,7 @@ mod misc;
 mod parse;
 
 use allay_base::config::{get_allay_config, get_theme_path};
+use allay_base::data::AllayObject;
 use allay_base::file;
 use env::Page;
 pub use error::*;
@@ -22,6 +23,14 @@ mod magic {
 
     pub const INNER: &str = "inner";
     pub const CONTENT: &str = "content";
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CompileOutput {
+    /// The compiled HTML string
+    pub html: String,
+    /// The metadata extracted from the source file, if any
+    pub meta: Option<AllayObject>,
 }
 
 /// The main Allay compiler structure with caching optimization.

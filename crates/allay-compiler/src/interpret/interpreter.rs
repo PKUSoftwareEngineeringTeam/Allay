@@ -30,7 +30,7 @@ macro_rules! interpret_unwrap {
 
 /// The global Allay interpreter context
 #[derive(Debug)]
-pub(crate) struct Interpreter {
+pub struct Interpreter {
     include_dir: PathBuf,
     shortcode_dir: PathBuf,
 }
@@ -46,7 +46,7 @@ impl Interpreter {
 }
 
 /// The main trait for interpreting AST nodes
-pub(crate) trait Interpretable {
+pub trait Interpretable {
     /// The return of the interpretation
     type Output;
 
@@ -63,28 +63,6 @@ pub(crate) trait Interpretable {
         ctx: &mut Interpreter,
         page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output>;
-}
-
-impl Interpretable for File {
-    type Output = ();
-
-    fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        // the page scope is pushed into stack before interpreting
-        if self.meta.is_some() {
-            let meta = self.meta.as_ref().unwrap();
-            let meta = match meta {
-                Meta::Yaml(yaml) => AllayData::from_yaml(yaml)?,
-                Meta::Toml(toml) => AllayData::from_toml(toml)?,
-            };
-            let mut page = interpret_unwrap!(page.lock());
-            let scope = page.scope_mut();
-            meta.into_iter().for_each(|(key, value)| {
-                scope.add_key(key, value);
-            })
-        }
-        self.template.interpret(ctx, page)?;
-        Ok(())
-    }
 }
 
 impl Interpretable for Template {
@@ -166,7 +144,10 @@ impl Interpretable for WithCommand {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        let scope_data = self.scope.interpret(ctx, page)?;
+        let scope_data = match self.scope.interpret(ctx, page) {
+            Ok(v) => v,
+            Err(_) => return Ok(()),
+        };
         let var = LocalVar::create(scope_data);
         {
             interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
@@ -181,7 +162,10 @@ impl Interpretable for IfCommand {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        let cond = self.condition.interpret(ctx, page)?.as_bool()?;
+        let cond = match self.condition.interpret(ctx, page) {
+            Ok(v) => v.as_bool()?,
+            Err(_) => false,
+        };
         if cond {
             self.inner.interpret(ctx, page)
         } else if let Some(else_branch) = &self.else_inner {

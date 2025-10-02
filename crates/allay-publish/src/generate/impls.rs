@@ -1,9 +1,9 @@
 use super::traits::{FileGenerator, FileMapper};
 use allay_base::config::{get_allay_config, get_theme_path};
 use allay_base::file::{self, FileResult};
-use allay_base::template::ContentKind;
+use allay_base::template::{ContentKind, TemplateKind};
 use allay_compiler::Compiler;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 use std::thread::spawn;
 use tracing::warn;
@@ -48,6 +48,14 @@ impl FileMapper for ArticleGenerator {
     fn src_root(&self) -> PathBuf {
         get_allay_config().content.dir.clone().into()
     }
+
+    fn path_mapping(&self, src: &Path) -> PathBuf {
+        let mut res = src.to_path_buf();
+        if TemplateKind::from_filename(src) == TemplateKind::Markdown {
+            res.set_extension(TemplateKind::Html.extension());
+        }
+        res
+    }
 }
 
 macro_rules! file_generator_impl {
@@ -55,7 +63,7 @@ macro_rules! file_generator_impl {
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(html) => file::write_file(dest, &html)?,
+                    Ok(output) => file::write_file(dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
                 Ok(())
@@ -69,7 +77,7 @@ macro_rules! file_generator_impl {
             fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 COMPILER.lock().unwrap().modify_file(&src, $kind);
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(html) => file::write_file(dest, &html)?,
+                    Ok(output) => file::write_file(dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
                 Ok(())
@@ -85,6 +93,14 @@ impl FileMapper for GeneralGenerator {
         get_theme_path()
             .join(&get_allay_config().theme.template.dir)
             .join(&get_allay_config().theme.template.custom_dir)
+    }
+
+    fn path_mapping(&self, src: &Path) -> PathBuf {
+        let mut res = src.to_path_buf();
+        if TemplateKind::from_filename(src) == TemplateKind::Markdown {
+            res.set_extension(TemplateKind::Html.extension());
+        }
+        res
     }
 }
 
