@@ -1,4 +1,5 @@
 use allay_base::config::{ServeArgs, get_allay_config};
+use allay_base::file;
 use allay_web::server::Server;
 use tracing::instrument;
 
@@ -9,7 +10,7 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     allay_publish::start();
 
     let server = Server::new(
-        get_allay_config().publish.dir.as_str(),
+        file::workspace(get_allay_config().publish.dir.as_str()),
         args.port,
         args.address.clone(),
     );
