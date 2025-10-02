@@ -627,6 +627,29 @@ This is a simple text.
     }
 
     #[test]
+    fn test_comment() {
+        let source = r#"This is text.
+<!-- this should not appear -->
+After comment.
+        "#;
+        let ast = parse_template(source);
+        assert!(ast.is_ok());
+        let ast = ast.unwrap();
+
+        assert_eq!(
+            ast,
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::Text(
+                        "This is text.\n\nAfter comment.\n".to_string()
+                    )],
+                }
+            }
+        )
+    }
+
+    #[test]
     fn test_string_var() {
         let source = r#"{- set $str = "this is a \"string\"" -}"#;
         let ast = parse_template(source);
