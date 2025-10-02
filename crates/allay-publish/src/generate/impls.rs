@@ -58,12 +58,23 @@ impl FileMapper for ArticleGenerator {
     }
 }
 
+fn write_with_wrapper(dest: PathBuf, html: &str) -> FileResult<()> {
+    file::write_file(
+        dest,
+        &format!(
+            include_str!("wrapper.html"),
+            html,
+            include_str!("auto-reload.js")
+        ),
+    )
+}
+
 macro_rules! file_generator_impl {
     ($generator: ident, $kind: expr) => {
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(output) => file::write_file(dest, &output.html)?,
+                    Ok(output) => write_with_wrapper(dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
                 Ok(())
@@ -77,7 +88,7 @@ macro_rules! file_generator_impl {
             fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 COMPILER.lock().unwrap().modify_file(&src, $kind);
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(output) => file::write_file(dest, &output.html)?,
+                    Ok(output) => write_with_wrapper(dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
                 Ok(())

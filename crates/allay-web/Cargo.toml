@@ -10,6 +10,7 @@ mime_guess = "2.0"
 axum = "0.8"
 thiserror = { workspace = true }
 serde = { workspace = true }
+walkdir = "2.5"
 
 [[example]]
 name = "server-example"

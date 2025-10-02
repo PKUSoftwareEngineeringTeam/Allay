@@ -58,7 +58,7 @@ pub trait FileListener: Send + Sync {
         let root = file::workspace(self.root());
         let (tx, rx) = mpsc::channel();
 
-        let debouncer = new_debouncer(Duration::from_secs(1), None, tx);
+        let debouncer = new_debouncer(Duration::from_millis(50), None, tx);
 
         let mut debouncer = match debouncer {
             Ok(debouncer) => debouncer,
