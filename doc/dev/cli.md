@@ -13,12 +13,12 @@ To create and start the Allay server, use the following command:
 ```bash
 cargo run --bin=allay --package=allay-cli -- new <path> [options]
 cd <path>
-cargo run --bin=allay --package=allay-cli -- server [options]
+cargo run --bin=allay --package=allay-cli -- serve [options]
 ```
 
 or using the `root` option:
 
 ```bash
 cargo run --bin=allay --package=allay-cli -- new <path> [options]
-cargo run --bin=allay --package=allay-cli -- server --root=<path> [options]
+cargo run --bin=allay --package=allay-cli -- serve --root=<path> [options]
 ```

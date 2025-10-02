@@ -1,13 +1,18 @@
-use allay_base::config::ServerArgs;
-use std::time::Duration;
+use allay_base::config::{ServeArgs, get_allay_config};
+use allay_web::server::Server;
 use tracing::instrument;
 
 /// CLI Server Command
-#[instrument(name = "serving the site", skip(_args))]
-pub fn server(_args: &ServerArgs) -> anyhow::Result<()> {
+#[instrument(name = "serving the site", skip(args))]
+pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     println!("Starting the site server...");
     allay_publish::start();
-    loop {
-        std::thread::sleep(Duration::from_secs(1));
-    }
+
+    let server = Server::new(
+        get_allay_config().publish.dir.as_str(),
+        args.port,
+        args.address.clone(),
+    );
+    server.serve()?;
+    Ok(())
 }

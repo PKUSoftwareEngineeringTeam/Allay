@@ -1,3 +1,4 @@
+use allay_base::config::get_allay_config;
 use allay_base::file::{self, FileResult};
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, new_debouncer};
@@ -132,7 +133,9 @@ pub trait FileMapper {
     fn src_root(&self) -> PathBuf;
 
     /// The root directory of the destination files.
-    fn dest_root(&self) -> PathBuf;
+    fn dest_root(&self) -> PathBuf {
+        get_allay_config().publish.dir.clone().into()
+    }
 
     /// The rule to map the path from source to destination.
     /// Note: the path parameters are the paths relative to the respective roots.

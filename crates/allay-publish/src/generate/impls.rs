@@ -48,35 +48,37 @@ impl FileMapper for ArticleGenerator {
     fn src_root(&self) -> PathBuf {
         get_allay_config().content.dir.clone().into()
     }
-
-    fn dest_root(&self) -> PathBuf {
-        get_allay_config().publish.dir.clone().into()
-    }
 }
 
-impl FileGenerator for ArticleGenerator {
-    fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::Article) {
-            Ok(html) => file::write_file(dest, &html)?,
-            Err(e) => warn!("Failed to compile {:?}: {}", src, e),
-        }
-        Ok(())
-    }
+macro_rules! file_generator_impl {
+    ($generator: ident, $kind: expr) => {
+        impl FileGenerator for $generator {
+            fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                match COMPILER.lock().unwrap().compile_file(&src, $kind) {
+                    Ok(html) => file::write_file(dest, &html)?,
+                    Err(e) => warn!("Failed to compile {:?}: {}", src, e),
+                }
+                Ok(())
+            }
 
-    fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().remove_file(src.clone(), ContentKind::Article);
-        file::remove(dest)
-    }
+            fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                COMPILER.lock().unwrap().remove_file(src.clone(), $kind);
+                file::remove(dest)
+            }
 
-    fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().modify_file(&src, ContentKind::Article);
-        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::Article) {
-            Ok(html) => file::write_file(dest, &html)?,
-            Err(e) => warn!("Failed to compile {:?}: {}", src, e),
+            fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                COMPILER.lock().unwrap().modify_file(&src, $kind);
+                match COMPILER.lock().unwrap().compile_file(&src, $kind) {
+                    Ok(html) => file::write_file(dest, &html)?,
+                    Err(e) => warn!("Failed to compile {:?}: {}", src, e),
+                }
+                Ok(())
+            }
         }
-        Ok(())
-    }
+    };
 }
+
+file_generator_impl!(ArticleGenerator, ContentKind::Article);
 
 impl FileMapper for GeneralGenerator {
     fn src_root(&self) -> PathBuf {
@@ -84,43 +86,13 @@ impl FileMapper for GeneralGenerator {
             .join(&get_allay_config().theme.template.dir)
             .join(&get_allay_config().theme.template.custom_dir)
     }
-
-    fn dest_root(&self) -> PathBuf {
-        get_allay_config().publish.dir.clone().into()
-    }
 }
 
-impl FileGenerator for GeneralGenerator {
-    fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::General) {
-            Ok(html) => file::write_file(dest, &html)?,
-            Err(e) => warn!("Failed to compile {:?}: {}", src, e),
-        }
-        Ok(())
-    }
-
-    fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().remove_file(src.clone(), ContentKind::General);
-        file::remove(dest)
-    }
-
-    fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        COMPILER.lock().unwrap().modify_file(&src, ContentKind::General);
-        match COMPILER.lock().unwrap().compile_file(&src, ContentKind::General) {
-            Ok(html) => file::write_file(dest, &html)?,
-            Err(e) => warn!("Failed to compile {:?}: {}", src, e),
-        }
-        Ok(())
-    }
-}
+file_generator_impl!(GeneralGenerator, ContentKind::General);
 
 impl FileMapper for StaticGenerator {
     fn src_root(&self) -> PathBuf {
         get_allay_config().statics.dir.clone().into()
-    }
-
-    fn dest_root(&self) -> PathBuf {
-        get_allay_config().publish.dir.clone().into()
     }
 }
 
