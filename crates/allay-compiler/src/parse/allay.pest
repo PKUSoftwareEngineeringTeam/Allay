@@ -9,7 +9,7 @@ toml_front_matter = { "+++\n" ~ toml_mata ~ "+++\n" }
 template = { control* }
 control = { text | shortcode | command | substitution }
 
-text = { (!("{-" | "{<" | "{:" ) ~ ANY)+ }
+text = { (!("{-" | "{<" | "{:") ~ ANY)+ }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" )* }
 variable = { "$" ~ identifier }
