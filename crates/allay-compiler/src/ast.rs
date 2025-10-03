@@ -160,6 +160,7 @@ pub enum Primary {
     String(String),
     Boolean(bool),
     Expression(Expression),
+    Null,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

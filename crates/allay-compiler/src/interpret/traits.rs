@@ -16,7 +16,7 @@ pub(crate) fn get_field_once(
         }
         GetField::Name(name) => {
             let obj = cur.as_obj()?;
-            obj.get(name).map(Arc::clone).ok_or(InterpretError::FieldNotFound(name.clone()))
+            Ok(obj.get(name).map(Arc::clone).unwrap_or(Arc::new(AllayData::Null)))
         }
     }
 }

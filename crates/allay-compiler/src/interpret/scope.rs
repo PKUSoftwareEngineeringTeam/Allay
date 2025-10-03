@@ -111,11 +111,12 @@ impl DataProvider for PageScope {
 
         if let GetField::Name(name) = first {
             let cur = if self.owned.contains_key(name) {
-                self.owned.get(name).unwrap()
+                // clone an Arc is ok here
+                self.owned.get(name).unwrap().clone()
             } else if let Some(inherited) = &self.inherited {
-                inherited.get(name).ok_or(InterpretError::FieldNotFound(name.clone()))?
+                inherited.get(name).unwrap_or(&Arc::new(AllayData::Null)).clone()
             } else {
-                return Err(InterpretError::FieldNotFound(name.clone()));
+                return Ok(Arc::new(AllayData::Null));
             };
 
             fields[1..].iter().try_fold(cur.clone(), get_field_once)
