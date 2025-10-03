@@ -144,10 +144,7 @@ impl Interpretable for WithCommand {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        let scope_data = match self.scope.interpret(ctx, page) {
-            Ok(v) => v,
-            Err(_) => return Ok(()),
-        };
+        let scope_data = self.scope.interpret(ctx, page)?;
         let var = LocalVar::create(scope_data);
         {
             interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
@@ -162,10 +159,7 @@ impl Interpretable for IfCommand {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        let cond = match self.condition.interpret(ctx, page) {
-            Ok(v) => v.as_bool()?,
-            Err(_) => false,
-        };
+        let cond = self.condition.interpret(ctx, page)?.as_bool()?;
         if cond {
             self.inner.interpret(ctx, page)
         } else if let Some(else_branch) = &self.else_inner {
@@ -377,9 +371,9 @@ impl Interpretable for Comparison {
             return self.left.interpret(ctx, page);
         }
 
-        let left = self.left.interpret(ctx, page)?.as_int()?;
+        let left = self.left.interpret(ctx, page)?;
         let (op, right) = self.right.as_ref().unwrap();
-        let right = right.interpret(ctx, page)?.as_int()?;
+        let right = right.interpret(ctx, page)?;
 
         let bool = match op {
             ComparisonOp::Equal => left == right,
@@ -503,6 +497,7 @@ impl Interpretable for Primary {
             Primary::Expression(exp) => exp.interpret(ctx, page),
             Primary::Field(field) => field.interpret(ctx, page),
             Primary::TopLevel(top) => top.interpret(ctx, page),
+            Primary::Null => Ok(Arc::new(AllayData::Null)),
         }
     }
 }

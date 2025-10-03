@@ -537,6 +537,7 @@ impl ASTBuilder for Primary {
                 Ok(Primary::Boolean(val))
             }
             Rule::expression => Ok(Primary::Expression(Expression::build(item)?)),
+            Rule::null => Ok(Primary::Null),
             _ => parser_unreachable!(),
         }
     }

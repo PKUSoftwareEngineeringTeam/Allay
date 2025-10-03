@@ -142,3 +142,18 @@ name: "Test Page"
     let res = Compiler::raw(source_file, include_dir, shortcode_dir).unwrap();
     assert_eq!(to_tokens(res), vec!["<p>Test", "Page</p>"])
 }
+
+#[test]
+fn test_null() {
+    let temp_dir = tempdir().unwrap();
+    let include_dir = create_include_dir(&temp_dir);
+    let shortcode_dir = create_shortcode_dir(&temp_dir);
+
+    let source_file = create_test_file(
+        &temp_dir,
+        "source.md",
+        "{- if .name == null -}is null{- else -}not null{- end -}",
+    );
+    let res = Compiler::raw(source_file, include_dir, shortcode_dir).unwrap();
+    assert_eq!(to_tokens(res), vec!["<p>is", "null</p>"])
+}

@@ -37,7 +37,8 @@ multiplication = { unary ~ (mul_op ~ unary)* }
 unary = { (not_op | add_op)* ~ primary }
 field = ${ top_level? ~ get_field+ }
 bool_literal = { "#t" | "#f" }
-primary = { field | top_level | number | string | bool_literal | "(" ~ expression ~ ")" }
+null = { "null" }
+primary = { field | top_level | number | string | bool_literal | "(" ~ expression ~ ")" | null }
 
 shortcode = { single_shortcode | block_shortcode }
 shortcode_pattern = ${ identifier ~ WHITESPACE }

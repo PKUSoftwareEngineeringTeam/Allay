@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
@@ -215,6 +216,22 @@ impl AllayData {
     /// NOTE: This function will copy the keys
     pub fn arc_to_obj(data: Arc<AllayData>) -> DataResult<AllayObject> {
         Ok(data.as_obj()?.iter().map(|(k, v)| (k.clone(), Arc::clone(v))).collect())
+    }
+}
+
+impl PartialOrd for AllayData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self.is_bool() && other.is_bool() {
+            Some(self.as_bool().unwrap().cmp(&other.as_bool().unwrap()))
+        } else if self.is_null() && other.is_null() {
+            Some(Ordering::Equal)
+        } else if self.is_int() && other.is_int() {
+            Some(self.as_int().unwrap().cmp(&other.as_int().unwrap()))
+        } else if self.is_str() && other.is_str() {
+            Some(self.as_str().unwrap().cmp(other.as_str().unwrap()))
+        } else {
+            None
+        }
     }
 }
 
