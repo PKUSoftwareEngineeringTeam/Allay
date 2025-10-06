@@ -13,6 +13,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
+webbrowser = "1.0"
 
 [[bin]]
 name = "allay"

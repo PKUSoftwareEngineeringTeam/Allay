@@ -65,4 +65,8 @@ pub struct ServeArgs {
     /// Use the baseUrl from the config file
     #[arg(short, long)]
     pub base_url: bool,
+
+    /// Open the site in the browser
+    #[arg(long)]
+    pub open: bool,
 }
