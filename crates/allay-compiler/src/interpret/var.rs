@@ -72,22 +72,11 @@ impl PagesVar {
             *self.data.write().unwrap() = Arc::new(data);
         }
     }
-
-    pub fn lock(&mut self) {
-        self.locked = true;
-    }
-
-    pub fn unlock(&mut self) {
-        self.locked = false;
-    }
 }
 
 impl DataProvider for Mutex<PagesVar> {
     fn get_data(&self) -> Arc<AllayData> {
         let lock = self.lock().unwrap();
-        if !lock.locked {
-            lock.update();
-        }
         lock.data.read().unwrap().clone()
     }
 }

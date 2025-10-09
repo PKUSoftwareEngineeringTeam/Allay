@@ -69,13 +69,8 @@ impl Interpretable for Template {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        {
-            let mut pages_var = interpret_unwrap!(PagesVar::get_instance().lock());
-            pages_var.update();
-            pages_var.lock();
-        }
+        PagesVar::get_instance().lock().unwrap().update();
         let res = self.controls.iter().try_for_each(|c| c.interpret(ctx, page));
-        interpret_unwrap!(PagesVar::get_instance().lock()).unlock();
         res
     }
 }
