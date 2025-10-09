@@ -13,6 +13,7 @@ use allay_base::file;
 use env::Page;
 pub use error::*;
 use interpret::Interpreter;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
@@ -29,24 +30,38 @@ mod magic {
 pub struct CompileOutput {
     /// The compiled HTML string
     pub html: String,
-    /// The metadata extracted from the source file, if any
-    pub meta: Option<AllayObject>,
+    /// The metadata extracted from the source file
+    pub meta: AllayObject,
 }
 
 /// The main Allay compiler structure with caching optimization.
-/// See all the implementations in [`misc`] submodule.
+/// See all the implementations in `misc` submodule.
 #[derive(Default)]
-pub struct Compiler<K: Hash + Eq> {
-    /// A mapping from source files to the set of cache keys they influence.
+pub struct Compiler<K> {
+    /// A mapping from source files to the set of keys they influence.
     influenced: HashMap<PathBuf, HashSet<K>>,
-    /// A mapping from cache keys to their compiled pages.
-    cached: HashMap<K, Arc<Mutex<Page>>>,
+    /// A mapping from keys to their compiled pages.
+    cached: RefCell<HashMap<K, Arc<Mutex<Page>>>>,
 }
 
 impl<K> Compiler<K>
 where
     K: Hash + Eq,
 {
+    /// Try to get a cached page by its key.
+    /// If the page is not cachable anymore, it will be removed from the cache.
+    fn cache(&self, key: &K) -> Option<Arc<Mutex<Page>>> {
+        let mut borrowed = self.cached.borrow_mut();
+        let page = borrowed.get(key);
+        if let Some(p) = page
+            && !p.lock().unwrap().cachable()
+        {
+            borrowed.remove(key);
+        }
+        drop(borrowed);
+        self.cached.borrow().get(key).cloned()
+    }
+
     /// Create a new compiler instance with default settings.
     fn default_interpreter() -> Interpreter {
         let theme = file::workspace(get_theme_path());
@@ -66,8 +81,10 @@ where
     fn modify<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.get(source.as_ref()) {
             for dep in deps {
-                let mut page = self.cached.get(dep).unwrap().lock().unwrap();
-                page.clear();
+                if let Some(page) = self.cache(dep) {
+                    let mut page = page.lock().unwrap();
+                    page.clear();
+                }
             }
         }
     }
@@ -77,13 +94,13 @@ where
     fn remove<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.remove(source.as_ref()) {
             for dep in deps {
-                self.cached.remove(&dep);
+                self.cached.borrow_mut().remove(&dep);
             }
         }
     }
 
     /// Remember a compiled page with the given key.
     fn remember(&mut self, key: K, page: Arc<Mutex<Page>>) {
-        self.cached.insert(key, page);
+        self.cached.borrow_mut().insert(key, page);
     }
 }

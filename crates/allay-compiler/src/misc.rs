@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 impl Compiler<String> {
     /// the key generation method for caching
     fn default_key<P: AsRef<Path>>(path: P) -> String {
-        path.as_ref().to_string_lossy().to_string()
+        path.as_ref().to_string_lossy().into()
     }
 
     /// A method to compile a raw source file into HTML string.
@@ -48,7 +48,13 @@ impl Compiler<String> {
             ContentKind::Article => self.article(source),
             ContentKind::General => self.general(source),
             ContentKind::Static => Err(CompileError::FileTypeNotSupported(
-                source.as_ref().to_path_buf().to_string_lossy().to_string(),
+                source
+                    .as_ref()
+                    .to_path_buf()
+                    .extension()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into(),
             )),
         }
     }
@@ -85,7 +91,7 @@ impl Compiler<String> {
         let source = source.as_ref().to_path_buf();
 
         let interpreter = &mut Self::default_interpreter();
-        if let Some(page) = self.cached.get(&key) {
+        if let Some(page) = self.cache(&key) {
             // cached
             return page.compile(interpreter);
         }
@@ -124,7 +130,7 @@ impl Compiler<String> {
         let template_article_key = Self::template_article_key(&template, &article);
 
         let interpreter = &mut Self::default_interpreter();
-        if let Some(page) = self.cached.get(&template_article_key) {
+        if let Some(page) = self.cache(&template_article_key) {
             // cached
             return page.compile(interpreter);
         }

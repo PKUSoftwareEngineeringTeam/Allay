@@ -14,6 +14,18 @@ impl Default for TemplateKind {
 }
 
 impl TemplateKind {
+    pub fn is_md(&self) -> bool {
+        matches!(self, TemplateKind::Markdown)
+    }
+
+    pub fn is_html(&self) -> bool {
+        matches!(self, TemplateKind::Html)
+    }
+
+    pub fn is_template(&self) -> bool {
+        self.is_md() || self.is_html()
+    }
+
     pub fn from_extension(ext: &str) -> Self {
         match ext {
             "md" => TemplateKind::Markdown,

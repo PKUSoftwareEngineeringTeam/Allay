@@ -83,6 +83,25 @@ pub fn dirty_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<bool> {
     Ok(dir_exists(dir_path.as_ref()) && dir_path.as_ref().read_dir()?.next().is_some())
 }
 
+/// Read all the files in a directory recursively
+pub fn read_dir_all_files<P: AsRef<Path>>(dir_path: P) -> FileResult<Vec<PathBuf>> {
+    let dir_path = dir_path.as_ref();
+    if !dir_exists(dir_path) {
+        return Err(FileError::FileNotFound(dir_path.into()));
+    }
+
+    let mut files = Vec::new();
+    for entry in fs::read_dir(dir_path)? {
+        let path = entry?.path();
+        if path.is_file() {
+            files.push(path);
+        } else if path.is_dir() {
+            files.extend(read_dir_all_files(&path)?);
+        }
+    }
+    Ok(files)
+}
+
 /// Read the metadata of a file
 pub fn read_file_info<P: AsRef<Path>>(file_path: P) -> FileResult<fs::Metadata> {
     let file_path = file_path.as_ref();

@@ -51,7 +51,7 @@ impl FileMapper for ArticleGenerator {
 
     fn path_mapping(&self, src: &Path) -> PathBuf {
         let mut res = src.to_path_buf();
-        if TemplateKind::from_filename(src) == TemplateKind::Markdown {
+        if TemplateKind::from_filename(src).is_md() {
             res.set_extension(TemplateKind::Html.extension());
         }
         res
@@ -59,18 +59,13 @@ impl FileMapper for ArticleGenerator {
 }
 
 fn write_with_wrapper(dest: PathBuf, html: &str) -> FileResult<()> {
-    if matches!(get_cli_config().command, CLICommand::Serve(_)) {
-        file::write_file(
-            dest,
-            &format!(
-                include_str!("wrapper.html"),
-                html,
-                include_str!("auto-reload.js")
-            ),
-        )
-    } else {
-        file::write_file(dest, html)
-    }
+    let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
+        .then_some(include_str!("auto-reload.js"))
+        .unwrap_or_default();
+    file::write_file(
+        dest,
+        &format!(include_str!("wrapper.html"), html, hot_reload),
+    )
 }
 
 macro_rules! file_generator_impl {
@@ -112,7 +107,7 @@ impl FileMapper for GeneralGenerator {
 
     fn path_mapping(&self, src: &Path) -> PathBuf {
         let mut res = src.to_path_buf();
-        if TemplateKind::from_filename(src) == TemplateKind::Markdown {
+        if TemplateKind::from_filename(src).is_md() {
             res.set_extension(TemplateKind::Html.extension());
         }
         res
