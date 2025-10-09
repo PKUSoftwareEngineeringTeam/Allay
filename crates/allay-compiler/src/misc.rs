@@ -64,12 +64,17 @@ impl Compiler<String> {
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
-    pub fn modify_file<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
+    pub fn modify_file<P: AsRef<Path>>(
+        &mut self,
+        source: P,
+        kind: ContentKind,
+    ) -> CompileResult<()> {
         match kind {
             ContentKind::Article => self.modify_article(source),
             ContentKind::General => self.modify(source),
             ContentKind::Static => {}
         }
+        Ok(())
     }
 
     /// Remove a source file from the cache and influenced mapping.
@@ -77,12 +82,17 @@ impl Compiler<String> {
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
-    pub fn remove_file<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
+    pub fn remove_file<P: AsRef<Path>>(
+        &mut self,
+        source: P,
+        kind: ContentKind,
+    ) -> CompileResult<()> {
         match kind {
             ContentKind::Article => self.remove_article(source),
             ContentKind::General => self.remove(source),
             ContentKind::Static => {}
         }
+        Ok(())
     }
 
     /// Compile a general file
@@ -97,10 +107,12 @@ impl Compiler<String> {
         }
 
         let page = Page::new(source.clone()).into();
-        let res = page.compile(interpreter)?;
+
+        self.published.insert(key.clone());
         self.add(source.clone(), key.clone());
-        self.remember(key, page);
-        Ok(res)
+        self.remember(key, page.clone());
+
+        page.compile(interpreter)
     }
 
     /// Get the template path for an article
@@ -150,9 +162,10 @@ impl Compiler<String> {
         // replace the "content" key with the article page
         page.add_stash(magic::CONTENT.into(), sub);
         let page = page.into();
+
+        self.published.insert(template_article_key.clone());
         self.add(template.clone(), template_article_key.clone());
         self.remember(template_article_key, page.clone());
-
         page.compile(interpreter)
     }
 

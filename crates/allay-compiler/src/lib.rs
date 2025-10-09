@@ -19,6 +19,8 @@ use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use crate::env::Compiled;
+
 mod magic {
     //! Common magic words used in Allay templates
 
@@ -42,6 +44,8 @@ pub struct Compiler<K> {
     influenced: HashMap<PathBuf, HashSet<K>>,
     /// A mapping from keys to their compiled pages.
     cached: RefCell<HashMap<K, Arc<Mutex<Page>>>>,
+    /// Pages that will be published
+    published: HashSet<K>,
 }
 
 impl<K> Compiler<K>
@@ -49,17 +53,31 @@ where
     K: Hash + Eq,
 {
     /// Try to get a cached page by its key.
-    /// If the page is not cachable anymore, it will be removed from the cache.
     fn cache(&self, key: &K) -> Option<Arc<Mutex<Page>>> {
-        let mut borrowed = self.cached.borrow_mut();
-        let page = borrowed.get(key);
-        if let Some(p) = page
-            && !p.lock().unwrap().cachable()
-        {
-            borrowed.remove(key);
-        }
-        drop(borrowed);
         self.cached.borrow().get(key).cloned()
+    }
+
+    /// Recompile the changed pages.
+    pub fn refresh_pages<P: AsRef<Path>>(
+        &self,
+        skip: P,
+    ) -> HashMap<PathBuf, CompileResult<CompileOutput>> {
+        let mut results = HashMap::new();
+        for k in self.published.iter() {
+            let page = self.cache(k);
+            if let Some(page) = page
+                && page.lock().unwrap().changed()
+            {
+                for (buf, set) in self.influenced.iter() {
+                    if buf != &skip.as_ref().to_path_buf() && set.contains(k) {
+                        let res = page.compile(&mut Self::default_interpreter());
+                        results.insert(buf.clone(), res);
+                        break;
+                    }
+                }
+            }
+        }
+        results
     }
 
     /// Create a new compiler instance with default settings.
@@ -94,6 +112,7 @@ where
     fn remove<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.remove(source.as_ref()) {
             for dep in deps {
+                self.published.remove(&dep);
                 self.cached.borrow_mut().remove(&dep);
             }
         }

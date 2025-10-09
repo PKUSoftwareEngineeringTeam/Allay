@@ -33,6 +33,7 @@ impl DataProvider for SiteVar {
 
 impl Variable for SiteVar {}
 
+#[derive(Debug)]
 pub struct PagesVar {
     data: RwLock<Arc<AllayData>>,
     locked: bool,
@@ -51,7 +52,7 @@ impl PagesVar {
         })
     }
 
-    fn update(&self) {
+    pub fn update(&self) {
         let dir = file::workspace(&get_allay_config().content.dir);
         // walk through the content directory and get all markdown/html files
         if self.locked {

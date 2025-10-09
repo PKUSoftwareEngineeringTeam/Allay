@@ -70,7 +70,6 @@ impl Page {
         &mut self.scope
     }
 
-    #[allow(dead_code)]
     pub fn set_cachable(&mut self, cachable: bool) {
         self.cachable = cachable;
         self.ready = false;
@@ -86,8 +85,8 @@ impl Page {
         }
     }
 
-    pub fn cachable(&self) -> bool {
-        self.cachable
+    pub fn changed(&self) -> bool {
+        !self.cachable || self.dirty
     }
 
     /// Clone the page without parent and output
@@ -120,9 +119,6 @@ impl Page {
 
     /// Spread the dirty state to parent pages
     fn spread_dirty(&mut self) {
-        if !self.cachable {
-            return;
-        }
         self.dirty = true;
         self.output.clear();
         if let Some(parent) = &self.parent
@@ -214,8 +210,8 @@ impl Compiled for Arc<Mutex<Page>> {
             meta.iter().for_each(|(k, v)| {
                 page.scope.add_key(k.clone(), v.clone());
             });
+            page.output.clear();
             drop(page);
-
             self.compile_on(&ast.template, interpreter)?;
             get_lock!(self).ready = true;
             meta

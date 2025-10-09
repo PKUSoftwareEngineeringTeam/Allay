@@ -1,4 +1,3 @@
-use config::Config;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -101,10 +100,7 @@ pub fn get_allay_config() -> &'static AllayConfig {
     static INSTANCE: OnceLock<AllayConfig> = OnceLock::new();
 
     INSTANCE.get_or_init(|| {
-        let config = Config::builder()
-            .add_source(config::File::with_name("config/allay-config.toml"))
-            .build()
-            .unwrap();
-        config.try_deserialize().unwrap()
+        let config = include_str!("allay-config.toml");
+        toml::from_str(&config).unwrap()
     })
 }

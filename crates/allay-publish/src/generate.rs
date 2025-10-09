@@ -1,4 +1,4 @@
 mod impls;
 mod traits;
 
-pub(crate) use impls::GeneratorWorker;
+pub use impls::GeneratorWorker;

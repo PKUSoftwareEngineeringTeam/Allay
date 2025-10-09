@@ -3,6 +3,7 @@ use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_theme
 use allay_base::file::{self, FileResult};
 use allay_base::template::{ContentKind, TemplateKind};
 use allay_compiler::Compiler;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 use std::thread::spawn;
@@ -58,7 +59,7 @@ impl FileMapper for ArticleGenerator {
     }
 }
 
-fn write_with_wrapper(dest: PathBuf, html: &str) -> FileResult<()> {
+fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
     let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
         .then_some(include_str!("auto-reload.js"))
         .unwrap_or_default();
@@ -68,29 +69,54 @@ fn write_with_wrapper(dest: PathBuf, html: &str) -> FileResult<()> {
     )
 }
 
+static FILEMAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn refresh(skip: &PathBuf) -> FileResult<()> {
+    for (path, res) in COMPILER.lock().unwrap().refresh_pages(skip) {
+        if let Some(dest) = FILEMAP.lock().unwrap().get(&path) {
+            match res {
+                Ok(output) => write_with_wrapper(dest, &output.html)?,
+                Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
+            }
+        }
+        // otherwise it is not managed by this generator
+    }
+    Ok(())
+}
+
 macro_rules! file_generator_impl {
     ($generator: ident, $kind: expr) => {
+        impl $generator {}
+
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                FILEMAP.lock().unwrap().insert(src.clone(), dest.clone());
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(output) => write_with_wrapper(dest, &output.html)?,
+                    Ok(output) => write_with_wrapper(&dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
-                Ok(())
+                refresh(&src)
             }
 
             fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-                COMPILER.lock().unwrap().remove_file(src.clone(), $kind);
+                FILEMAP.lock().unwrap().remove(&src);
+                if let Err(e) = COMPILER.lock().unwrap().remove_file(src.clone(), $kind) {
+                    warn!("Error when removing: {:?}: {}", src, e);
+                }
+                refresh(&src)?;
                 file::remove(dest)
             }
 
             fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-                COMPILER.lock().unwrap().modify_file(&src, $kind);
+                if let Err(e) = COMPILER.lock().unwrap().modify_file(&src, $kind) {
+                    warn!("Error when modifying: {:?}: {}", src, e);
+                }
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(output) => write_with_wrapper(dest, &output.html)?,
+                    Ok(output) => write_with_wrapper(&dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
-                Ok(())
+                refresh(&src)
             }
         }
     };
