@@ -85,6 +85,7 @@ impl Page {
         }
     }
 
+    /// Check if the page's output is changed and needs recompiling
     pub fn changed(&self) -> bool {
         !self.cachable || self.dirty
     }

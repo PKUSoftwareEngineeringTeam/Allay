@@ -18,6 +18,7 @@ fn remove_html_comments(html: &'_ str) -> Cow<'_, str> {
     re.replace_all(html, "")
 }
 
+/// Parse a source string into an AST [`File`].
 pub fn parse_file(source: &str) -> ParseResult<File> {
     let source = remove_html_comments(source);
     let tokens = TemplateParser::parse(Rule::file, source.as_ref())

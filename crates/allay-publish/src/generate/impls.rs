@@ -69,9 +69,11 @@ fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
     )
 }
 
+/// A global file mapping from source path to destination path
 static FILEMAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// handling the recompilation of all affected files
 fn refresh(skip: &PathBuf) -> FileResult<()> {
     for (path, res) in COMPILER.lock().unwrap().refresh_pages(skip) {
         if let Some(dest) = FILEMAP.lock().unwrap().get(&path) {
@@ -80,7 +82,6 @@ fn refresh(skip: &PathBuf) -> FileResult<()> {
                 Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
             }
         }
-        // otherwise it is not managed by this generator
     }
     Ok(())
 }

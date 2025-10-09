@@ -8,6 +8,7 @@ use allay_base::data::{AllayData, AllayObject};
 pub use interpreter::{Interpretable, Interpreter};
 pub use scope::PageScope;
 
+/// Interpret the front matter section into an [`AllayObject`].
 pub fn interpret_meta(meta: &Option<Meta>) -> InterpretResult<AllayObject> {
     let meta = match meta {
         None => AllayObject::default(),

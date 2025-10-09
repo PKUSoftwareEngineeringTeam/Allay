@@ -67,10 +67,13 @@ pub(crate) trait Variable: DataProvider {}
 /// {- end -}
 /// ```
 pub(crate) trait Scope: DataProvider {
+    /// Create the special variable `this`, which is the current scope itself
     fn create_this(&self) -> ThisVar<'_>;
 
+    /// Create a local variable defined in template, like `for $item: .items`
     fn create_local_var(&mut self, id: String, data: LocalVar);
 
+    /// A utility function to create a local variable from an [`AllayData`]
     fn create_local(&mut self, id: String, data: Arc<AllayData>) {
         self.create_local_var(id, LocalVar::create(data));
     }

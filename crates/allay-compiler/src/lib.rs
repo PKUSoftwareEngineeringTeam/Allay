@@ -57,6 +57,11 @@ where
         self.cached.borrow().get(key).cloned()
     }
 
+    /// Remember a compiled page with the given key.
+    fn remember(&mut self, key: K, page: Arc<Mutex<Page>>) {
+        self.cached.borrow_mut().insert(key, page);
+    }
+
     /// Recompile the changed pages.
     pub fn refresh_pages<P: AsRef<Path>>(
         &self,
@@ -116,10 +121,5 @@ where
                 self.cached.borrow_mut().remove(&dep);
             }
         }
-    }
-
-    /// Remember a compiled page with the given key.
-    fn remember(&mut self, key: K, page: Arc<Mutex<Page>>) {
-        self.cached.borrow_mut().insert(key, page);
     }
 }
