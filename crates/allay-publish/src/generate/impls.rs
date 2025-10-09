@@ -70,13 +70,13 @@ fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
 }
 
 /// A global file mapping from source path to destination path
-static FILEMAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
+static FILE_MAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// handling the recompilation of all affected files
 fn refresh(skip: &PathBuf) -> FileResult<()> {
     for (path, res) in COMPILER.lock().unwrap().refresh_pages(skip) {
-        if let Some(dest) = FILEMAP.lock().unwrap().get(&path) {
+        if let Some(dest) = FILE_MAP.lock().unwrap().get(&path) {
             match res {
                 Ok(output) => write_with_wrapper(dest, &output.html)?,
                 Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
@@ -88,11 +88,9 @@ fn refresh(skip: &PathBuf) -> FileResult<()> {
 
 macro_rules! file_generator_impl {
     ($generator: ident, $kind: expr) => {
-        impl $generator {}
-
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-                FILEMAP.lock().unwrap().insert(src.clone(), dest.clone());
+                FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
                     Ok(output) => write_with_wrapper(&dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
@@ -101,7 +99,7 @@ macro_rules! file_generator_impl {
             }
 
             fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-                FILEMAP.lock().unwrap().remove(&src);
+                FILE_MAP.lock().unwrap().remove(&src);
                 if let Err(e) = COMPILER.lock().unwrap().remove_file(src.clone(), $kind) {
                     warn!("Error when removing: {:?}: {}", src, e);
                 }
