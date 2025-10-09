@@ -70,8 +70,7 @@ impl Interpretable for Template {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         PagesVar::get_instance().lock().unwrap().update();
-        let res = self.controls.iter().try_for_each(|c| c.interpret(ctx, page));
-        res
+        self.controls.iter().try_for_each(|c| c.interpret(ctx, page))
     }
 }
 
