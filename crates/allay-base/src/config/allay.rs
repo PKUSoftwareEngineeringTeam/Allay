@@ -101,6 +101,6 @@ pub fn get_allay_config() -> &'static AllayConfig {
 
     INSTANCE.get_or_init(|| {
         let config = include_str!("allay-config.toml");
-        toml::from_str(&config).unwrap()
+        toml::from_str(config).unwrap()
     })
 }
