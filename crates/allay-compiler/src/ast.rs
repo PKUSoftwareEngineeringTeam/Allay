@@ -168,6 +168,7 @@ pub enum TopLevel {
     This,
     Site,
     Param,
+    Pages,
     Variable(String),
 }
 

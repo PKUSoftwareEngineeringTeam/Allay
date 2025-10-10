@@ -1,7 +1,7 @@
 use crate::env::{Compiled, Page, TokenInserter};
 use crate::interpret::scope::PageScope;
 use crate::interpret::traits::{DataProvider, Variable};
-use crate::interpret::var::{LocalVar, SiteVar};
+use crate::interpret::var::{LocalVar, PagesVar, SiteVar};
 use crate::{InterpretError, InterpretResult};
 use crate::{ast::*, magic};
 use allay_base::data::AllayData;
@@ -69,6 +69,7 @@ impl Interpretable for Template {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
+        PagesVar::get_instance().lock().unwrap().update();
         self.controls.iter().try_for_each(|c| c.interpret(ctx, page))
     }
 }
@@ -146,9 +147,7 @@ impl Interpretable for WithCommand {
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let scope_data = self.scope.interpret(ctx, page)?;
         let var = LocalVar::create(scope_data);
-        {
-            interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
-        }
+        interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
         self.inner.interpret(ctx, page)?;
         interpret_unwrap!(page.lock()).scope_mut().exit_sub_scope();
         Ok(())
@@ -519,13 +518,17 @@ impl Interpretable for Field {
             return Ok(Arc::new(AllayData::default()));
         }
 
-        let page = interpret_unwrap!(page.lock());
+        let mut page = interpret_unwrap!(page.lock());
         let scope = page.scope();
-        let var: &dyn Variable = match &self.top_level {
-            None | Some(TopLevel::This) => &scope.cur_scope().create_this(),
-            Some(TopLevel::Site) => SiteVar::get_instance(),
-            Some(TopLevel::Param) => scope.get_param(),
-            Some(TopLevel::Variable(id)) => {
+        let var: &dyn Variable = match self.top_level.as_ref().unwrap_or(&TopLevel::This) {
+            TopLevel::This => &scope.cur_scope().create_this(),
+            TopLevel::Site => SiteVar::get_instance(),
+            TopLevel::Param => scope.get_param(),
+            TopLevel::Pages => {
+                page.set_cachable(false);
+                PagesVar::get_instance()
+            }
+            TopLevel::Variable(id) => {
                 scope.get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
             }
         };
@@ -541,12 +544,16 @@ impl Interpretable for TopLevel {
         _: &mut Interpreter,
         page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output> {
-        let page = interpret_unwrap!(page.lock());
+        let mut page = interpret_unwrap!(page.lock());
         let scope = page.scope();
         let var: &dyn Variable = match self {
             TopLevel::This => &scope.cur_scope().create_this(),
             TopLevel::Site => SiteVar::get_instance(),
             TopLevel::Param => scope.get_param(),
+            TopLevel::Pages => {
+                page.set_cachable(false);
+                PagesVar::get_instance()
+            }
             TopLevel::Variable(id) => {
                 scope.get_local(id).ok_or(InterpretError::VariableNotFound(id.clone()))?
             }

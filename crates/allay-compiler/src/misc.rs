@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 impl Compiler<String> {
     /// the key generation method for caching
     fn default_key<P: AsRef<Path>>(path: P) -> String {
-        path.as_ref().to_string_lossy().to_string()
+        path.as_ref().to_string_lossy().into()
     }
 
     /// A method to compile a raw source file into HTML string.
@@ -48,7 +48,13 @@ impl Compiler<String> {
             ContentKind::Article => self.article(source),
             ContentKind::General => self.general(source),
             ContentKind::Static => Err(CompileError::FileTypeNotSupported(
-                source.as_ref().to_path_buf().to_string_lossy().to_string(),
+                source
+                    .as_ref()
+                    .to_path_buf()
+                    .extension()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into(),
             )),
         }
     }
@@ -58,12 +64,17 @@ impl Compiler<String> {
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
-    pub fn modify_file<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
+    pub fn modify_file<P: AsRef<Path>>(
+        &mut self,
+        source: P,
+        kind: ContentKind,
+    ) -> CompileResult<()> {
         match kind {
             ContentKind::Article => self.modify_article(source),
             ContentKind::General => self.modify(source),
             ContentKind::Static => {}
         }
+        Ok(())
     }
 
     /// Remove a source file from the cache and influenced mapping.
@@ -71,12 +82,17 @@ impl Compiler<String> {
     /// # Arguments
     /// - `source`: The path to the source file (markdown or html)
     /// - `kind`: The kind of content
-    pub fn remove_file<P: AsRef<Path>>(&mut self, source: P, kind: ContentKind) {
+    pub fn remove_file<P: AsRef<Path>>(
+        &mut self,
+        source: P,
+        kind: ContentKind,
+    ) -> CompileResult<()> {
         match kind {
             ContentKind::Article => self.remove_article(source),
             ContentKind::General => self.remove(source),
             ContentKind::Static => {}
         }
+        Ok(())
     }
 
     /// Compile a general file
@@ -85,16 +101,18 @@ impl Compiler<String> {
         let source = source.as_ref().to_path_buf();
 
         let interpreter = &mut Self::default_interpreter();
-        if let Some(page) = self.cached.get(&key) {
+        if let Some(page) = self.cache(&key) {
             // cached
             return page.compile(interpreter);
         }
 
         let page = Page::new(source.clone()).into();
-        let res = page.compile(interpreter)?;
+
+        self.published.insert(key.clone());
         self.add(source.clone(), key.clone());
-        self.remember(key, page);
-        Ok(res)
+        self.remember(key, page.clone());
+
+        page.compile(interpreter)
     }
 
     /// Get the template path for an article
@@ -124,7 +142,7 @@ impl Compiler<String> {
         let template_article_key = Self::template_article_key(&template, &article);
 
         let interpreter = &mut Self::default_interpreter();
-        if let Some(page) = self.cached.get(&template_article_key) {
+        if let Some(page) = self.cache(&template_article_key) {
             // cached
             return page.compile(interpreter);
         }
@@ -144,9 +162,10 @@ impl Compiler<String> {
         // replace the "content" key with the article page
         page.add_stash(magic::CONTENT.into(), sub);
         let page = page.into();
+
+        self.published.insert(template_article_key.clone());
         self.add(template.clone(), template_article_key.clone());
         self.remember(template_article_key, page.clone());
-
         page.compile(interpreter)
     }
 

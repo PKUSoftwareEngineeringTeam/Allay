@@ -3,6 +3,7 @@ use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_theme
 use allay_base::file::{self, FileResult};
 use allay_base::template::{ContentKind, TemplateKind};
 use allay_compiler::Compiler;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 use std::thread::spawn;
@@ -51,51 +52,70 @@ impl FileMapper for ArticleGenerator {
 
     fn path_mapping(&self, src: &Path) -> PathBuf {
         let mut res = src.to_path_buf();
-        if TemplateKind::from_filename(src) == TemplateKind::Markdown {
+        if TemplateKind::from_filename(src).is_md() {
             res.set_extension(TemplateKind::Html.extension());
         }
         res
     }
 }
 
-fn write_with_wrapper(dest: PathBuf, html: &str) -> FileResult<()> {
-    if matches!(get_cli_config().command, CLICommand::Serve(_)) {
-        file::write_file(
-            dest,
-            &format!(
-                include_str!("wrapper.html"),
-                html,
-                include_str!("auto-reload.js")
-            ),
-        )
-    } else {
-        file::write_file(dest, html)
+fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
+    let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
+        .then_some(include_str!("auto-reload.js"))
+        .unwrap_or_default();
+    file::write_file(
+        dest,
+        &format!(include_str!("wrapper.html"), html, hot_reload),
+    )
+}
+
+/// A global file mapping from source path to destination path
+static FILE_MAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// handling the recompilation of all affected files
+fn refresh(skip: &PathBuf) -> FileResult<()> {
+    for (path, res) in COMPILER.lock().unwrap().refresh_pages(skip) {
+        if let Some(dest) = FILE_MAP.lock().unwrap().get(&path) {
+            match res {
+                Ok(output) => write_with_wrapper(dest, &output.html)?,
+                Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
+            }
+        }
     }
+    Ok(())
 }
 
 macro_rules! file_generator_impl {
     ($generator: ident, $kind: expr) => {
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(output) => write_with_wrapper(dest, &output.html)?,
+                    Ok(output) => write_with_wrapper(&dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
-                Ok(())
+                refresh(&src)
             }
 
             fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-                COMPILER.lock().unwrap().remove_file(src.clone(), $kind);
+                FILE_MAP.lock().unwrap().remove(&src);
+                if let Err(e) = COMPILER.lock().unwrap().remove_file(src.clone(), $kind) {
+                    warn!("Error when removing: {:?}: {}", src, e);
+                }
+                refresh(&src)?;
                 file::remove(dest)
             }
 
             fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-                COMPILER.lock().unwrap().modify_file(&src, $kind);
+                if let Err(e) = COMPILER.lock().unwrap().modify_file(&src, $kind) {
+                    warn!("Error when modifying: {:?}: {}", src, e);
+                }
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
-                    Ok(output) => write_with_wrapper(dest, &output.html)?,
+                    Ok(output) => write_with_wrapper(&dest, &output.html)?,
                     Err(e) => warn!("Failed to compile {:?}: {}", src, e),
                 }
-                Ok(())
+                refresh(&src)
             }
         }
     };
@@ -112,7 +132,7 @@ impl FileMapper for GeneralGenerator {
 
     fn path_mapping(&self, src: &Path) -> PathBuf {
         let mut res = src.to_path_buf();
-        if TemplateKind::from_filename(src) == TemplateKind::Markdown {
+        if TemplateKind::from_filename(src).is_md() {
             res.set_extension(TemplateKind::Html.extension());
         }
         res

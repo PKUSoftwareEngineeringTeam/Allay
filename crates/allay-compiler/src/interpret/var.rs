@@ -1,14 +1,28 @@
 use crate::InterpretResult;
 use crate::ast::GetField;
+use crate::interpret::interpret_meta;
 use crate::interpret::traits::{DataProvider, Variable};
-use allay_base::config::get_site_config;
+use crate::parse::parse_file;
+use allay_base::config::{get_allay_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
-use std::sync::{Arc, OnceLock};
+use allay_base::file;
+use allay_base::template::TemplateKind;
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 /// The global site variable, usually from site config
-#[derive(Debug, Clone)]
-pub(crate) struct SiteVar {
+#[derive(Debug)]
+pub struct SiteVar {
     pub data: Arc<AllayData>,
+}
+
+impl SiteVar {
+    pub fn get_instance() -> &'static SiteVar {
+        static INSTANCE: OnceLock<SiteVar> = OnceLock::new();
+        INSTANCE.get_or_init(|| {
+            let site_data = get_site_config().get("params").cloned().unwrap_or_default();
+            SiteVar { data: site_data }
+        })
+    }
 }
 
 impl DataProvider for SiteVar {
@@ -19,19 +33,59 @@ impl DataProvider for SiteVar {
 
 impl Variable for SiteVar {}
 
-impl SiteVar {
-    pub fn get_instance() -> &'static SiteVar {
-        static SITE_INSTANCE: OnceLock<SiteVar> = OnceLock::new();
-        SITE_INSTANCE.get_or_init(|| {
-            let site_data = get_site_config().get("params").cloned().unwrap_or_default();
-            SiteVar { data: site_data }
+#[derive(Debug)]
+pub struct PagesVar {
+    data: RwLock<Arc<AllayData>>,
+    locked: bool,
+}
+
+impl PagesVar {
+    pub fn get_instance() -> &'static Mutex<PagesVar> {
+        static INSTANCE: OnceLock<Mutex<PagesVar>> = OnceLock::new();
+        INSTANCE.get_or_init(|| {
+            let instance = PagesVar {
+                data: RwLock::new(Arc::new(AllayList::new().into())),
+                locked: false,
+            };
+            instance.update();
+            Mutex::new(instance)
         })
+    }
+
+    pub fn update(&self) {
+        let dir = file::workspace(&get_allay_config().content.dir);
+        // walk through the content directory and get all markdown/html files
+        if self.locked {
+            return;
+        }
+        if let Ok(entries) = file::read_dir_all_files(&dir) {
+            let data = entries
+                .into_iter()
+                .filter(|entry| TemplateKind::from_filename(entry).is_md())
+                .filter_map(|entry| file::read_file_string(entry).ok())
+                .filter_map(|content| parse_file(&content).ok())
+                .filter_map(|ast| interpret_meta(&ast.meta).ok())
+                .map(AllayData::from)
+                .map(Arc::new)
+                .collect::<AllayList>()
+                .into();
+            *self.data.write().unwrap() = Arc::new(data);
+        }
     }
 }
 
+impl DataProvider for Mutex<PagesVar> {
+    fn get_data(&self) -> Arc<AllayData> {
+        let lock = self.lock().unwrap();
+        lock.data.read().unwrap().clone()
+    }
+}
+
+impl Variable for Mutex<PagesVar> {}
+
 /// The special variable `this`, which points to the current scope data
 #[derive(Clone)]
-pub(crate) struct ThisVar<'a> {
+pub struct ThisVar<'a> {
     provider: &'a dyn DataProvider,
 }
 
@@ -56,7 +110,7 @@ impl Variable for ThisVar<'_> {}
 /// The special variable `param`, which is often set by parents.
 /// It is actually an [`AllayList`]` of different parameters
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ParamVar {
+pub struct ParamVar {
     data: Arc<AllayData>,
 }
 
@@ -79,7 +133,7 @@ impl Variable for ParamVar {}
 /// A local variable defined in template, like `for $item: .items`
 /// or the implicit(anonymous) variables
 #[derive(Debug, Clone)]
-pub(crate) struct LocalVar {
+pub struct LocalVar {
     data: Arc<AllayData>,
 }
 

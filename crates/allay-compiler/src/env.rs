@@ -16,7 +16,7 @@ macro_rules! get_lock {
 #[derive(Debug)]
 /// The page environment to record the state of a page during compiling
 /// Fully optimized for increment compiling
-pub(crate) struct Page {
+pub struct Page {
     /// the parent page, if any
     parent: Option<Weak<Mutex<Page>>>,
     /// the path of the page
@@ -70,7 +70,6 @@ impl Page {
         &mut self.scope
     }
 
-    #[allow(dead_code)]
     pub fn set_cachable(&mut self, cachable: bool) {
         self.cachable = cachable;
         self.ready = false;
@@ -84,6 +83,11 @@ impl Page {
                 parent.set_cachable(false);
             }
         }
+    }
+
+    /// Check if the page's output is changed and needs recompiling
+    pub fn changed(&self) -> bool {
+        !self.cachable || self.dirty
     }
 
     /// Clone the page without parent and output
@@ -116,9 +120,6 @@ impl Page {
 
     /// Spread the dirty state to parent pages
     fn spread_dirty(&mut self) {
-        if !self.cachable {
-            return;
-        }
         self.dirty = true;
         self.output.clear();
         if let Some(parent) = &self.parent
@@ -182,7 +183,7 @@ impl TokenInserter for Arc<Mutex<Page>> {
     }
 }
 
-pub(crate) trait Compiled {
+pub trait Compiled {
     /// Compile the page and return the rendered HTML string
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput>;
     /// Compile the page on the given AST node in the page
@@ -206,14 +207,12 @@ impl Compiled for Arc<Mutex<Page>> {
                 TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
             };
             let ast = parse_file(&content)?;
-            let meta = ast.meta.map(|m| interpret_meta(&m)).transpose()?;
-            if let Some(m) = &meta {
-                m.iter().for_each(|(k, v)| {
-                    page.scope.add_key(k.clone(), v.clone());
-                });
-            }
+            let meta = interpret_meta(&ast.meta)?;
+            meta.iter().for_each(|(k, v)| {
+                page.scope.add_key(k.clone(), v.clone());
+            });
+            page.output.clear();
             drop(page);
-
             self.compile_on(&ast.template, interpreter)?;
             get_lock!(self).ready = true;
             meta
@@ -262,7 +261,7 @@ impl Compiled for Arc<Mutex<Page>> {
         drop(page);
 
         let kind = { TemplateKind::from_filename(&get_lock!(self).path) };
-        if matches!(kind, TemplateKind::Markdown) {
+        if kind.is_md() {
             result = convert_to_html(&result)?;
         }
 

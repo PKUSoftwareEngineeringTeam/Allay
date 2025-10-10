@@ -592,6 +592,7 @@ impl ASTBuilder for TopLevel {
             Rule::this => Ok(TopLevel::This),
             Rule::param => Ok(TopLevel::Param),
             Rule::site => Ok(TopLevel::Site),
+            Rule::pages => Ok(TopLevel::Pages),
             Rule::variable => Ok(TopLevel::Variable(single_inner(inner).as_str().to_string())),
             _ => parser_unreachable!(),
         }
