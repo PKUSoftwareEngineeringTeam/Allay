@@ -1,12 +1,10 @@
 use crate::InterpretResult;
 use crate::ast::GetField;
-use crate::interpret::interpret_meta;
 use crate::interpret::traits::{DataProvider, Variable};
-use crate::parse::parse_file;
+use crate::meta::get_meta;
 use allay_base::config::{get_allay_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
-use allay_base::template::TemplateKind;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
 /// The global site variable, usually from site config
@@ -61,10 +59,7 @@ impl PagesVar {
         if let Ok(entries) = file::read_dir_all_files(&dir) {
             let data = entries
                 .into_iter()
-                .filter(|entry| TemplateKind::from_filename(entry).is_md())
-                .filter_map(|entry| file::read_file_string(entry).ok())
-                .filter_map(|content| parse_file(&content).ok())
-                .filter_map(|ast| interpret_meta(&ast.meta).ok())
+                .filter_map(|e| get_meta(e).ok())
                 .map(AllayData::from)
                 .map(Arc::new)
                 .collect::<AllayList>()

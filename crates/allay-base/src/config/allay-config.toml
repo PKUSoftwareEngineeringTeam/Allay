@@ -18,12 +18,14 @@ dir = "shortcodes"
 
 [theme]
 dir = "themes"
+custom_dir = "custom"
 [theme.default]
 name = "Axolotl"
 repository = "https://github.com/PKUSoftwareEngineeringTeam/Axolotl"
+[theme.statics]
+dir = "static"
 [theme.template]
 dir = "templates"
-custom_dir = "custom"
 index = "index.html"
 content = "page.html"
 not_found = "404.html"
