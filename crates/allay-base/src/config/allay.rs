@@ -53,7 +53,9 @@ pub struct StaticConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeConfig {
     pub dir: String,
+    pub custom_dir: String,
     pub default: DefaultThemeConfig,
+    pub statics: ThemeStaticConfig,
     pub template: TemplateConfig,
 }
 
@@ -69,9 +71,13 @@ pub struct DefaultThemeConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThemeStaticConfig {
+    pub dir: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateConfig {
     pub dir: String,
-    pub custom_dir: String,
     pub index: String,
     pub content: String,
     pub not_found: String,

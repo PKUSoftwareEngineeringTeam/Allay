@@ -1,7 +1,7 @@
-use crate::interpret::{Interpretable, Interpreter, PageScope, interpret_meta};
-use crate::parse::parse_file;
-use crate::{CompileError, CompileOutput, CompileResult};
-use allay_base::{file, template::TemplateKind};
+use crate::interpret::{Interpretable, Interpreter, PageScope};
+use crate::meta::get_meta_and_content;
+use crate::{CompileOutput, CompileResult};
+use allay_base::template::TemplateKind;
 use pulldown_cmark::{Parser, html};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -201,19 +201,11 @@ impl Compiled for Arc<Mutex<Page>> {
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput> {
         let mut page = get_lock!(self);
         let meta = if !page.cachable || !page.ready {
-            let kind = TemplateKind::from_filename(&page.path);
-            let content = match kind {
-                TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&page.path)?,
-                TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
-            };
-            let ast = parse_file(&content)?;
-            let meta = interpret_meta(&ast.meta)?;
-            meta.iter().for_each(|(k, v)| {
-                page.scope.add_key(k.clone(), v.clone());
-            });
+            let (meta, template) = get_meta_and_content(&page.path)?;
+            page.scope.merge_data(meta.clone());
             page.output.clear();
             drop(page);
-            self.compile_on(&ast.template, interpreter)?;
+            self.compile_on(&template, interpreter)?;
             get_lock!(self).ready = true;
             meta
         } else {

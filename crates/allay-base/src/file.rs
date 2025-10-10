@@ -247,6 +247,9 @@ pub fn rename<P: AsRef<Path>>(old: P, new: P) -> FileResult<()> {
 
 pub fn copy<P: AsRef<Path>>(src: P, dest: P) -> FileResult<()> {
     if src.as_ref().exists() {
+        if let Some(parent) = dest.as_ref().parent() {
+            create_dir_recursively(parent)?;
+        }
         fs::copy(src, dest)?;
         Ok(())
     } else {

@@ -4,13 +4,14 @@ mod ast;
 mod env;
 mod error;
 mod interpret;
+mod meta;
 mod misc;
 mod parse;
 
 use allay_base::config::{get_allay_config, get_theme_path};
 use allay_base::data::AllayObject;
 use allay_base::file;
-use env::Page;
+use env::{Compiled, Page};
 pub use error::*;
 use interpret::Interpreter;
 use std::cell::RefCell;
@@ -19,13 +20,12 @@ use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use crate::env::Compiled;
-
 mod magic {
     //! Common magic words used in Allay templates
 
     pub const INNER: &str = "inner";
     pub const CONTENT: &str = "content";
+    pub const URL: &str = "url";
 }
 
 #[derive(Debug, Clone, Default)]

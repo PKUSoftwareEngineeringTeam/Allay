@@ -3,6 +3,7 @@
 
 use crate::env::{Compiled, Page};
 use crate::interpret::Interpreter;
+use crate::meta::get_meta;
 use crate::{CompileError, CompileResult, Compiler};
 use crate::{CompileOutput, magic};
 use allay_base::config::{get_allay_config, get_theme_path};
@@ -142,15 +143,11 @@ impl Compiler<String> {
         let template_article_key = Self::template_article_key(&template, &article);
 
         let interpreter = &mut Self::default_interpreter();
-        if let Some(page) = self.cache(&template_article_key) {
-            // cached
-            return page.compile(interpreter);
-        }
 
         // generate an intermediate page based on its content (`sub` here)
         // listening to the article's changes with cache key `foo.md` (`article_key` here)
         // this page is just a <p>...</p> wrapper of the article content
-        let sub = Page::new(article.clone()).into();
+        let sub = self.cache(&article_key).unwrap_or(Page::new(article.clone()).into());
         self.add(article.clone(), article_key.clone());
         self.remember(article_key, sub.clone());
 
@@ -161,7 +158,11 @@ impl Compiler<String> {
         let mut page = Page::new(template.clone());
         // replace the "content" key with the article page
         page.add_stash(magic::CONTENT.into(), sub);
+
+        // let the front matter of the article accessible in the template
         let page = page.into();
+        let front_matter = get_meta(&article)?;
+        page.lock().unwrap().scope_mut().merge_data(front_matter);
 
         self.published.insert(template_article_key.clone());
         self.add(template.clone(), template_article_key.clone());
