@@ -10,10 +10,16 @@ use std::sync::Arc;
 fn post_preprocess<P: AsRef<Path>>(source: P, meta: &mut AllayObject) {
     meta.entry(magic::URL.into()).or_insert_with(|| {
         // Add the `url` field to the metadata
-        let entry = source
+        let entry = match source
             .as_ref()
-            .strip_prefix(file::workspace(&get_allay_config().content.dir))
-            .unwrap_or(source.as_ref());
+            .strip_prefix(file::workspace(&get_allay_config().content.dir)) {
+            Ok(e) => e,
+            Err(_) => panic!(
+                "Source path {:?} is not under the content directory {:?}",
+                source.as_ref(),
+                file::workspace(&get_allay_config().content.dir)
+            ),
+        };
         // for "foo\\bar.html", we change it to "/foo/bar.html"
         let url = Path::new("/")
             .join(entry)
