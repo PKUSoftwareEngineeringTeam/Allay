@@ -162,13 +162,22 @@ pub trait FileMapper {
 /// Note: all path parameters here are both the path relative to the workspace root.
 pub trait FileGenerator: FileListener + FileMapper {
     /// What to do when a file is created.
-    fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()>;
+    /// Default implementation: copy the file from source to destination.
+    fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+        file::copy(src, dest)
+    }
 
     /// What to do when a file is removed.
-    fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()>;
+    /// Default implementation: remove the file from destination.
+    fn removed(&self, _src: PathBuf, dest: PathBuf) -> FileResult<()> {
+        file::remove(dest)
+    }
 
     /// What to do when a file is modified.
-    fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()>;
+    /// Default implementation: copy the file from source to destination.
+    fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+        file::copy(src, dest)
+    }
 }
 
 impl<T: FileGenerator> FileListener for T {
