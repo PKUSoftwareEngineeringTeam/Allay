@@ -1,6 +1,7 @@
 //! A simple HTTP server.
 
 use crate::ServerResult;
+use allay_base::config::get_allay_config;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, Response, StatusCode, header, response::Builder};
@@ -84,6 +85,7 @@ impl Server {
         let app = Router::new()
             .route("/api/last-modified", get(Self::handle_last_modify))
             .route("/{*path}", get(Self::handle_file))
+            .route("/", get(Self::handle_index))
             .with_state(Arc::new(self.path.clone()));
 
         let runtime = runtime::Builder::new_current_thread().enable_all().build()?;
@@ -113,15 +115,14 @@ impl Server {
         )
     }
 
-    async fn handle_file(
-        State(root): State<Arc<PathBuf>>,
-        Path(file_path): Path<String>,
-        Query(params): Query<DownloadParams>,
+    async fn file_response(
+        file_path: &str,
+        params: &DownloadParams,
+        root: Arc<PathBuf>,
     ) -> Result<Response<Body>, (StatusCode, String)> {
-        let path = root.join(file_path.clone());
+        let path = root.join(file_path);
         // check whether path is a file
         if !path.exists() || !path.is_file() {
-            // TODO: Redirect to 404.html
             return Err((StatusCode::NOT_FOUND, "Not Found".to_string()));
         }
         if path.strip_prefix(root.as_ref()).is_err() {
@@ -145,10 +146,10 @@ impl Server {
             if params.attachment.unwrap_or(false) || Self::force_download(mime_type.as_ref()) {
                 format!(
                     "attachment; filename=\"{}\"",
-                    Self::safe_filename(&file_path)
+                    Self::safe_filename(file_path)
                 )
             } else {
-                format!("inline; filename=\"{}\"", Self::safe_filename(&file_path))
+                format!("inline; filename=\"{}\"", Self::safe_filename(file_path))
             };
 
         let response = Builder::new()
@@ -169,6 +170,28 @@ impl Server {
             .unwrap();
 
         Ok(response)
+    }
+
+    async fn handle_file(
+        State(root): State<Arc<PathBuf>>,
+        Path(file_path): Path<String>,
+        Query(params): Query<DownloadParams>,
+    ) -> Result<Response<Body>, (StatusCode, String)> {
+        match Self::file_response(&file_path, &params, Arc::clone(&root)).await {
+            Ok(response) => Ok(response),
+            Err((StatusCode::NOT_FOUND, _)) => {
+                Self::file_response(&get_allay_config().theme.template.not_found, &params, root)
+                    .await
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn handle_index(
+        State(root): State<Arc<PathBuf>>,
+        Query(params): Query<DownloadParams>,
+    ) -> Result<Response<Body>, (StatusCode, String)> {
+        Self::file_response(&get_allay_config().theme.template.index, &params, root).await
     }
 
     async fn handle_last_modify(

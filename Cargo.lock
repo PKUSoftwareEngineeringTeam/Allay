@@ -87,6 +87,7 @@ dependencies = [
 name = "allay-web"
 version = "0.1.0"
 dependencies = [
+ "allay-base",
  "axum",
  "mime_guess",
  "serde",
