@@ -26,6 +26,7 @@ impl GeneratorWorker {
                 Box::new(ArticleGenerator),
                 Box::new(GeneralGenerator),
                 Box::new(StaticGenerator),
+                Box::new(ThemeStaticGenerator),
             ],
         }
     }
@@ -41,13 +42,44 @@ impl GeneratorWorker {
     }
 }
 
+struct StaticGenerator;
+struct ThemeStaticGenerator;
 struct ArticleGenerator;
 struct GeneralGenerator;
-struct StaticGenerator;
+
+impl FileMapper for StaticGenerator {
+    fn src_root(&self) -> PathBuf {
+        get_allay_config().statics.dir.clone().into()
+    }
+}
+
+impl FileGenerator for StaticGenerator {}
+
+impl FileMapper for ThemeStaticGenerator {
+    fn src_root(&self) -> PathBuf {
+        get_theme_path().join(&get_allay_config().theme.statics.dir)
+    }
+}
+
+impl FileGenerator for ThemeStaticGenerator {}
 
 impl FileMapper for ArticleGenerator {
     fn src_root(&self) -> PathBuf {
         get_allay_config().content.dir.clone().into()
+    }
+
+    fn path_mapping(&self, src: &Path) -> PathBuf {
+        let mut res = src.to_path_buf();
+        if TemplateKind::from_filename(src).is_md() {
+            res.set_extension(TemplateKind::Html.extension());
+        }
+        res
+    }
+}
+
+impl FileMapper for GeneralGenerator {
+    fn src_root(&self) -> PathBuf {
+        get_theme_path().join(&get_allay_config().theme.custom_dir)
     }
 
     fn path_mapping(&self, src: &Path) -> PathBuf {
@@ -90,6 +122,10 @@ macro_rules! file_generator_impl {
     ($generator: ident, $kind: expr) => {
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                if !TemplateKind::from_filename(&src).is_template() {
+                    return FileGenerator::created(self, src, dest);
+                }
+
                 FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
                 match COMPILER.lock().unwrap().compile_file(&src, $kind) {
                     Ok(output) => write_with_wrapper(&dest, &output.html)?,
@@ -99,6 +135,10 @@ macro_rules! file_generator_impl {
             }
 
             fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                if !TemplateKind::from_filename(&src).is_template() {
+                    return FileGenerator::removed(self, src, dest);
+                }
+
                 FILE_MAP.lock().unwrap().remove(&src);
                 if let Err(e) = COMPILER.lock().unwrap().remove_file(src.clone(), $kind) {
                     warn!("Error when removing: {:?}: {}", src, e);
@@ -108,6 +148,10 @@ macro_rules! file_generator_impl {
             }
 
             fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+                if !TemplateKind::from_filename(&src).is_template() {
+                    return FileGenerator::modified(self, src, dest);
+                }
+
                 if let Err(e) = COMPILER.lock().unwrap().modify_file(&src, $kind) {
                     warn!("Error when modifying: {:?}: {}", src, e);
                 }
@@ -122,42 +166,4 @@ macro_rules! file_generator_impl {
 }
 
 file_generator_impl!(ArticleGenerator, ContentKind::Article);
-
-impl FileMapper for GeneralGenerator {
-    fn src_root(&self) -> PathBuf {
-        get_theme_path()
-            .join(&get_allay_config().theme.template.dir)
-            .join(&get_allay_config().theme.template.custom_dir)
-    }
-
-    fn path_mapping(&self, src: &Path) -> PathBuf {
-        let mut res = src.to_path_buf();
-        if TemplateKind::from_filename(src).is_md() {
-            res.set_extension(TemplateKind::Html.extension());
-        }
-        res
-    }
-}
-
 file_generator_impl!(GeneralGenerator, ContentKind::General);
-
-impl FileMapper for StaticGenerator {
-    fn src_root(&self) -> PathBuf {
-        get_allay_config().statics.dir.clone().into()
-    }
-}
-
-impl FileGenerator for StaticGenerator {
-    fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        file::copy(src, dest)
-    }
-
-    fn removed(&self, _src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        file::remove(dest)
-    }
-
-    fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        file::remove(&dest)?;
-        file::copy(src, dest)
-    }
-}

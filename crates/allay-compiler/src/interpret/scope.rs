@@ -43,6 +43,12 @@ impl PageScope {
         self.merged.take();
     }
 
+    pub fn merge_data(&mut self, other: AllayObject) {
+        other.into_iter().for_each(|(k, v)| {
+            Arc::make_mut(&mut self.owned).insert(k, v);
+        });
+    }
+
     pub fn create_sub_scope(&mut self, var: LocalVar) -> &mut LocalScope {
         self.sub_stack.push(LocalScope::new(var));
         self.sub_stack.last_mut().unwrap()

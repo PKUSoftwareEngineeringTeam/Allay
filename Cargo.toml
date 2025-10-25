@@ -6,6 +6,7 @@ members = [
     "crates/allay-compiler",
     "crates/allay-base",
     "crates/allay-publish",
+    "crates/allay-plugin",
 ]
 
 [workspace.dependencies]
@@ -21,3 +22,6 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 itertools = "0.14"
+async-trait = "0.1.89"
+tokio = { version = "1.47", features = ["net", "fs", "sync"] }
+tokio-util = { version = "0.7", features = ["io"] }
