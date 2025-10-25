@@ -147,7 +147,6 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
     Some(files)
 }
 
-#[derive(Default)]
 pub struct BuiltinRouteHandler;
 
 #[async_trait]
@@ -160,7 +159,6 @@ impl EventHandler<RouteEvent> for BuiltinRouteHandler {
     }
 }
 
-#[derive(Default)]
 pub struct BuiltinRoutePlugin;
 
 #[async_trait]
@@ -170,7 +168,7 @@ impl Plugin for BuiltinRoutePlugin {
     }
 
     async fn initialize(&self, context: PluginContext) -> anyhow::Result<()> {
-        let handler = Arc::new(BuiltinRouteHandler::default());
+        let handler = Arc::new(BuiltinRouteHandler);
         context.event_bus.register_handler(handler).await;
         Ok(())
     }

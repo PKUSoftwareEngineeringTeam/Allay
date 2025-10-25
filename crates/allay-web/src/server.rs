@@ -79,9 +79,8 @@ impl Server {
 
     /// Builds the Axum router for the server.
     async fn router(&self) -> Router {
-        let plugin = BuiltinRoutePlugin::default();
         let manager = PluginManager::instance();
-        if let Err(e) = manager.register_plugin(Arc::new(plugin)).await {
+        if let Err(e) = manager.register_plugin(Arc::new(BuiltinRoutePlugin)).await {
             warn!("Failed to register BuiltinRoutePlugin: {}", e);
         };
 
