@@ -1,14 +1,11 @@
 use anymap::{Map, any::Any};
-use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use tracing::warn;
 
 pub trait Event {}
 
-#[async_trait]
 pub trait EventHandler<E: Event>: Send + Sync {
-    async fn handle_event(&self, event: &mut E) -> anyhow::Result<()>;
+    fn handle_event(&self, event: &mut E) -> anyhow::Result<()>;
 }
 
 struct GenericEventBus<E: Event> {
@@ -33,16 +30,16 @@ impl Default for EventBus {
 }
 
 impl EventBus {
-    pub async fn register_handler<E: Event + 'static>(&self, handler: Arc<dyn EventHandler<E>>) {
-        let mut buses = self.0.write().await;
+    pub fn register_handler<E: Event + 'static>(&self, handler: Arc<dyn EventHandler<E>>) {
+        let mut buses = self.0.write().unwrap();
         buses.entry().or_insert_with(GenericEventBus::new).handlers.push(handler);
     }
 
-    pub async fn publish<E: Event + 'static>(&self, event: &mut E) {
-        let buses = self.0.read().await;
+    pub fn publish<E: Event + 'static>(&self, event: &mut E) {
+        let buses = self.0.read().unwrap();
         if let Some(bus) = buses.get::<GenericEventBus<E>>() {
             for handler in bus.handlers.iter() {
-                if let Err(e) = handler.handle_event(event).await {
+                if let Err(e) = handler.handle_event(event) {
                     warn!("Error handling event: {}", e);
                 }
             }

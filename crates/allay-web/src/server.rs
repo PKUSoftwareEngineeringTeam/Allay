@@ -70,7 +70,7 @@ impl Server {
         let runtime = runtime::Builder::new_current_thread().enable_all().build()?;
         runtime.block_on(async move {
             let addr = format!("{}:{}", self.host, self.port);
-            let app = self.router().await;
+            let app = self.router();
             let listener = TcpListener::bind(addr).await?;
             axum::serve(listener, app).await?;
             Ok(())
@@ -78,14 +78,14 @@ impl Server {
     }
 
     /// Builds the Axum router for the server.
-    async fn router(&self) -> Router {
+    fn router(&self) -> Router {
         let manager = PluginManager::instance();
-        if let Err(e) = manager.register_plugin(Arc::new(BuiltinRoutePlugin)).await {
+        if let Err(e) = manager.register_plugin(Arc::new(BuiltinRoutePlugin)) {
             warn!("Failed to register BuiltinRoutePlugin: {}", e);
         };
 
         let mut event = RouteEvent::new();
-        manager.event_bus().publish(&mut event).await;
+        manager.event_bus().publish(&mut event);
         event.app().with_state(Arc::new(self.path.clone()))
     }
 }

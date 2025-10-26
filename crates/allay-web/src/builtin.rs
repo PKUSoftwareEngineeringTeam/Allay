@@ -1,7 +1,6 @@
 use crate::routes::RouteEvent;
 use allay_base::config::get_allay_config;
 use allay_plugin::{EventHandler, Plugin, PluginContext};
-use async_trait::async_trait;
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -149,9 +148,8 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
 
 pub struct BuiltinRouteHandler;
 
-#[async_trait]
 impl EventHandler<RouteEvent> for BuiltinRouteHandler {
-    async fn handle_event(&self, event: &mut RouteEvent) -> anyhow::Result<()> {
+    fn handle_event(&self, event: &mut RouteEvent) -> anyhow::Result<()> {
         event.register("/api/last-modified", get(handle_last_modify));
         event.register("/{*path}", get(handle_file));
         event.register("/", get(handle_index));
@@ -161,15 +159,14 @@ impl EventHandler<RouteEvent> for BuiltinRouteHandler {
 
 pub struct BuiltinRoutePlugin;
 
-#[async_trait]
 impl Plugin for BuiltinRoutePlugin {
     fn name(&self) -> &str {
         "builtin-route-plugin"
     }
 
-    async fn initialize(&self, context: PluginContext) -> anyhow::Result<()> {
+    fn initialize(&self, context: PluginContext) -> anyhow::Result<()> {
         let handler = Arc::new(BuiltinRouteHandler);
-        context.event_bus.register_handler(handler).await;
+        context.event_bus.register_handler(handler);
         Ok(())
     }
 }

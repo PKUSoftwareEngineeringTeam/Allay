@@ -62,7 +62,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "anymap",
- "async-trait",
  "serde",
  "serde_json",
  "tokio",
@@ -88,7 +87,6 @@ dependencies = [
  "allay-base",
  "allay-plugin",
  "anyhow",
- "async-trait",
  "axum",
  "mime_guess",
  "serde",
