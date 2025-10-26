@@ -1,28 +1,14 @@
 //! A simple HTTP server.
-
 use crate::ServerResult;
-use allay_base::config::get_allay_config;
-use axum::body::Body;
-use axum::extract::{Path, Query, State};
-use axum::http::{HeaderValue, Response, StatusCode, header, response::Builder};
-use axum::routing::get;
-use axum::{Json, Router};
-use mime_guess::from_path;
-use serde::Deserialize;
-use std::collections::HashMap;
+use crate::builtin::BuiltinRoutePlugin;
+use crate::routes::RouteEvent;
+use allay_plugin::PluginManager;
+use axum::Router;
 use std::path::{self, PathBuf};
 use std::sync::Arc;
-use std::time::UNIX_EPOCH;
-use tokio::fs::File;
 use tokio::net::TcpListener;
 use tokio::runtime;
-use tokio_util::io::ReaderStream;
-use walkdir::WalkDir;
-
-#[derive(Deserialize)]
-struct DownloadParams {
-    attachment: Option<bool>,
-}
+use tracing::warn;
 
 /// Represents a server configuration.
 ///
@@ -81,148 +67,25 @@ impl Server {
     /// server.serve().unwrap();
     /// ```
     pub fn serve(&self) -> ServerResult<()> {
-        let addr = format!("{}:{}", self.host, self.port);
-        let app = Router::new()
-            .route("/api/last-modified", get(Self::handle_last_modify))
-            .route("/{*path}", get(Self::handle_file))
-            .route("/", get(Self::handle_index))
-            .with_state(Arc::new(self.path.clone()));
-
         let runtime = runtime::Builder::new_current_thread().enable_all().build()?;
-
         runtime.block_on(async move {
+            let addr = format!("{}:{}", self.host, self.port);
+            let app = self.router();
             let listener = TcpListener::bind(addr).await?;
             axum::serve(listener, app).await?;
             Ok(())
         })
     }
 
-    fn safe_filename(file_path: &str) -> String {
-        path::Path::new(file_path)
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .replace('"', "")
-    }
+    /// Builds the Axum router for the server.
+    fn router(&self) -> Router {
+        let manager = PluginManager::instance();
+        if let Err(e) = manager.register_plugin(Arc::new(BuiltinRoutePlugin)) {
+            warn!("Failed to register BuiltinRoutePlugin: {}", e);
+        };
 
-    fn force_download(mime_type: &str) -> bool {
-        matches!(
-            mime_type,
-            "application/zip"
-                | "application/pdf"
-                | "application/octet-stream"
-                | "application/x-rar-compressed"
-        )
-    }
-
-    async fn file_response(
-        file_path: &str,
-        params: &DownloadParams,
-        root: Arc<PathBuf>,
-    ) -> Result<Response<Body>, (StatusCode, String)> {
-        let path = root.join(file_path);
-        // check whether path is a file
-        if !path.exists() || !path.is_file() {
-            return Err((StatusCode::NOT_FOUND, "Not Found".to_string()));
-        }
-        if path.strip_prefix(root.as_ref()).is_err() {
-            return Err((StatusCode::FORBIDDEN, "Forbidden".to_string()));
-        }
-
-        let metadata = tokio::fs::metadata(&path)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-        let file = File::open(&path)
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-        let stream = ReaderStream::new(file);
-        let body = Body::from_stream(stream);
-
-        let mime_type = from_path(&path).first_or_octet_stream();
-
-        let content_disposition =
-            if params.attachment.unwrap_or(false) || Self::force_download(mime_type.as_ref()) {
-                format!(
-                    "attachment; filename=\"{}\"",
-                    Self::safe_filename(file_path)
-                )
-            } else {
-                format!("inline; filename=\"{}\"", Self::safe_filename(file_path))
-            };
-
-        let response = Builder::new()
-            .header(
-                header::CONTENT_TYPE,
-                HeaderValue::from_str(mime_type.as_ref()).unwrap(),
-            )
-            .header(
-                header::CONTENT_DISPOSITION,
-                HeaderValue::from_str(&content_disposition).unwrap(),
-            )
-            .header(header::CONTENT_LENGTH, HeaderValue::from(metadata.len()))
-            .header(
-                header::CACHE_CONTROL,
-                HeaderValue::from_static("public, max-age=3600"),
-            )
-            .body(body)
-            .unwrap();
-
-        Ok(response)
-    }
-
-    async fn handle_file(
-        State(root): State<Arc<PathBuf>>,
-        Path(file_path): Path<String>,
-        Query(params): Query<DownloadParams>,
-    ) -> Result<Response<Body>, (StatusCode, String)> {
-        match Self::file_response(&file_path, &params, Arc::clone(&root)).await {
-            Ok(response) => Ok(response),
-            Err((StatusCode::NOT_FOUND, _)) => {
-                Self::file_response(&get_allay_config().theme.template.not_found, &params, root)
-                    .await
-            }
-            Err(err) => Err(err),
-        }
-    }
-
-    async fn handle_index(
-        State(root): State<Arc<PathBuf>>,
-        Query(params): Query<DownloadParams>,
-    ) -> Result<Response<Body>, (StatusCode, String)> {
-        Self::file_response(&get_allay_config().theme.template.index, &params, root).await
-    }
-
-    async fn handle_last_modify(
-        State(root): State<Arc<PathBuf>>,
-    ) -> Result<Json<HashMap<String, u64>>, (StatusCode, String)> {
-        match Self::last_modify(root).await {
-            Some(files) => Ok(Json(files)),
-            None => Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal Server Error".to_string(),
-            )),
-        }
-    }
-
-    async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
-        let mut files = HashMap::new();
-
-        // travel through all file in `root` and get their last modified times
-        for entry in WalkDir::new(root.as_ref()).into_iter().filter_map(|x| x.ok()) {
-            if entry.file_type().is_file() {
-                let path = entry.path();
-
-                let metadata = tokio::fs::metadata(path).await.ok()?;
-                let modified_time = metadata.modified().ok()?;
-                files.insert(
-                    Self::safe_filename(path.file_name().map(|s| s.to_str())??),
-                    modified_time.duration_since(UNIX_EPOCH).ok()?.as_secs(),
-                );
-            }
-        }
-
-        Some(files)
+        let mut event = RouteEvent::new();
+        manager.event_bus().publish(&mut event);
+        event.app().with_state(Arc::new(self.path.clone()))
     }
 }
