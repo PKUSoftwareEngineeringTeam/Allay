@@ -1,8 +1,9 @@
 //! A simple HTTP server.
 use crate::ServerResult;
 use crate::builtin::BuiltinRoutePlugin;
-use crate::routes::RouteEvent;
 use allay_plugin::PluginManager;
+use allay_plugin::events::RouteRegisterEvent;
+use allay_plugin::plugins::auth::AuthPlugin;
 use axum::Router;
 use std::path::{self, PathBuf};
 use std::sync::Arc;
@@ -15,7 +16,7 @@ use tracing::warn;
 /// The `Server` struct holds the necessary information to configure and
 /// identify a server, including its file path, port number, and host address.
 ///
-/// You can use [Server::serve] to start the server,
+/// You can use [Server::serve] to start the server
 pub struct Server {
     path: PathBuf,
     port: u16,
@@ -70,7 +71,7 @@ impl Server {
         let runtime = runtime::Builder::new_current_thread().enable_all().build()?;
         runtime.block_on(async move {
             let addr = format!("{}:{}", self.host, self.port);
-            let app = self.router();
+            let app = self.router().await;
             let listener = TcpListener::bind(addr).await?;
             axum::serve(listener, app).await?;
             Ok(())
@@ -78,14 +79,17 @@ impl Server {
     }
 
     /// Builds the Axum router for the server.
-    fn router(&self) -> Router {
+    async fn router(&self) -> Router {
         let manager = PluginManager::instance();
         if let Err(e) = manager.register_plugin(Arc::new(BuiltinRoutePlugin)) {
             warn!("Failed to register BuiltinRoutePlugin: {}", e);
         };
+        if let Err(e) = manager.register_plugin(Arc::new(AuthPlugin)) {
+            warn!("Failed to register AuthPlugin: {}", e);
+        }
 
-        let mut event = RouteEvent::new();
-        manager.event_bus().publish(&mut event);
-        event.app().with_state(Arc::new(self.path.clone()))
+        let event = Arc::new(RouteRegisterEvent::new(self.path.clone()));
+        manager.event_bus().publish(event.clone()).await;
+        event.take_app()
     }
 }

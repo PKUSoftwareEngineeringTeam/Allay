@@ -1,7 +1,10 @@
 pub mod bus;
+pub mod config;
+pub mod events;
 pub mod manager;
 pub mod plugins;
 
-pub use bus::{Event, EventBus, EventHandler};
+pub use bus::{EventBus, EventHandler};
+pub use events::Event;
 pub use manager::PluginManager;
 pub use plugins::{Plugin, PluginContext};

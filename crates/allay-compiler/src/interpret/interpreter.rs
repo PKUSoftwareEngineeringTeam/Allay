@@ -211,7 +211,7 @@ impl Interpretable for IncludeCommand {
             AllayList::default()
         };
 
-        let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        let scope = PageScope::new_from(inherited.as_obj()?, params);
         let path = file_finder::try_find_file(ctx.include_dir.join(&self.path))?;
         page.insert_subpage(path, scope);
         Ok(())
@@ -236,7 +236,7 @@ impl Interpretable for SingleShortcode {
         let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
         let inherited = interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data();
 
-        let scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        let scope = PageScope::new_from(inherited.as_obj()?, params);
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
         page.insert_subpage(path, scope);
 
@@ -251,7 +251,7 @@ impl Interpretable for BlockShortcode {
         let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
         let inherited = interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data();
 
-        let mut scope = PageScope::new_from(Arc::new(AllayData::arc_to_obj(inherited)?), params);
+        let mut scope = PageScope::new_from(inherited.as_obj()?, params);
 
         // add the "inner" key to the shortcode page
         // Do not use the lazy evaluation here, because the inner text may be modified later

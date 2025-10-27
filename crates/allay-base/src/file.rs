@@ -156,7 +156,7 @@ pub fn create_dir<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
 /// Create a directory if it does not exist
 pub fn create_dir_if_not_exists<P: AsRef<Path>>(dir_path: P) -> FileResult<()> {
     if !dir_exists(&dir_path) {
-        fs::create_dir(dir_path)?;
+        create_dir_recursively(dir_path)?;
     }
     Ok(())
 }

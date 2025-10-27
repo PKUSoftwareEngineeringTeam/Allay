@@ -7,7 +7,8 @@ use allay_base::{data::AllayObject, file, template::TemplateKind};
 use std::path::Path;
 use std::sync::Arc;
 
-fn post_preprocess<P: AsRef<Path>>(source: P, meta: &mut AllayObject) {
+fn post_preprocess<P: AsRef<Path>>(source: P, meta: Arc<AllayObject>) -> AllayObject {
+    let mut meta = meta.as_ref().clone();
     meta.entry(magic::URL.into()).or_insert_with(|| {
         // Add the `url` field to the metadata
         let entry =
@@ -26,17 +27,20 @@ fn post_preprocess<P: AsRef<Path>>(source: P, meta: &mut AllayObject) {
             .into();
         Arc::new(url)
     });
+    meta
 }
 
-pub fn get_meta_and_content<P: AsRef<Path>>(source: P) -> CompileResult<(AllayObject, Template)> {
+pub fn get_meta_and_content<P: AsRef<Path>>(
+    source: P,
+) -> CompileResult<(AllayObject, Template)> {
     let kind = TemplateKind::from_filename(&source);
     let content = match kind {
         TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&source)?,
         TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
     };
     let ast = parse_file(&content)?;
-    let mut meta = interpret_meta(&ast.meta)?;
-    post_preprocess(source, &mut meta);
+    let meta = interpret_meta(&ast.meta)?;
+    let meta = post_preprocess(source, meta);
 
     Ok((meta, ast.template))
 }

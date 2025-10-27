@@ -1,5 +1,5 @@
-use crate::routes::RouteEvent;
 use allay_base::config::get_allay_config;
+use allay_plugin::events::RouteRegisterEvent;
 use allay_plugin::{EventHandler, Plugin, PluginContext};
 use axum::Json;
 use axum::body::Body;
@@ -148,11 +148,16 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
 
 pub struct BuiltinRouteHandler;
 
-impl EventHandler<RouteEvent> for BuiltinRouteHandler {
-    fn handle_event(&self, event: &mut RouteEvent) -> anyhow::Result<()> {
-        event.register("/api/last-modified", get(handle_last_modify));
-        event.register("/{*path}", get(handle_file));
-        event.register("/", get(handle_index));
+impl EventHandler<RouteRegisterEvent> for BuiltinRouteHandler {
+    fn handle_event(self: Arc<Self>, event: Arc<RouteRegisterEvent>) -> anyhow::Result<()> {
+        let path = event.path().clone();
+        event.route(|app| {
+            app.with_state(())
+                .route("/api/last-modified", get(handle_last_modify))
+                .route("/{*path}", get(handle_file))
+                .route("/", get(handle_index))
+                .with_state(Arc::new(path))
+        });
         Ok(())
     }
 }
