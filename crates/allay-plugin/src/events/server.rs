@@ -18,9 +18,10 @@ impl RouteRegisterEvent {
         }
     }
 
-    pub fn route(&self, callback: impl FnOnce(Router) -> Router) {
+    pub fn route<S>(&self, callback: impl FnOnce(Router<S>) -> Router) {
         let mut app_lock = self.app.write().unwrap();
-        let app = app_lock.take().unwrap();
+        // hack: use `with_state(())` to convert `Router<()>` to `Router<S>`
+        let app = app_lock.take().unwrap().with_state(());
         *app_lock = Some(callback(app));
     }
 

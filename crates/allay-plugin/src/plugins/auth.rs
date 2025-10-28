@@ -386,8 +386,7 @@ impl AsyncEventHandler<RouteRegisterEvent> for AuthRouteHandler {
 
         let db_state = auth_state.db_state.clone();
         event.route(|app| {
-            app.with_state(())
-                .route("/api/auth/register", post(handle_register))
+            app.route("/api/auth/register", post(handle_register))
                 .with_state(db_state)
                 .route("/api/auth/login", post(handle_login))
                 .route("/api/auth/logout", post(handle_logout))

@@ -69,14 +69,14 @@ pub trait AsyncEventHandler<E: Event>: Send + Sync {
 
 struct GenericEventBus<E: Event> {
     handlers: Vec<Arc<dyn EventHandler<E>>>,
-    async_handers: Vec<Arc<dyn AsyncEventHandler<E>>>,
+    async_handlers: Vec<Arc<dyn AsyncEventHandler<E>>>,
 }
 
 impl<E: Event> GenericEventBus<E> {
     fn new() -> Self {
         Self {
             handlers: Vec::new(),
-            async_handers: Vec::new(),
+            async_handlers: Vec::new(),
         }
     }
 }
@@ -111,7 +111,7 @@ impl EventBus {
         E: Event + 'static,
     {
         let mut buses = self.0.write().unwrap();
-        buses.entry().or_insert_with(GenericEventBus::new).async_handers.push(handler);
+        buses.entry().or_insert_with(GenericEventBus::new).async_handlers.push(handler);
     }
 
     /// Publish an event to all registered handlers for the event type E
@@ -119,25 +119,39 @@ impl EventBus {
     where
         E: Event + 'static,
     {
-        let buses = self.0.read().unwrap();
-        if let Some(bus) = buses.get::<GenericEventBus<E>>() {
-            // Handle sync handlers
-            for handler in bus.handlers.iter() {
-                if let Err(e) = handler.clone().handle_event(event.clone()) {
-                    warn!("Error handling event: {}", e);
-                }
-            }
+        // Copy the handlers to avoid holding the lock while process async operations
+        let (sync_handlers, async_handlers) = self
+            .0
+            .read()
+            .unwrap()
+            .get::<GenericEventBus<E>>()
+            .map(|bus| (bus.handlers.clone(), bus.async_handlers.clone()))
+            .unwrap_or_default();
 
-            // Handle async handlers
-            for async_handler in bus.async_handers.iter() {
-                let handler = async_handler.clone();
+        // Handle sync handlers
+        for handler in sync_handlers.into_iter() {
+            if let Err(e) = handler.handle_event(event.clone()) {
+                warn!("Error handling event: {}", e);
+            }
+        }
+
+        // Handle async handlers
+        let join_handlers = async_handlers
+            .into_iter()
+            .map(|handler| {
                 let event = event.clone();
 
                 tokio::spawn(async move {
                     if let Err(e) = handler.handle_event(event).await {
                         warn!("Error handling async event: {}", e);
                     }
-                });
+                })
+            })
+            .collect::<Vec<_>>(); // collect to make sure all tasks are spawned before awaiting
+
+        for handler in join_handlers {
+            if let Err(e) = handler.await {
+                warn!("Error awaiting async event handler: {}", e);
             }
         }
     }

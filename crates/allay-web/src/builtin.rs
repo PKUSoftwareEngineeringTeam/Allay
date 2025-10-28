@@ -152,8 +152,7 @@ impl EventHandler<RouteRegisterEvent> for BuiltinRouteHandler {
     fn handle_event(self: Arc<Self>, event: Arc<RouteRegisterEvent>) -> anyhow::Result<()> {
         let path = event.path().clone();
         event.route(|app| {
-            app.with_state(())
-                .route("/api/last-modified", get(handle_last_modify))
+            app.route("/api/last-modified", get(handle_last_modify))
                 .route("/{*path}", get(handle_file))
                 .route("/", get(handle_index))
                 .with_state(Arc::new(path))
