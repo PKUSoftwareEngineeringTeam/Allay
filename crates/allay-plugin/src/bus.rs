@@ -1,12 +1,11 @@
+use crate::Event;
 use anymap::{Map, any::Any};
 use async_trait::async_trait;
 use std::sync::{Arc, RwLock};
 use tracing::warn;
 
-use crate::Event;
-
 /// Trait for event handlers
-/// 
+///
 /// Implement this trait for any handler that processes events of type E
 ///
 /// # Example
@@ -36,7 +35,7 @@ pub trait EventHandler<E: Event>: Send + Sync {
 }
 
 /// Trait for asynchronous event handlers
-/// 
+///
 /// Implement this trait for any handler that processes events of type E asynchronously
 ///
 /// # Example

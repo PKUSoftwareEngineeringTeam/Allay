@@ -38,7 +38,8 @@ pub fn get_theme_path() -> &'static PathBuf {
         let chosen = match get_site_config().get("theme") {
             Some(data) => data.as_str().expect("Theme name must be a string"),
             None => &get_allay_config().theme.default.name, // use default theme
-        }.clone();
+        }
+        .clone();
         PathBuf::from(dir).join(chosen)
     })
 }

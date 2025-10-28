@@ -30,9 +30,7 @@ fn post_preprocess<P: AsRef<Path>>(source: P, meta: Arc<AllayObject>) -> AllayOb
     meta
 }
 
-pub fn get_meta_and_content<P: AsRef<Path>>(
-    source: P,
-) -> CompileResult<(AllayObject, Template)> {
+pub fn get_meta_and_content<P: AsRef<Path>>(source: P) -> CompileResult<(AllayObject, Template)> {
     let kind = TemplateKind::from_filename(&source);
     let content = match kind {
         TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&source)?,
