@@ -10,7 +10,7 @@ pub fn get_plugin_config(name: &str) -> Arc<AllayObject> {
     let default = Arc::new(AllayObject::default());
     let configs = PLUGINS_CONFIG
         .get_or_init(|| match file::read_file_string(PLUGIN_CONFIG_FILE) {
-            Ok(content) => AllayData::from_toml(&content).unwrap_or_else(|e| {
+            Ok(content) => AllayData::from_toml(&content).map(Arc::new).unwrap_or_else(|e| {
                 warn!("Failed to parse config for plugin '{}': {}", name, e);
                 default.clone()
             }),

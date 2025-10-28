@@ -7,8 +7,7 @@ use allay_base::{data::AllayObject, file, template::TemplateKind};
 use std::path::Path;
 use std::sync::Arc;
 
-fn post_preprocess<P: AsRef<Path>>(source: P, meta: Arc<AllayObject>) -> AllayObject {
-    let mut meta = meta.as_ref().clone();
+fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObject {
     meta.entry(magic::URL.into()).or_insert_with(|| {
         // Add the `url` field to the metadata
         let entry =

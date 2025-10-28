@@ -22,10 +22,12 @@ pub fn get_site_config() -> Arc<AllayObject> {
             if let Ok(config) = read_file_string(workspace(SITE_CONFIG_FILE))
                 && let Ok(config) = AllayData::from_toml(&config)
             {
-                return config;
+                return Arc::new(config);
             }
 
-            AllayData::from_toml(DEFAULT_SITE_CONFIG).expect("Failed to parse default config")
+            Arc::new(
+                AllayData::from_toml(DEFAULT_SITE_CONFIG).expect("Failed to parse default config"),
+            )
         })
         .clone()
 }

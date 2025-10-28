@@ -88,30 +88,36 @@ pub enum AllayData {
 }
 
 impl AllayData {
-    pub fn from_toml(content: &str) -> DataResult<Arc<AllayObject>> {
+    pub fn from_toml(content: &str) -> DataResult<AllayObject> {
         let data: RawAllayData = toml::from_str(content)?;
-        match data.into() {
-            AllayData::Object(obj) => Ok(obj),
+        match data {
+            RawAllayData::Object(obj) => {
+                Ok(obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect())
+            }
             _ => Err(AllayDataError::TypeConversion(
                 "TOML root is not a table".to_string(),
             )),
         }
     }
 
-    pub fn from_yaml(content: &str) -> DataResult<Arc<AllayObject>> {
+    pub fn from_yaml(content: &str) -> DataResult<AllayObject> {
         let data: RawAllayData = serde_yaml::from_str(content)?;
-        match data.into() {
-            AllayData::Object(obj) => Ok(obj),
+        match data {
+            RawAllayData::Object(obj) => {
+                Ok(obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect())
+            }
             _ => Err(AllayDataError::TypeConversion(
                 "YAML root is not an object".to_string(),
             )),
         }
     }
 
-    pub fn from_json(content: &str) -> DataResult<Arc<AllayObject>> {
+    pub fn from_json(content: &str) -> DataResult<AllayObject> {
         let data: RawAllayData = serde_json::from_str(content)?;
-        match data.into() {
-            AllayData::Object(obj) => Ok(obj),
+        match data {
+            RawAllayData::Object(obj) => {
+                Ok(obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect())
+            }
             _ => Err(AllayDataError::TypeConversion(
                 "JSON root is not an object".to_string(),
             )),
