@@ -12,7 +12,7 @@ use crate::Event;
 /// # Example
 ///
 /// ```
-/// use allay_plugin::bus::{Event, EventHandler};
+/// use allay_plugin::{Event, EventHandler};
 /// use anyhow::Result;
 /// use std::sync::Arc;
 ///
@@ -25,7 +25,7 @@ use crate::Event;
 /// struct MyEventHandler;
 ///
 /// impl EventHandler<MyEvent> for MyEventHandler {
-///     fn handle_event(&self, event: &mut MyEvent) -> Result<()> {
+///     fn handle_event(self: Arc<Self>, event: Arc<MyEvent>) -> Result<()> {
 ///        println!("Handling event with message: {}", event.message);
 ///        Ok(())
 ///    }
@@ -42,22 +42,22 @@ pub trait EventHandler<E: Event>: Send + Sync {
 /// # Example
 ///
 /// ```
-/// use allay_plugin::bus::{Event, AsyncEventHandler};
+/// use allay_plugin::{Event, AsyncEventHandler};
 /// use anyhow::Result;
 /// use std::sync::Arc;
 /// use async_trait::async_trait;
 ///
-/// struct MyAsyncEvent {
+/// struct MyEvent {
 ///    pub message: String,
 /// }
 ///
-/// impl Event for MyAsyncEvent {}
+/// impl Event for MyEvent {}
 ///
 /// struct MyAsyncEventHandler;
 ///
 /// #[async_trait]
-/// impl AsyncEventHandler<MyAsyncEvent> for MyAsyncEventHandler {
-///     async fn handle_event(self: Arc<Self>, event: Arc<MyAsyncEvent>) -> Result<()> {
+/// impl AsyncEventHandler<MyEvent> for MyAsyncEventHandler {
+///     async fn handle_event(self: Arc<Self>, event: Arc<MyEvent>) -> Result<()> {
 ///         println!("Handling async event with message: {}", event.message);
 ///         Ok(())
 ///     }

@@ -1,7 +1,6 @@
 //! Authentication plugin for user registration and login
-use crate::bus::AsyncEventHandler;
 use crate::events::RouteRegisterEvent;
-use crate::{Plugin, PluginContext};
+use crate::{AsyncEventHandler, Plugin, PluginContext};
 use async_trait::async_trait;
 use axum::Json;
 use axum::extract::State;
@@ -412,7 +411,6 @@ impl Plugin for AuthPlugin {
             None => "sqlite:auth.db",
         }
         .to_string();
-
 
         let handler = Arc::new(AuthRouteHandler::new(database_url));
         context.event_bus.register_async_handler(handler);
