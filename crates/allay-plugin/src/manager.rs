@@ -2,9 +2,11 @@ use crate::{EventBus, Plugin, PluginContext};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, RwLock};
 
+/// Manager for plugins.
+/// Handles registration and retrieval of plugins
 #[derive(Default)]
 pub struct PluginManager {
-    plugins: Arc<RwLock<HashMap<String, Arc<dyn Plugin>>>>,
+    plugins: RwLock<HashMap<String, Arc<dyn Plugin>>>,
     event_bus: Arc<EventBus>,
 }
 

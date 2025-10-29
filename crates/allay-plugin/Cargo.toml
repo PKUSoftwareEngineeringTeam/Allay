@@ -8,5 +8,13 @@ serde.workspace = true
 tokio.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
+axum.workspace = true
 tracing.workspace = true
+async-trait.workspace = true
 anymap = "0.12.1"
+bcrypt = "0.17.1"
+jsonwebtoken = { version = "10.1.0", features = ["rust_crypto"] }
+chrono = "0.4.42"
+allay-base = { path = "../allay-base" }
+sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio"] }
+uuid = { version = "1.18.1", features = ["v4"] }

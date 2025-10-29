@@ -54,15 +54,20 @@ enum RawAllayData {
 impl From<RawAllayData> for AllayData {
     fn from(raw: RawAllayData) -> Self {
         match raw {
-            RawAllayData::String(str) => AllayData::String(str),
-            RawAllayData::Int(int) => AllayData::Int(int),
-            RawAllayData::Bool(bool) => AllayData::Bool(bool),
-            RawAllayData::List(list) => {
-                AllayData::List(list.into_iter().map(AllayData::from).map(Arc::new).collect())
-            }
-            RawAllayData::Object(obj) => AllayData::Object(
-                obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect(),
-            ),
+            RawAllayData::Int(int) => int.into(),
+            RawAllayData::Bool(bool) => bool.into(),
+            RawAllayData::String(str) => str.into(),
+            RawAllayData::List(list) => list
+                .into_iter()
+                .map(AllayData::from)
+                .map(Arc::new)
+                .collect::<AllayList>()
+                .into(),
+            RawAllayData::Object(obj) => obj
+                .into_iter()
+                .map(|(k, v)| (k, Arc::new(AllayData::from(v))))
+                .collect::<AllayObject>()
+                .into(),
             RawAllayData::Null => AllayData::Null,
         }
     }
@@ -73,11 +78,11 @@ pub type AllayObject = HashMap<String, Arc<AllayData>>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AllayData {
-    String(String),
     Int(i64),
     Bool(bool),
-    List(AllayList),
-    Object(AllayObject),
+    String(Arc<String>),
+    List(Arc<AllayList>),
+    Object(Arc<AllayObject>),
     #[default]
     Null,
 }
@@ -85,8 +90,10 @@ pub enum AllayData {
 impl AllayData {
     pub fn from_toml(content: &str) -> DataResult<AllayObject> {
         let data: RawAllayData = toml::from_str(content)?;
-        match data.into() {
-            AllayData::Object(obj) => Ok(obj),
+        match data {
+            RawAllayData::Object(obj) => {
+                Ok(obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect())
+            }
             _ => Err(AllayDataError::TypeConversion(
                 "TOML root is not a table".to_string(),
             )),
@@ -95,8 +102,10 @@ impl AllayData {
 
     pub fn from_yaml(content: &str) -> DataResult<AllayObject> {
         let data: RawAllayData = serde_yaml::from_str(content)?;
-        match data.into() {
-            AllayData::Object(obj) => Ok(obj),
+        match data {
+            RawAllayData::Object(obj) => {
+                Ok(obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect())
+            }
             _ => Err(AllayDataError::TypeConversion(
                 "YAML root is not an object".to_string(),
             )),
@@ -105,8 +114,10 @@ impl AllayData {
 
     pub fn from_json(content: &str) -> DataResult<AllayObject> {
         let data: RawAllayData = serde_json::from_str(content)?;
-        match data.into() {
-            AllayData::Object(obj) => Ok(obj),
+        match data {
+            RawAllayData::Object(obj) => {
+                Ok(obj.into_iter().map(|(k, v)| (k, Arc::new(AllayData::from(v)))).collect())
+            }
             _ => Err(AllayDataError::TypeConversion(
                 "JSON root is not an object".to_string(),
             )),
@@ -161,61 +172,20 @@ impl AllayData {
         }
     }
 
-    pub fn as_list(&self) -> DataResult<&AllayList> {
+    pub fn as_list(&self) -> DataResult<Arc<AllayList>> {
         if let AllayData::List(list) = self {
-            Ok(list)
+            Ok(list.clone())
         } else {
             Err(AllayDataError::TypeConversion("not a list".to_string()))
         }
     }
 
-    pub fn as_obj(&self) -> DataResult<&AllayObject> {
+    pub fn as_obj(&self) -> DataResult<Arc<AllayObject>> {
         if let AllayData::Object(obj) = self {
-            Ok(obj)
+            Ok(obj.clone())
         } else {
             Err(AllayDataError::TypeConversion("not an object".to_string()))
         }
-    }
-
-    pub fn as_list_mut(&mut self) -> DataResult<&mut AllayList> {
-        if let AllayData::List(list) = self {
-            Ok(list)
-        } else {
-            Err(AllayDataError::TypeConversion("not a list".to_string()))
-        }
-    }
-
-    pub fn as_obj_mut(&mut self) -> DataResult<&mut AllayObject> {
-        if let AllayData::Object(obj) = self {
-            Ok(obj)
-        } else {
-            Err(AllayDataError::TypeConversion("not an object".to_string()))
-        }
-    }
-
-    pub fn to_list(self) -> DataResult<AllayList> {
-        if let AllayData::List(list) = self {
-            Ok(list)
-        } else {
-            Err(AllayDataError::TypeConversion("not a list".to_string()))
-        }
-    }
-
-    pub fn to_obj(self) -> DataResult<AllayObject> {
-        if let AllayData::Object(obj) = self {
-            Ok(obj)
-        } else {
-            Err(AllayDataError::TypeConversion("not an object".to_string()))
-        }
-    }
-
-    pub fn arc_to_list(data: Arc<AllayData>) -> DataResult<AllayList> {
-        Ok(data.as_list()?.iter().map(Arc::clone).collect())
-    }
-
-    /// NOTE: This function will copy the keys
-    pub fn arc_to_obj(data: Arc<AllayData>) -> DataResult<AllayObject> {
-        Ok(data.as_obj()?.iter().map(|(k, v)| (k.clone(), Arc::clone(v))).collect())
     }
 }
 
@@ -268,13 +238,13 @@ impl fmt::Display for AllayData {
 
 impl From<String> for AllayData {
     fn from(s: String) -> Self {
-        AllayData::String(s)
+        AllayData::String(Arc::new(s))
     }
 }
 
 impl From<&str> for AllayData {
     fn from(s: &str) -> Self {
-        AllayData::String(s.to_string())
+        AllayData::String(Arc::new(s.to_string()))
     }
 }
 
@@ -298,13 +268,13 @@ impl From<bool> for AllayData {
 
 impl From<AllayList> for AllayData {
     fn from(list: AllayList) -> Self {
-        AllayData::List(list)
+        AllayData::List(Arc::new(list))
     }
 }
 
 impl From<AllayObject> for AllayData {
     fn from(obj: AllayObject) -> Self {
-        AllayData::Object(obj)
+        AllayData::Object(Arc::new(obj))
     }
 }
 

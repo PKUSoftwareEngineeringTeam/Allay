@@ -16,15 +16,13 @@ fn test_basic_types() {
 
 #[test]
 fn test_list_operations() {
-    let mut list = AllayData::from(AllayList::from([
+    let list = AllayData::from(AllayList::from([
         Arc::new(AllayData::from(1)),
         Arc::new(AllayData::from("test")),
     ]));
-    let list = list.as_list_mut().unwrap();
+    let list = list.as_list().unwrap();
 
     assert_eq!(list.len(), 2);
-    list.push(Arc::new(AllayData::from(true)));
-    assert_eq!(list.len(), 3);
 }
 
 #[test]
@@ -33,12 +31,8 @@ fn test_object_operations() {
     obj.insert("key1".to_string(), Arc::new(AllayData::from("value1")));
     obj.insert("key2".to_string(), Arc::new(AllayData::from(42)));
 
-    let mut data = AllayData::from(obj);
-    let data = data.as_obj_mut().unwrap();
+    let data = AllayData::from(obj).as_obj().unwrap();
     assert!(data.contains_key("key1"));
-
-    data.insert("key3".to_string(), Arc::new(AllayData::from(true)));
-    assert!(data.contains_key("key3"));
 }
 
 #[test]
