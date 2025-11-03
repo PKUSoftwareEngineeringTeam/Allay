@@ -5,12 +5,12 @@ edition = "2024"
 
 [dependencies]
 pulldown-cmark = "0.13.0"
-pest = "2.8.2"
-pest_derive = "2.8.2"
+pest = "2.8.3"
+pest_derive = "2.8.3"
 itertools.workspace = true
 thiserror.workspace = true
 allay-base = { path = "../allay-base" }
-regex = "1.11"
+regex = "1.12"
 
 [dev-dependencies]
 tempfile.workspace = true
