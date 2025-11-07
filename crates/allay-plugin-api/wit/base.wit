@@ -1,0 +1,10 @@
+package allay:allay-plugin-base@0.1.0;
+
+interface allay-plugin-base {
+    name: func() -> string;
+    version: func() -> string;
+}
+
+world allay-plugin {
+    export allay-plugin-base;
+}
