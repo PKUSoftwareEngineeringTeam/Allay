@@ -87,7 +87,7 @@ macro_rules! register_plugin {
     ($plugin: ty) => {
         #[unsafe(export_name = "init-plugin")]
         pub fn __register_plugin() {
-            register_plugin::<$plugin>();
+            allay_plugin_api::register_plugin::<$plugin>();
         }
     };
 }
