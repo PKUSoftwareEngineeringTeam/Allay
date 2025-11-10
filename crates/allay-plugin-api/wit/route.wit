@@ -1,9 +1,9 @@
-package allay:allay-plugin-route@0.1.0;
+package allay:plugin@0.1.0;
 
-interface allay-plugin-route {
+interface route {
     type error = tuple<u32, string>;
     type response = result<list<u8>, error>;
-    enum request-type {
+    enum method {
         get,
         post,
         put,
@@ -11,9 +11,9 @@ interface allay-plugin-route {
         head,
     }
 
-    handle-request: func(ty: request-type, url: string, headers: list<tuple<string, string>>) -> option<response>;
+    handle-request: func(ty: method, url: string, body: option<list<u8>>) -> response;
 }
 
-world allay-plugin {
-    export allay-plugin-route;
+world plugin {
+    export route;
 }

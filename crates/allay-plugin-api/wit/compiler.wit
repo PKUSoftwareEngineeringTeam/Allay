@@ -1,6 +1,6 @@
-package allay:allay-plugin-compiler@0.1.0;
+package allay:plugin@0.1.0;
 
-interface allay-plugin-compiler {
+interface compiler {
     enum file-type {
         markdown,
         html,
@@ -10,6 +10,6 @@ interface allay-plugin-compiler {
     after-compile: func(compiled: string, ty: file-type) -> string;
 }
 
-world allay-plugin {
-    export allay-plugin-compiler;
+world plugin {
+    export compiler;
 }

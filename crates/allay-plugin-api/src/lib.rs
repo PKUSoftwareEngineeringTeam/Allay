@@ -2,9 +2,8 @@
 
 mod component;
 
+pub use component::*;
 use std::sync::OnceLock;
-
-pub use compiler::exports::allay::allay_plugin_compiler::allay_plugin_compiler::FileType;
 
 /// Trait for Allay Plugins. You must implement this trait for your plugin struct.
 /// You also need to register your plugin using the `register_plugin!` macro.
@@ -30,6 +29,7 @@ pub use compiler::exports::allay::allay_plugin_compiler::allay_plugin_compiler::
 ///
 /// allay::register_plugin!(MyPlugin);
 /// ```
+#[plugin_macro::components(CompilerComponent, RouteComponent)]
 pub trait Plugin: Sync + Send {
     /// Name of the plugin.
     fn name() -> &'static str
@@ -45,16 +45,6 @@ pub trait Plugin: Sync + Send {
     fn new() -> Self
     where
         Self: Sized;
-
-    /// Called before compiling a source file.
-    fn before_compile(&self, source: String, _file_type: FileType) -> String {
-        source
-    }
-
-    /// Called after compiling a source file.
-    fn after_compile(&self, compiled: String, _file_type: FileType) -> String {
-        compiled
-    }
 }
 
 struct PluginInfo {
@@ -90,24 +80,4 @@ macro_rules! register_plugin {
             allay_plugin_api::register_plugin::<$plugin>();
         }
     };
-}
-
-mod base {
-    wit_bindgen::generate!({
-        path: "wit/base.wit"
-    });
-
-    use super::component::Component;
-
-    export!(Component);
-}
-
-mod compiler {
-    wit_bindgen::generate!({
-       path: "wit/compiler.wit"
-    });
-
-    use super::component::Component;
-
-    export!(Component);
 }
