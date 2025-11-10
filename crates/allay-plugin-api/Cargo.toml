@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-paste = "1.0.15"
 wit-bindgen = "0.47.0"
 plugin-macro = { path = "crates/plugin-macro" }
