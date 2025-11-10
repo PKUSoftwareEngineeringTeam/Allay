@@ -1,0 +1,15 @@
+package allay:plugin@0.1.0;
+
+interface compiler {
+    enum file-type {
+        markdown,
+        html,
+    }
+
+    before-compile: func(source: string, ty: file-type) -> string;
+    after-compile: func(compiled: string, ty: file-type) -> string;
+}
+
+world plugin {
+    export compiler;
+}

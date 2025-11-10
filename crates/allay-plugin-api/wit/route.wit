@@ -1,0 +1,20 @@
+package allay:plugin@0.1.0;
+
+interface route {
+    type error = tuple<u32, string>;
+    type header = list<tuple<string, string>>;
+    type response = tuple<header, list<u8>>;
+    enum method {
+        get,
+        post,
+        put,
+        delete,
+        head,
+    }
+
+    handle-request: func(ty: method, url: string, body: option<list<u8>>) -> option<result<response, error>>;
+}
+
+world plugin {
+    export route;
+}

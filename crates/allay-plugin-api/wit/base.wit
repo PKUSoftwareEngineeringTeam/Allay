@@ -1,0 +1,6 @@
+package allay:plugin@0.1.0;
+
+world plugin {
+    export name: func() -> string;
+    export version: func() -> string;
+}
