@@ -1,7 +1,8 @@
 use crate::{component::PluginGuest, plugin_info};
 
 wit_bindgen::generate!({
-    path: "wit/base.wit"
+    path: "wit/base.wit",
+    skip: ["init-plugin"],
 });
 
 impl Guest for PluginGuest {

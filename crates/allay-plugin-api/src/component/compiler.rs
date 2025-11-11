@@ -7,6 +7,7 @@ wit_bindgen::generate!({
 });
 
 pub trait CompilerComponent {
+    // TODO: use Option<String> for better performance if the plugin doesn't need to modify the source
     fn before_compile(&self, source: String, _ty: FileType) -> String {
         source
     }
