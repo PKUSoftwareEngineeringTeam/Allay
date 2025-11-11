@@ -1,0 +1,13 @@
+[package]
+name = "allay-plugin-host"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wasmtime = { version = "38.0",  features = [
+    "runtime",
+    "async",
+    "component-model-async"
+]}
+wasmtime-wasi = "38.0.3"
+wit-component = "0.240.0"

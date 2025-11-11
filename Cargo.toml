@@ -8,7 +8,8 @@ members = [
     "crates/allay-publish",
     "crates/allay-plugin",
     "crates/allay-plugin-api",
-    "plugins/auth",
+    "crates/allay-plugin-host",
+    # "plugins/auth",
 ]
 
 [workspace.dependencies]

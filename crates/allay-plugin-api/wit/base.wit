@@ -8,4 +8,5 @@ world plugin {
     export version: func() -> string;
     export route;
     export compiler;
+    export init-plugin: func();
 }

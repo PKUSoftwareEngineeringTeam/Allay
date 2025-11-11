@@ -3,6 +3,7 @@ use super::wit::compiler;
 use crate::plugin;
 
 pub trait CompilerComponent {
+    // TODO: use Option<String> for better performance if the plugin doesn't need to modify the source
     fn before_compile(&self, source: String, _ty: compiler::FileType) -> String {
         source
     }
