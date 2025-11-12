@@ -1,7 +1,12 @@
 package allay:plugin@0.1.0;
 
 world plugin {
+    import route;
+    import compiler;
+
     export name: func() -> string;
     export version: func() -> string;
+    export route;
+    export compiler;
     export init-plugin: func();
 }
