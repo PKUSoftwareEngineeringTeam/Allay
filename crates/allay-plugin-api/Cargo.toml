@@ -9,3 +9,4 @@ wit-bindgen.workspace = true
 urlencoding.workspace = true
 axum.workspace = true
 async-trait.workspace = true
+anyhow.workspace = true

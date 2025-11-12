@@ -1,5 +1,5 @@
 interface route {
-    type header = tuple<string, string>;
+    type header = tuple<string, list<u8>>;
     type body = list<u8>;
 
     enum method {

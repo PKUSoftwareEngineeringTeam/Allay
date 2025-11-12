@@ -1,16 +1,17 @@
 //! Authentication plugin for user registration and login
-use crate::events::RouteRegisterEvent;
-use crate::{AsyncEventHandler, Plugin, PluginContext};
-use async_trait::async_trait;
+use allay_plugin_api::route::TryRouteComponent;
+use allay_plugin_api::route::unimplemented_response;
 use axum::Json;
-use axum::extract::State;
+use axum::body::to_bytes;
+use axum::extract::Request;
+use axum::http::Method;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Row, Sqlite, sqlite::SqlitePoolOptions};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::OnceCell;
 use uuid::Uuid;
 
 /// User data for registration
@@ -112,9 +113,10 @@ impl SessionManager {
 
 /// Authentication error types
 #[derive(Debug)]
-enum AuthError {
+pub enum AuthError {
     DatabaseError(String),
     UserExists,
+    InvalidPayload,
     InvalidCredentials,
     InvalidToken,
     HashingError,
@@ -128,6 +130,7 @@ impl IntoResponse for AuthError {
             AuthError::InvalidCredentials => {
                 (StatusCode::UNAUTHORIZED, "Invalid credentials".to_string())
             }
+            AuthError::InvalidPayload => (StatusCode::BAD_REQUEST, "Invalid payload".to_string()),
             AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid token".to_string()),
             AuthError::HashingError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -158,8 +161,8 @@ fn verify_password(password: &str, hash: &str) -> Result<bool, AuthError> {
 
 /// Handles user registration
 async fn handle_register(
-    State(db_state): State<Arc<DbState>>,
-    Json(payload): Json<RegisterRequest>,
+    db_state: Arc<DbState>,
+    payload: RegisterRequest,
 ) -> Result<Json<AuthResponse>, AuthError> {
     // Check if user already exists
     let existing_user = sqlx::query("SELECT id FROM users WHERE username = ? OR email = ?")
@@ -204,8 +207,8 @@ async fn handle_register(
 
 /// Handles user login
 async fn handle_login(
-    State(state): State<Arc<AuthState>>,
-    Json(payload): Json<LoginRequest>,
+    state: Arc<AuthState>,
+    payload: LoginRequest,
 ) -> Result<Json<AuthResponse>, AuthError> {
     // Find user by username
     let user_result = sqlx::query(
@@ -243,7 +246,7 @@ async fn handle_login(
 
 /// Handles user logout
 async fn handle_logout(
-    State(state): State<Arc<AuthState>>,
+    state: Arc<AuthState>,
     headers: HeaderMap,
 ) -> Result<Json<AuthResponse>, AuthError> {
     if let Some(auth_header) = headers.get("authorization")
@@ -270,7 +273,7 @@ async fn handle_logout(
 
 /// Handles getting current user profile
 async fn handle_profile(
-    State(state): State<Arc<AuthState>>,
+    state: Arc<AuthState>,
     headers: HeaderMap,
 ) -> Result<Json<User>, AuthError> {
     let token = extract_token_from_headers(headers)?;
@@ -351,69 +354,74 @@ async fn init_database(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// Authentication route handler
-pub struct AuthRouteHandler {
+pub struct AuthRouter {
     database_url: String,
-    auth_state: RwLock<Option<Arc<AuthState>>>,
+    auth_state: OnceCell<Arc<AuthState>>,
 }
 
-impl AuthRouteHandler {
-    /// Creates a new authentication route handler
-    fn new(database_url: String) -> Self {
-        Self {
-            database_url,
-            auth_state: RwLock::new(None),
+impl AuthRouter {
+    pub fn new(database_url: &str) -> Self {
+        AuthRouter {
+            database_url: database_url.to_string(),
+            auth_state: OnceCell::new(),
         }
     }
 }
 
-#[async_trait]
-impl AsyncEventHandler<RouteRegisterEvent> for AuthRouteHandler {
-    async fn handle_event(self: Arc<Self>, event: Arc<RouteRegisterEvent>) -> anyhow::Result<()> {
-        // init the pool if unnot done yet
-        let mut lock = self.auth_state.write().await;
-        let auth_state = if let Some(state) = lock.as_ref() {
-            state.clone()
-        } else {
-            let pool = SqlitePoolOptions::new().connect(&self.database_url).await?;
-            init_database(&pool).await?;
-            let db_state = DbState { pool };
-            let auth_state = Arc::new(AuthState::new(db_state));
-            // store it for future use
-            *lock = Some(auth_state.clone());
-            auth_state
+async fn deserialize_body<T: DeserializeOwned>(request: Request) -> Result<T, AuthError> {
+    let bytes = to_bytes(request.into_body(), usize::MAX).await.unwrap_or_default();
+    serde_json::from_slice(&bytes).map_err(|_| AuthError::InvalidPayload)
+}
+
+#[async_trait::async_trait]
+impl TryRouteComponent for AuthRouter {
+    type Error = AuthError;
+
+    async fn try_handle(&self, request: Request) -> Result<Response, AuthError> {
+        // Initialize auth state if not already done
+        let auth_state = self
+            .auth_state
+            .get_or_init(async || {
+                let pool = SqlitePoolOptions::new()
+                    .connect(&self.database_url)
+                    .await
+                    .expect("Failed to connect to database");
+                init_database(&pool).await.expect("Failed to initialize database");
+                let db_state = DbState { pool };
+                Arc::new(AuthState::new(db_state))
+            })
+            .await;
+
+        // match request path and method
+        let response = match (request.uri().path(), request.method()) {
+            ("/api/auth/register", &Method::POST) => handle_register(
+                auth_state.db_state.clone(),
+                deserialize_body(request).await?,
+            )
+            .await
+            .into_response(),
+
+            ("/api/auth/login", &Method::POST) => {
+                handle_login(auth_state.clone(), deserialize_body(request).await?)
+                    .await
+                    .into_response()
+            }
+
+            ("/api/auth/logout", &Method::POST) => {
+                handle_logout(auth_state.clone(), request.headers().clone())
+                    .await
+                    .into_response()
+            }
+
+            ("/api/auth/profile", &Method::GET) => {
+                handle_profile(auth_state.clone(), request.headers().clone())
+                    .await
+                    .into_response()
+            }
+
+            _ => unimplemented_response(),
         };
 
-        let db_state = auth_state.db_state.clone();
-        event.route(|app| {
-            app.route("/api/auth/register", post(handle_register))
-                .with_state(db_state)
-                .route("/api/auth/login", post(handle_login))
-                .route("/api/auth/logout", post(handle_logout))
-                .route("/api/auth/profile", get(handle_profile))
-                .with_state(auth_state)
-        });
-        Ok(())
-    }
-}
-
-pub struct AuthPlugin;
-
-impl Plugin for AuthPlugin {
-    fn name(&self) -> &str {
-        "auth-plugin"
-    }
-
-    fn initialize(&self, context: PluginContext) -> anyhow::Result<()> {
-        let database_url = match self.config().get("database") {
-            Some(url) => url.as_str()?,
-            None => "sqlite:auth.db",
-        }
-        .to_string();
-
-        let handler = Arc::new(AuthRouteHandler::new(database_url));
-        context.event_bus.register_async_handler(handler);
-
-        Ok(())
+        Ok(response)
     }
 }

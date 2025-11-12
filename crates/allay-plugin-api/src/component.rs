@@ -1,6 +1,6 @@
-mod compiler;
+pub mod compiler;
 mod export;
-mod route;
+pub mod route;
 
 use crate::plugin_info;
 pub use compiler::CompilerComponent;

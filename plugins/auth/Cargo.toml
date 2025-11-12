@@ -1,0 +1,16 @@
+[package]
+name = "auth"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+allay-plugin-api = { path = "../../crates/allay-plugin-api" }
+async-trait.workspace = true
+axum.workspace = true
+bcrypt = "0.17"
+chrono = "0.4"
+serde.workspace = true
+sqlx = "0.8"
+tokio.workspace = true
+uuid = "1.18"
+serde_json.workspace = true
