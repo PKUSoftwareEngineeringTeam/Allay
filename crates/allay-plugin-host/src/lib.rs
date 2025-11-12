@@ -7,7 +7,6 @@ use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 mod component;
-// mod temp;
 
 #[derive(Default)]
 struct PluginState {

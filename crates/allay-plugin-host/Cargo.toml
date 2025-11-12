@@ -10,4 +10,3 @@ wasmtime = { version = "38.0",  features = [
     "component-model-async"
 ]}
 wasmtime-wasi = "38.0.3"
-wit-component = "0.240.0"
