@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+allay-base = { path = "../allay-base" }
+allay-plugin = { path = "../allay-plugin" }
 tokio.workspace = true
 tokio-util.workspace = true
-mime_guess = "2.0"
 axum.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
-walkdir = "2.5"
-allay-base = { path = "../allay-base" }
-allay-plugin = { path = "../allay-plugin" }
+walkdir.workspace = true
+mime_guess.workspace = true
