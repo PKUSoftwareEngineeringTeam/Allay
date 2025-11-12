@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-wit-bindgen = "0.47.0"
 plugin-macro = { path = "crates/plugin-macro" }
-urlencoding = "2.1.3"
+wit-bindgen.workspace = true
+urlencoding.workspace = true
 axum.workspace = true
 async-trait.workspace = true

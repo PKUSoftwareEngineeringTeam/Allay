@@ -1,0 +1,41 @@
+@startuml sequence
+
+actor Blogger
+actor ThemeMaker
+
+participant "Compiler" as Compiler
+participant "Server" as Server
+participant "Plugin" as Plugin
+
+ThemeMaker -> Compiler: submit theme template
+activate Compiler
+Compiler -> Compiler: md-html converter
+activate Compiler #FFBBBB
+Compiler -> Compiler: parse
+Compiler -> Compiler: interpret
+deactivate Compiler
+
+Compiler -> Plugin: extra processing
+activate Plugin
+Plugin --> Compiler: processed content
+deactivate Plugin
+
+Blogger -> Compiler: submit markdown file
+Compiler -> Compiler: md-html converter
+activate Compiler #FFBBBB
+Compiler -> Compiler: parse
+Compiler -> Compiler: interpret
+deactivate Compiler
+
+Compiler -> Server: deliver HTML file  
+activate Server
+Server --> Plugin: extra routing
+activate Plugin
+Plugin --> Server: routed content
+deactivate Plugin
+Server --> Blogger: serve HTML page
+deactivate Server
+
+deactivate Compiler
+
+@enduml

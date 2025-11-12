@@ -1,0 +1,72 @@
+@startuml class
+
+class CLI {
+    + execute(params): void
+}
+
+class Page {
+    - path: PathBuf
+    - scope: PageScope
+    - ready: bool
+    + compile(): Result<Output>
+}
+
+interface Interpretable {
+    + interpret(): Output
+}
+
+class Compiler {
+    - cache: HashMap<K, Page>
+    + add(PathBuf): void;
+    + modify(PathBuf): void;
+    + remove(PathBuf): void;
+}
+
+class Server {
+    - host: String
+    - port: u16
+    - path: PathBuf
+    + serve(): Result<()>
+}
+
+class GenerateWorker {
+    - members: list<FileGenerator>
+}
+
+interface FileGenerator {
+    + on_create(PathBuf): Result<()>
+    + on_modify(PathBuf): Result<()>
+    + on_delete(PathBuf): Result<()>
+    + map(PathBuf) -> Option<PathBuf>
+}
+
+interface Plugin {
+    - register_plugin(Plugin): void
+    - export_wasm(Plugin): void
+}
+
+class PluginHost {
+    - import_wasm(String): Plugin
+}
+
+class UserPlugin {
+    - name: String
+    - version: String
+    + compile(String) -> Result<String>
+    + handle(Request) -> Response
+}
+
+CLI --> Compiler : uses >
+CLI --> Server : starts >
+CLI --> GenerateWorker : starts >
+Compiler "1" --> "0..*" Page : manages >
+Page "1" --> "0..*" Interpretable : components >
+UserPlugin --|> Plugin : implements >
+PluginHost --> UserPlugin : loads >
+GenerateWorker "1" --> "0..*" FileGenerator : members >
+GenerateWorker --> Compiler : triggers >
+Compiler --> Server: output >
+Server --> PluginHost : interacts >
+Compiler --> PluginHost : extra >
+
+@enduml

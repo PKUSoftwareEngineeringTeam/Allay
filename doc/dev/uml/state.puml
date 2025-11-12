@@ -1,0 +1,27 @@
+@startuml state
+
+[*] --> Created
+
+Created --> Template: load to allay
+
+state Template {
+    [*] --> RawHTML: md-html converter
+    RawHTML --> AST: parse
+    AST --> Output: interpret
+    Output --> Cache: cache
+    Cache --> Output: cache hit
+}
+
+Output --> Published
+
+state PluginSandbox {
+    [*] -> Wasm: compile
+    Wasm -> WasmRuntime: run
+}
+
+WasmRuntime --> Serving
+WasmRuntime --> Template
+
+Published --> Serving: File Server
+
+@enduml

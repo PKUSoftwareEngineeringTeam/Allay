@@ -7,13 +7,13 @@ edition = "2024"
 allay-base = { path = "../allay-base" }
 allay-publish = { path = "../allay-publish" }
 allay-web = { path = "../allay-web" }
-git2 = "0.20.2"
-dialoguer = "0.12"
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
-webbrowser = "1.0"
+git2.workspace = true
+dialoguer.workspace = true
+webbrowser.workspace = true
 
 [[bin]]
 name = "allay"
