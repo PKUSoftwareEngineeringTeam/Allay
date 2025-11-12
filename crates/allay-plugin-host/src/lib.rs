@@ -2,7 +2,8 @@ use component::Plugin;
 pub use component::exports::allay::plugin::compiler::FileType;
 pub use component::exports::allay::plugin::route::{Method, Request, Response};
 use std::path::Path;
-use wasmtime::component::{Component, Linker, ResourceTable};
+use std::sync::Arc;
+use wasmtime::component::{Component, Instance, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
@@ -25,7 +26,8 @@ impl WasiView for PluginState {
 
 pub struct PluginHost {
     store: Store<PluginState>,
-    instance: Plugin,
+    plugin: Arc<Plugin>,
+    instance: Instance,
 }
 
 impl PluginHost {
@@ -40,19 +42,26 @@ impl PluginHost {
         let mut linker = Linker::new(&engine);
         wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
 
-        let instance = Plugin::instantiate(&mut store, &component, &linker)?;
-        instance.call_init_plugin(&mut store)?;
+        let instance = linker.instantiate(&mut store, &component)?;
 
-        let host = Self { store, instance };
+        let plugin = Plugin::new(&mut store, &instance)?;
+        plugin.call_init_plugin(&mut store)?;
+        let plugin = Arc::new(plugin);
+
+        let host = Self {
+            store,
+            plugin,
+            instance,
+        };
         Ok(host)
     }
 
     pub fn plugin_name(&mut self) -> wasmtime::Result<String> {
-        self.instance.call_name(&mut self.store)
+        self.plugin.call_name(&mut self.store)
     }
 
     pub fn plugin_version(&mut self) -> wasmtime::Result<String> {
-        self.instance.call_version(&mut self.store)
+        self.plugin.call_version(&mut self.store)
     }
 
     pub fn before_compile(
@@ -60,21 +69,24 @@ impl PluginHost {
         source: &str,
         file_type: FileType,
     ) -> wasmtime::Result<String> {
-        self.instance.allay_plugin_compiler().call_before_compile(
-            &mut self.store,
-            source,
-            file_type,
-        )
+        self.plugin
+            .allay_plugin_compiler()
+            .call_before_compile(&mut self.store, source, file_type)
     }
 
     pub fn after_compile(&mut self, source: &str, file_type: FileType) -> wasmtime::Result<String> {
-        self.instance
+        self.plugin
             .allay_plugin_compiler()
             .call_after_compile(&mut self.store, source, file_type)
     }
 
-    pub async fn handle_request(&mut self, _request: Request) -> wasmtime::Result<Response> {
-        // self.instance.allay_plugin_route().call_handle(, request).await
-        todo!()
+    pub async fn handle_request(&mut self, request: Request) -> wasmtime::Result<Response> {
+        let plugin = self.plugin.clone();
+
+        self.instance
+            .run_concurrent(&mut self.store, async move |accessor| {
+                plugin.allay_plugin_route().call_handle(accessor, request).await
+            })
+            .await?
     }
 }
