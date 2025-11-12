@@ -51,9 +51,9 @@ pub fn unimplemented_response() -> Response {
         .unwrap()
 }
 
-impl Into<Method> for route::Method {
-    fn into(self) -> Method {
-        match self {
+impl From<route::Method> for Method {
+    fn from(method: route::Method) -> Method {
+        match method {
             route::Method::Get => Method::GET,
             route::Method::Post => Method::POST,
             route::Method::Put => Method::PUT,
@@ -68,19 +68,19 @@ impl route::Guest for PluginGuest {
     }
 }
 
-impl Into<Request> for route::Request {
-    fn into(self) -> Request {
+impl From<route::Request> for Request {
+    fn from(request: route::Request) -> Request {
         let mut builder = Request::builder()
-            .method(self.ty) // Set method
-            .uri(self.uri); // Set URI
+            .method(request.ty) // Set method
+            .uri(request.uri); // Set URI
 
         // Set headers
-        for (name, value) in self.headers {
+        for (name, value) in request.headers {
             builder = builder.header(name, value);
         }
 
         // Set body
-        let body = match self.body {
+        let body = match request.body {
             Some(bytes) => Body::from(bytes),
             None => Body::empty(),
         };
