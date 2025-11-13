@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 plugin-macro = { path = "crates/plugin-macro" }
+allay-base = { path = "../allay-base" }
 wit-bindgen.workspace = true
 urlencoding.workspace = true
 axum.workspace = true
