@@ -1,5 +1,3 @@
-pub mod auth;
-
 use crate::{EventBus, config::get_plugin_config};
 use allay_base::data::AllayObject;
 use std::sync::Arc;

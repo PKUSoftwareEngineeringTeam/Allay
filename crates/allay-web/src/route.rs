@@ -1,11 +1,9 @@
 use allay_base::config::get_allay_config;
-use allay_plugin::events::RouteRegisterEvent;
-use allay_plugin::{EventHandler, Plugin, PluginContext};
-use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, Response, StatusCode, header, response::Builder};
 use axum::routing::get;
+use axum::{Json, Router};
 use mime_guess::from_path;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -146,31 +144,10 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
     Some(files)
 }
 
-pub struct BuiltinRouteHandler;
-
-impl EventHandler<RouteRegisterEvent> for BuiltinRouteHandler {
-    fn handle_event(self: Arc<Self>, event: Arc<RouteRegisterEvent>) -> anyhow::Result<()> {
-        let path = event.path().clone();
-        event.route(|app| {
-            app.route("/api/last-modified", get(handle_last_modify))
-                .route("/{*path}", get(handle_file))
-                .route("/", get(handle_index))
-                .with_state(Arc::new(path))
-        });
-        Ok(())
-    }
-}
-
-pub struct BuiltinRoutePlugin;
-
-impl Plugin for BuiltinRoutePlugin {
-    fn name(&self) -> &str {
-        "builtin-route-plugin"
-    }
-
-    fn initialize(&self, context: PluginContext) -> anyhow::Result<()> {
-        let handler = Arc::new(BuiltinRouteHandler);
-        context.event_bus.register_handler(handler);
-        Ok(())
-    }
+pub fn build_route(path: PathBuf) -> Router {
+    Router::new()
+        .route("/api/last-modified", get(handle_last_modify))
+        .route("/{*path}", get(handle_file))
+        .route("/", get(handle_index))
+        .with_state(Arc::new(path))
 }

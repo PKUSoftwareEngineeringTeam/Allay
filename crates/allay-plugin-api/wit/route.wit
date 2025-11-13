@@ -1,5 +1,5 @@
 interface route {
-    type header = tuple<string, string>;
+    type header = tuple<string, list<u8>>;
     type body = list<u8>;
 
     enum method {
@@ -13,13 +13,13 @@ interface route {
         ty: method,
         uri: string,
         headers: list<header>,
-        body: option<body>,
+        body: body,
     }
 
     record response {
         status-code: u16,
         headers: list<header>,
-        body: option<body>,
+        body: body,
     }
 
     handle: async func(request: request) -> response;

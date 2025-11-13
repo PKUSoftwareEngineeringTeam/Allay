@@ -1,3 +1,4 @@
+//! File operations and utilities
 use serde::Serialize;
 use std::env;
 use std::fs;

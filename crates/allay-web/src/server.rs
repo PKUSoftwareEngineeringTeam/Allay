@@ -1,15 +1,9 @@
 //! A simple HTTP server.
 use crate::ServerResult;
-use crate::builtin::BuiltinRoutePlugin;
-use allay_plugin::PluginManager;
-use allay_plugin::events::RouteRegisterEvent;
-use allay_plugin::plugins::auth::AuthPlugin;
-use axum::Router;
+use crate::route::build_route;
 use std::path::{self, PathBuf};
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::runtime;
-use tracing::warn;
 
 /// Represents a server configuration.
 ///
@@ -71,25 +65,10 @@ impl Server {
         let runtime = runtime::Builder::new_current_thread().enable_all().build()?;
         runtime.block_on(async move {
             let addr = format!("{}:{}", self.host, self.port);
-            let app = self.router().await;
+            let app = build_route(self.path.clone());
             let listener = TcpListener::bind(addr).await?;
             axum::serve(listener, app).await?;
             Ok(())
         })
-    }
-
-    /// Builds the Axum router for the server.
-    async fn router(&self) -> Router {
-        let manager = PluginManager::instance();
-        if let Err(e) = manager.register_plugin(Arc::new(BuiltinRoutePlugin)) {
-            warn!("Failed to register BuiltinRoutePlugin: {}", e);
-        };
-        if let Err(e) = manager.register_plugin(Arc::new(AuthPlugin)) {
-            warn!("Failed to register AuthPlugin: {}", e);
-        }
-
-        let event = Arc::new(RouteRegisterEvent::new(self.path.clone()));
-        manager.event_bus().publish(event.clone()).await;
-        event.take_app()
     }
 }

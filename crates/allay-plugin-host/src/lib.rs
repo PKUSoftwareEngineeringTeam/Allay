@@ -1,6 +1,4 @@
 use component::Plugin;
-pub use component::exports::allay::plugin::compiler::FileType;
-pub use component::exports::allay::plugin::route::{Method, Request, Response};
 use std::path::Path;
 use std::sync::Arc;
 use wasmtime::component::{Component, Instance, Linker, ResourceTable};
@@ -62,31 +60,5 @@ impl PluginHost {
 
     pub fn plugin_version(&mut self) -> wasmtime::Result<String> {
         self.plugin.call_version(&mut self.store)
-    }
-
-    pub fn before_compile(
-        &mut self,
-        source: &str,
-        file_type: FileType,
-    ) -> wasmtime::Result<String> {
-        self.plugin
-            .allay_plugin_compiler()
-            .call_before_compile(&mut self.store, source, file_type)
-    }
-
-    pub fn after_compile(&mut self, source: &str, file_type: FileType) -> wasmtime::Result<String> {
-        self.plugin
-            .allay_plugin_compiler()
-            .call_after_compile(&mut self.store, source, file_type)
-    }
-
-    pub async fn handle_request(&mut self, request: Request) -> wasmtime::Result<Response> {
-        let plugin = self.plugin.clone();
-
-        self.instance
-            .run_concurrent(&mut self.store, async move |accessor| {
-                plugin.allay_plugin_route().call_handle(accessor, request).await
-            })
-            .await?
     }
 }

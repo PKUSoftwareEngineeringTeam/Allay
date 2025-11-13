@@ -24,6 +24,7 @@ dependencies = [
 name = "allay-base"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "clap",
  "serde",
  "serde_json",
@@ -86,6 +87,8 @@ dependencies = [
 name = "allay-plugin-api"
 version = "0.1.0"
 dependencies = [
+ "allay-base",
+ "anyhow",
  "async-trait",
  "axum",
  "plugin-macro",
@@ -97,6 +100,9 @@ dependencies = [
 name = "allay-plugin-host"
 version = "0.1.0"
 dependencies = [
+ "allay-base",
+ "async-trait",
+ "axum",
  "wasmtime",
  "wasmtime-wasi",
 ]
