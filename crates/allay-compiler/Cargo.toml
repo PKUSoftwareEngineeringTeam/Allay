@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 allay-base = { path = "../allay-base" }
+allay-plugin = { path = "../allay-plugin", optional = true }
 pulldown-cmark.workspace = true
 pest.workspace = true
 pest_derive.workspace = true
@@ -14,3 +15,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+[features]
+default = ["plugin"]
+plugin = ["allay-plugin"]

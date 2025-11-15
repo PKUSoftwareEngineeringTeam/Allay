@@ -5,6 +5,18 @@ use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
+use wasmtime::AsContextMut;
+
+impl From<route::Method> for Method {
+    fn from(method: route::Method) -> Self {
+        match method {
+            route::Method::Get => Method::GET,
+            route::Method::Post => Method::POST,
+            route::Method::Put => Method::PUT,
+            route::Method::Delete => Method::DELETE,
+        }
+    }
+}
 
 #[async_trait::async_trait]
 impl AsyncFrom<Request> for route::Request {
@@ -64,12 +76,13 @@ impl From<route::Response> for Response {
 }
 
 impl PluginHost {
-    pub async fn handle_request(&mut self, request: Request) -> wasmtime::Result<Response> {
+    pub async fn handle_request(&self, request: Request) -> wasmtime::Result<Response> {
         let plugin = self.plugin.clone();
+        let mut store = self.store.lock().await;
 
         let response = self
             .instance
-            .run_concurrent(&mut self.store, async move |accessor| {
+            .run_concurrent(store.as_context_mut(), async move |accessor| {
                 plugin
                     .allay_plugin_route()
                     .call_handle(accessor, request.async_into().await)
@@ -78,5 +91,18 @@ impl PluginHost {
             .await??;
 
         Ok(response.into())
+    }
+
+    pub fn route_path(&self) -> wasmtime::Result<Vec<(Method, String)>> {
+        let mut store = self.store.blocking_lock();
+        let path = self
+            .plugin
+            .allay_plugin_route()
+            .call_route_path(store.as_context_mut())?
+            .into_iter()
+            .map(|(method, path)| (Method::from(method), path))
+            .collect();
+
+        Ok(path)
     }
 }

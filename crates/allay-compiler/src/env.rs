@@ -2,6 +2,8 @@ use crate::interpret::{Interpretable, Interpreter, PageScope};
 use crate::meta::get_meta_and_content;
 use crate::{CompileOutput, CompileResult};
 use allay_base::template::TemplateKind;
+#[cfg(feature = "plugin")]
+use allay_plugin::PluginManager;
 use pulldown_cmark::{Parser, html};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -196,6 +198,15 @@ pub trait Compiled {
     fn gen_result_str(&self, interpreter: &mut Interpreter) -> CompileResult<String>;
 }
 
+#[cfg(feature = "plugin")]
+fn after_compile(html: String, ty: TemplateKind) -> String {
+    let plugin_manager = PluginManager::instance();
+    plugin_manager
+        .plugins()
+        .iter()
+        .fold(html, |html, plugin| plugin.after_compile(html, ty.clone()))
+}
+
 impl Compiled for Arc<Mutex<Page>> {
     // The optimized version for compiling a page (by caching the result)
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput> {
@@ -221,10 +232,12 @@ impl Compiled for Arc<Mutex<Page>> {
         }
         drop(page);
 
-        let output = CompileOutput {
-            html: self.gen_result_str(interpreter)?,
-            meta,
-        };
+        let html = self.gen_result_str(interpreter)?;
+
+        #[cfg(feature = "plugin")]
+        let html = after_compile(html, TemplateKind::from_filename(&get_lock!(self).path));
+
+        let output = CompileOutput { html, meta };
         let mut page = get_lock!(self);
         page.dirty = false;
         page.cache = output.clone();

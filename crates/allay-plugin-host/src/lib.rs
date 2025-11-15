@@ -1,8 +1,9 @@
 use component::Plugin;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use wasmtime::component::{Component, Instance, Linker, ResourceTable};
-use wasmtime::{Config, Engine, Store};
+use wasmtime::{AsContextMut, Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 mod component;
@@ -23,7 +24,7 @@ impl WasiView for PluginState {
 }
 
 pub struct PluginHost {
-    store: Store<PluginState>,
+    store: Arc<Mutex<Store<PluginState>>>,
     plugin: Arc<Plugin>,
     instance: Instance,
 }
@@ -45,6 +46,7 @@ impl PluginHost {
         let plugin = Plugin::new(&mut store, &instance)?;
         plugin.call_init_plugin(&mut store)?;
         let plugin = Arc::new(plugin);
+        let store = Arc::new(Mutex::new(store));
 
         let host = Self {
             store,
@@ -54,11 +56,13 @@ impl PluginHost {
         Ok(host)
     }
 
-    pub fn plugin_name(&mut self) -> wasmtime::Result<String> {
-        self.plugin.call_name(&mut self.store)
+    pub fn plugin_name(&self) -> wasmtime::Result<String> {
+        let mut store = self.store.blocking_lock();
+        self.plugin.call_name(store.as_context_mut())
     }
 
-    pub fn plugin_version(&mut self) -> wasmtime::Result<String> {
-        self.plugin.call_version(&mut self.store)
+    pub fn plugin_version(&self) -> wasmtime::Result<String> {
+        let mut store = self.store.blocking_lock();
+        self.plugin.call_version(store.as_context_mut())
     }
 }

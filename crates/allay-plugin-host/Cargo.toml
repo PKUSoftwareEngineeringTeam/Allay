@@ -8,4 +8,5 @@ wasmtime.workspace = true
 wasmtime-wasi.workspace = true
 allay-base = { path = "../allay-base" }
 axum.workspace = true
+tokio.workspace = true
 async-trait.workspace = true

@@ -5,8 +5,12 @@ edition = "2024"
 
 [dependencies]
 allay-base = { path = "../allay-base" }
-allay-compiler = { path = "../allay-compiler" }
+allay-compiler = { path = "../allay-compiler", default-features = false }
 notify.workspace = true
 notify-debouncer-full.workspace = true
 walkdir.workspace = true
 tracing.workspace = true
+
+[features]
+default = ["plugin"]
+plugin = ["allay-compiler/plugin"]

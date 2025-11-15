@@ -1,8 +1,18 @@
 use allay_base::config::get_allay_config;
+#[cfg(feature = "plugin")]
+use allay_plugin::PluginManager;
+#[cfg(feature = "plugin")]
+use allay_plugin::manager::Plugin;
 use axum::body::Body;
+#[cfg(feature = "plugin")]
+use axum::extract::Request;
 use axum::extract::{Path, Query, State};
+#[cfg(feature = "plugin")]
+use axum::http::Method;
 use axum::http::{HeaderValue, Response, StatusCode, header, response::Builder};
 use axum::routing::get;
+#[cfg(feature = "plugin")]
+use axum::routing::{delete, post, put};
 use axum::{Json, Router};
 use mime_guess::from_path;
 use serde::Deserialize;
@@ -144,10 +154,37 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
     Some(files)
 }
 
+#[cfg(feature = "plugin")]
+fn register_custom_route(router: Router, plugin: Plugin) -> Router {
+    if let Ok(route_path) = plugin.route_path() {
+        route_path.into_iter().fold(router, |router, (method, path)| {
+            let plugin = plugin.clone();
+            let handler = async move |req: Request| plugin.handle_request(req).await.unwrap();
+            match method {
+                Method::GET => router.route(&path, get(handler)),
+                Method::POST => router.route(&path, post(handler)),
+                Method::PUT => router.route(&path, put(handler)),
+                Method::DELETE => router.route(&path, delete(handler)),
+                _ => router,
+            }
+        })
+    } else {
+        router
+    }
+}
+
 pub fn build_route(path: PathBuf) -> Router {
-    Router::new()
+    let route = Router::new()
         .route("/api/last-modified", get(handle_last_modify))
         .route("/{*path}", get(handle_file))
         .route("/", get(handle_index))
-        .with_state(Arc::new(path))
+        .with_state(Arc::new(path));
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "plugin")] {
+            let plugin_manager = PluginManager::instance();
+            plugin_manager.plugins().into_iter().fold(route, register_custom_route)
+        } else {
+            route
+        }
+    }
 }
