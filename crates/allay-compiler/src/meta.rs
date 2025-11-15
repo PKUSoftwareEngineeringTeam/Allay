@@ -4,6 +4,8 @@ use crate::parse::parse_file;
 use crate::{CompileError, CompileResult, magic};
 use allay_base::config::get_allay_config;
 use allay_base::{data::AllayObject, file, template::TemplateKind};
+#[cfg(feature = "plugin")]
+use allay_plugin::PluginManager;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -29,12 +31,22 @@ fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObj
     meta
 }
 
+#[cfg(feature = "plugin")]
+fn before_compile(content: String, kind: TemplateKind) -> String {
+    let plugin_manager = PluginManager::instance();
+    plugin_manager.plugins().iter().fold(content, |content, plugin| {
+        plugin.before_compile(content, kind.clone())
+    })
+}
+
 pub fn get_meta_and_content<P: AsRef<Path>>(source: P) -> CompileResult<(AllayObject, Template)> {
     let kind = TemplateKind::from_filename(&source);
     let content = match kind {
         TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&source)?,
         TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
     };
+    #[cfg(feature = "plugin")]
+    let content = before_compile(content, kind);
     let ast = parse_file(&content)?;
     let meta = interpret_meta(&ast.meta)?;
     let meta = post_preprocess(source, meta);

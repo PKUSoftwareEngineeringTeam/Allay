@@ -23,4 +23,5 @@ interface route {
     }
 
     handle: async func(request: request) -> response;
+    route-path: func() -> list<tuple<method, string>>;
 }
