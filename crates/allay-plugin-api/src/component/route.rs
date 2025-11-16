@@ -67,7 +67,7 @@ impl route::Guest for PluginGuest {
     async fn handle(request: route::Request) -> route::Response {
         plugin().route_component().handle(request.into()).await.async_into().await
     }
-    fn route_path() -> Vec<(route::Method, String)> {
+    fn route_paths() -> Vec<(route::Method, String)> {
         plugin().route_component().route_path()
     }
 }

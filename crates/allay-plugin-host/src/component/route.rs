@@ -98,9 +98,9 @@ impl PluginHost {
         let path = self
             .plugin
             .allay_plugin_route()
-            .call_route_path(store.as_context_mut())?
+            .call_route_paths(store.as_context_mut())?
             .into_iter()
-            .map(|(method, path)| (Method::from(method), path))
+            .map(|(method, path)| (method.into(), path))
             .collect();
 
         Ok(path)

@@ -4,8 +4,6 @@ use allay_plugin::PluginManager;
 #[cfg(feature = "plugin")]
 use allay_plugin::manager::Plugin;
 use axum::body::Body;
-#[cfg(feature = "plugin")]
-use axum::extract::Request;
 use axum::extract::{Path, Query, State};
 #[cfg(feature = "plugin")]
 use axum::http::Method;
@@ -159,7 +157,7 @@ fn register_custom_route(router: Router, plugin: Plugin) -> Router {
     if let Ok(route_path) = plugin.route_path() {
         route_path.into_iter().fold(router, |router, (method, path)| {
             let plugin = plugin.clone();
-            let handler = async move |req: Request| plugin.handle_request(req).await.unwrap();
+            let handler = async move |req| plugin.handle_request(req).await.unwrap();
             match method {
                 Method::GET => router.route(&path, get(handler)),
                 Method::POST => router.route(&path, post(handler)),
