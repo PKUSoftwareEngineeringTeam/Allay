@@ -1,47 +1,39 @@
-use crate::{EventBus, Plugin, PluginContext};
+use allay_plugin_host::PluginHost;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
+
+pub type Plugin = Arc<PluginHost>;
 
 /// Manager for plugins.
 /// Handles registration and retrieval of plugins
 #[derive(Default)]
 pub struct PluginManager {
-    plugins: RwLock<HashMap<String, Arc<dyn Plugin>>>,
-    event_bus: Arc<EventBus>,
+    plugins: RwLock<HashMap<String, Plugin>>,
 }
 
 impl PluginManager {
-    pub fn instance() -> Arc<Self> {
-        static INSTANCE: OnceLock<Arc<PluginManager>> = OnceLock::new();
-        INSTANCE.get_or_init(|| Arc::new(PluginManager::default())).clone()
+    pub fn instance() -> &'static Self {
+        static INSTANCE: OnceLock<PluginManager> = OnceLock::new();
+        INSTANCE.get_or_init(PluginManager::default)
     }
 
-    pub fn event_bus(&self) -> Arc<EventBus> {
-        self.event_bus.clone()
-    }
+    pub fn register_plugin(&self, wasm_path: impl AsRef<Path>) -> anyhow::Result<()> {
+        let host = PluginHost::new(wasm_path)?;
+        let name = host.plugin_name()?;
+        let mut plugins = self.plugins.write().expect("Failed to acquire write lock on plugins");
 
-    pub fn register_plugin(&self, plugin: Arc<dyn Plugin>) -> anyhow::Result<()> {
-        let name = plugin.name().to_string();
-        let mut plugins = self.plugins.write().unwrap();
-
-        if plugins.contains_key(&name) {
-            return Err(anyhow::anyhow!("Plugin '{}' is already registered", name));
-        }
-
-        let context = PluginContext::new(self.event_bus.clone());
-        plugin.initialize(context)?;
-
-        plugins.insert(name, plugin);
+        plugins.insert(name, Arc::new(host));
         Ok(())
     }
 
-    pub fn get_plugin(&self, name: &str) -> Option<Arc<dyn Plugin>> {
+    pub fn get_plugin(&self, name: &str) -> Option<Plugin> {
         let plugins = self.plugins.read().unwrap();
         plugins.get(name).cloned()
     }
 
-    pub fn list_plugins(&self) -> Vec<String> {
+    pub fn plugins(&self) -> Vec<Plugin> {
         let plugins = self.plugins.read().unwrap();
-        plugins.keys().cloned().collect()
+        plugins.values().cloned().collect()
     }
 }

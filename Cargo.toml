@@ -46,6 +46,5 @@ wasmtime = { version = "38.0", features = [
     "component-model-async",
 ] }
 wasmtime-wasi = "38.0"
-urlencoding = "2.1"
-anymap = "0.12"
 mime_guess = "2.0"
+cfg-if = "1.0"

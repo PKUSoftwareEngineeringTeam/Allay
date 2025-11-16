@@ -5,13 +5,16 @@ edition = "2024"
 
 [dependencies]
 allay-base = { path = "../allay-base" }
-allay-plugin = { path = "../allay-plugin" }
+allay-plugin = { path = "../allay-plugin", optional = true }
 tokio.workspace = true
 tokio-util.workspace = true
 axum.workspace = true
 thiserror.workspace = true
 serde.workspace = true
-anyhow.workspace = true
-tracing.workspace = true
 walkdir.workspace = true
 mime_guess.workspace = true
+cfg-if.workspace = true
+
+[features]
+default = ["plugin"]
+plugin = ["allay-plugin"]

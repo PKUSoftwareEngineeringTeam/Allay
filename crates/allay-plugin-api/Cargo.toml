@@ -7,7 +7,5 @@ edition = "2024"
 plugin-macro = { path = "crates/plugin-macro" }
 allay-base = { path = "../allay-base" }
 wit-bindgen.workspace = true
-urlencoding.workspace = true
-axum = { version = "0.8", default-features = false }
+axum.workspace = true
 async-trait.workspace = true
-anyhow.workspace = true
