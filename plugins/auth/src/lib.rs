@@ -39,9 +39,9 @@ impl Plugin for AuthPlugin {
     where
         Self: Sized,
     {
-        let database_url = "sqlite:auth.db";
+        let db_url = "sqlite:auth.db";
         AuthPlugin {
-            router: AuthRouter::new(database_url),
+            router: AuthRouter::new(db_url),
         }
     }
 

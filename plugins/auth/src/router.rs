@@ -1,23 +1,20 @@
 //! Authentication plugin for user registration and login
 use crate::AuthError;
-use crate::model::NewUser;
-use crate::model::User;
+use crate::model::{NewUser, Session, User};
 use crate::schema::*;
 use crate::verify;
-use allay_plugin_api::route::TryRouteComponent;
-use allay_plugin_api::route::unimplemented_response;
+use allay_plugin_api::route::{TryRouteComponent, unimplemented_response};
 use axum::Json;
 use axum::body::to_bytes;
 use axum::extract::Request;
-use axum::http::Method;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
+use chrono::{Duration, NaiveDateTime, Utc};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path;
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::{fs, path};
+use uuid::Uuid;
 
 /// User data for registration
 #[derive(Debug, Deserialize)]
@@ -43,6 +40,16 @@ struct AuthResponse {
     pub token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<i32>,
+}
+
+/// Response structure for user profile
+#[derive(Debug, Serialize)]
+struct ProfileResponse {
+    pub id: i32,
+    pub username: String,
+    pub email: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
 }
 
 impl IntoResponse for AuthError {
@@ -85,14 +92,16 @@ pub struct AuthRouter {
 }
 
 impl AuthRouter {
-    pub fn new(database_url: &str) -> Self {
+    pub fn new(db_url: &str) -> Self {
         AuthRouter {
-            db_url: database_url.to_string(),
+            db_url: db_url.to_string(),
         }
     }
 }
 
 impl AuthRouter {
+    const TOKEN_EXPIRY: Duration = Duration::hours(24);
+
     fn create_conn(&self) -> SqliteConnection {
         const EMPTY_DATABASE: &[u8] = include_bytes!("../db/dev.db");
 
@@ -104,6 +113,49 @@ impl AuthRouter {
             .unwrap_or_else(|_| panic!("Error connecting to {}", &self.db_url))
     }
 
+    fn create_session(&self, user_id: i32) -> AuthResult<String> {
+        let token = Uuid::new_v4().to_string();
+        let expires_at = Utc::now() + Self::TOKEN_EXPIRY;
+
+        let session = Session {
+            token,
+            user_id,
+            expires_at: expires_at.to_rfc3339(),
+            created_at: None,
+        };
+
+        diesel::insert_into(sessions::table)
+            .values(&session)
+            .execute(&mut self.create_conn())
+            .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+
+        Ok(session.token)
+    }
+
+    fn valid_session(&self, user_token: &str) -> AuthResult<User> {
+        use crate::schema::sessions::dsl::*;
+        use crate::schema::users::dsl::*;
+
+        let conn = &mut self.create_conn();
+
+        let session = sessions
+            .filter(token.eq(user_token))
+            .first::<Session>(conn)
+            .map_err(|_| AuthError::InvalidToken)?;
+
+        let expiry = chrono::DateTime::parse_from_rfc3339(&session.expires_at)
+            .map_err(|_| AuthError::InvalidToken)?;
+
+        if Utc::now() >= expiry.with_timezone(&Utc) {
+            return Err(AuthError::InvalidToken);
+        }
+
+        users
+            .filter(id.eq(session.user_id))
+            .first::<User>(conn)
+            .map_err(|_| AuthError::InvalidToken)
+    }
+
     fn handle_register(&self, request: RegisterRequest) -> AuthResult<Json<AuthResponse>> {
         let user = NewUser {
             username: &request.username,
@@ -111,19 +163,74 @@ impl AuthRouter {
             password_hash: &verify::hash_password(&request.password)?,
         };
 
-        let user = diesel::insert_into(user::table)
+        let user = diesel::insert_into(users::table)
             .values(&user)
             .returning(User::as_returning())
             .get_result(&mut self.create_conn())
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
 
+        let token = self.create_session(user.id)?;
+
         let response = AuthResponse {
             success: true,
             message: "User registered successfully".to_string(),
-            token: None,
+            token: Some(token),
             user_id: Some(user.id),
         };
 
+        Ok(Json(response))
+    }
+
+    fn handle_login(&self, request: LoginRequest) -> AuthResult<Json<AuthResponse>> {
+        use crate::schema::users::dsl::*;
+
+        let user = users
+            .filter(username.eq(&request.username))
+            .first::<User>(&mut self.create_conn())
+            .map_err(|_| AuthError::InvalidCredentials)?;
+
+        if verify::verify_password(&request.password, &user.password_hash)? {
+            let response = AuthResponse {
+                success: true,
+                message: "Login successful".to_string(),
+                token: None, // Token generation can be added here
+                user_id: Some(user.id),
+            };
+
+            Ok(Json(response))
+        } else {
+            Err(AuthError::InvalidCredentials)
+        }
+    }
+
+    fn handle_logout(&self, headers: HeaderMap) -> AuthResult<Json<AuthResponse>> {
+        use crate::schema::sessions::dsl::*;
+
+        let user_token = verify::extract_token_from_headers(headers)?;
+
+        diesel::delete(sessions.filter(token.eq(&user_token)))
+            .execute(&mut self.create_conn())
+            .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+
+        let response = AuthResponse {
+            success: true,
+            message: "Logout successful".to_string(),
+            token: None,
+            user_id: None,
+        };
+
+        Ok(Json(response))
+    }
+
+    fn handle_profile(&self, headers: HeaderMap) -> AuthResult<Json<ProfileResponse>> {
+        let token = verify::extract_token_from_headers(headers);
+        let user = self.valid_session(&token?)?;
+        let response = ProfileResponse {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            created_at: user.created_at.as_ref().map(NaiveDateTime::to_string),
+        };
         Ok(Json(response))
     }
 }
@@ -139,17 +246,17 @@ impl TryRouteComponent for AuthRouter {
                 self.handle_register(deserialize_body(request).await?).into_response()
             }
 
-            // ("/api/auth/login", &Method::POST) => {
-            //     self.handle_login(deserialize_body(request).await?).await.into_response()
-            // }
+            ("/api/auth/login", &Method::POST) => {
+                self.handle_login(deserialize_body(request).await?).into_response()
+            }
 
-            // ("/api/auth/logout", &Method::POST) => {
-            //     self.handle_logout(request.headers().clone()).await.into_response()
-            // }
+            ("/api/auth/logout", &Method::POST) => {
+                self.handle_logout(request.headers().clone()).into_response()
+            }
 
-            // ("/api/auth/profile", &Method::GET) => {
-            //     self.handle_profile(request.headers().clone()).await.into_response()
-            // }
+            ("/api/auth/profile", &Method::GET) => {
+                self.handle_profile(request.headers().clone()).into_response()
+            }
             _ => unimplemented_response(),
         };
 

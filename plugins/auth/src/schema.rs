@@ -3,14 +3,14 @@
 diesel::table! {
     sessions (token) {
         token -> Text,
-        user_id -> Text,
+        user_id -> Integer,
         expires_at -> Text,
         created_at -> Nullable<Timestamp>,
     }
 }
 
 diesel::table! {
-    user (id) {
+    users (id) {
         id -> Integer,
         username -> Text,
         email -> Text,
@@ -19,4 +19,6 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(sessions, user,);
+diesel::joinable!(sessions -> users (user_id));
+
+diesel::allow_tables_to_appear_in_same_query!(sessions, users,);
