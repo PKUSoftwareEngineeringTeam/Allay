@@ -19,9 +19,9 @@ impl PluginManager {
     }
 
     pub fn register_plugin(&self, wasm_path: impl AsRef<Path>) -> anyhow::Result<()> {
-        let mut host = PluginHost::new(wasm_path)?;
+        let host = PluginHost::new(wasm_path)?;
         let name = host.plugin_name()?;
-        let mut plugins = self.plugins.write().unwrap();
+        let mut plugins = self.plugins.write().expect("Failed to acquire write lock on plugins");
 
         plugins.insert(name, Arc::new(host));
         Ok(())
