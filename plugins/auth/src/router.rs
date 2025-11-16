@@ -210,16 +210,13 @@ impl AuthRouter {
         let user_token = verify::extract_token_from_headers(headers)?;
         let user = self.valid_session(&user_token)?;
 
-        let deleted = diesel::delete(
-            sessions
-                .filter(token.eq(&user_token))
-                .filter(user_id.eq(user.id))
-        )
-        .execute(&mut self.create_conn())
-        .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+        let deleted =
+            diesel::delete(sessions.filter(token.eq(&user_token)).filter(user_id.eq(user.id)))
+                .execute(&mut self.create_conn())
+                .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
 
         if deleted == 0 {
-            return Err(AuthError::InvalidSession);
+            return Err(AuthError::InvalidToken);
         }
 
         let response = AuthResponse {
