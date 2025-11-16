@@ -207,16 +207,25 @@ impl AuthRouter {
         use crate::schema::sessions::dsl::*;
 
         let user_token = verify::extract_token_from_headers(headers)?;
+        let user = self.valid_session(&user_token)?;
 
-        diesel::delete(sessions.filter(token.eq(&user_token)))
-            .execute(&mut self.create_conn())
-            .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+        let deleted = diesel::delete(
+            sessions
+                .filter(token.eq(&user_token))
+                .filter(user_id.eq(user.id))
+        )
+        .execute(&mut self.create_conn())
+        .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+
+        if deleted == 0 {
+            return Err(AuthError::InvalidSession);
+        }
 
         let response = AuthResponse {
             success: true,
             message: "Logout successful".to_string(),
             token: None,
-            user_id: None,
+            user_id: Some(user.id),
         };
 
         Ok(Json(response))
