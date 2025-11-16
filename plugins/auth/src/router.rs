@@ -190,10 +190,11 @@ impl AuthRouter {
             .map_err(|_| AuthError::InvalidCredentials)?;
 
         if verify::verify_password(&request.password, &user.password_hash)? {
+            let token = self.create_session(user.id)?;
             let response = AuthResponse {
                 success: true,
                 message: "Login successful".to_string(),
-                token: None, // Token generation can be added here
+                token: Some(token),
                 user_id: Some(user.id),
             };
 
