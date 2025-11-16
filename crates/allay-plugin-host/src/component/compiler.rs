@@ -1,6 +1,7 @@
 use super::wit::compiler::FileType;
 use crate::PluginHost;
 use allay_base::template::TemplateKind;
+use wasmtime::AsContextMut;
 
 impl From<TemplateKind> for FileType {
     fn from(value: TemplateKind) -> Self {
@@ -13,17 +14,19 @@ impl From<TemplateKind> for FileType {
 }
 
 impl PluginHost {
-    pub fn before_compile(&mut self, source: String, ty: TemplateKind) -> String {
+    pub fn before_compile(&self, source: String, ty: TemplateKind) -> String {
+        let mut store = self.store.blocking_lock();
         self.plugin
             .allay_plugin_compiler()
-            .call_before_compile(&mut self.store, &source, ty.into())
+            .call_before_compile(store.as_context_mut(), &source, ty.into())
             .unwrap_or(source)
     }
 
-    pub fn after_compile(&mut self, compiled: String, ty: TemplateKind) -> String {
+    pub fn after_compile(&self, compiled: String, ty: TemplateKind) -> String {
+        let mut store = self.store.blocking_lock();
         self.plugin
             .allay_plugin_compiler()
-            .call_after_compile(&mut self.store, &compiled, ty.into())
+            .call_after_compile(store.as_context_mut(), &compiled, ty.into())
             .unwrap_or(compiled)
     }
 }

@@ -16,6 +16,11 @@ pub trait RouteComponent: Sync + Send {
     async fn handle(&self, _request: Request) -> Response {
         unimplemented_response()
     }
+
+    /// Get the path of the route.
+    fn route_path(&self) -> Vec<(route::Method, String)> {
+        Vec::new()
+    }
 }
 
 /// A helpers trait for RouteComponent that allows returning errors.
@@ -61,6 +66,9 @@ impl From<route::Method> for Method {
 impl route::Guest for PluginGuest {
     async fn handle(request: route::Request) -> route::Response {
         plugin().route_component().handle(request.into()).await.async_into().await
+    }
+    fn route_paths() -> Vec<(route::Method, String)> {
+        plugin().route_component().route_path()
     }
 }
 
