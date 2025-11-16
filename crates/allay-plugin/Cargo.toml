@@ -12,7 +12,3 @@ axum.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
 anymap.workspace = true
-bcrypt.workspace = true
-chrono.workspace = true
-sqlx.workspace = true
-uuid.workspace = true

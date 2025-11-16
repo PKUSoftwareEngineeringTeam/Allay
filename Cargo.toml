@@ -9,6 +9,7 @@ members = [
     "crates/allay-plugin",
     "crates/allay-plugin-api",
     "crates/allay-plugin-host",
+    "plugins/auth"
 ]
 
 [workspace.dependencies]
@@ -38,7 +39,7 @@ pulldown-cmark = "0.13"
 pest = "2.8"
 pest_derive = "2.8"
 regex = "1.12"
-wit-bindgen = "0.47"
+wit-bindgen = "0.48"
 wasmtime = { version = "38.0", features = [
     "runtime",
     "async",
@@ -47,8 +48,4 @@ wasmtime = { version = "38.0", features = [
 wasmtime-wasi = "38.0"
 urlencoding = "2.1"
 anymap = "0.12"
-bcrypt = "0.17"
-chrono = "0.4"
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"] }
-uuid = { version = "1.18", features = ["v4"] }
 mime_guess = "2.0"
