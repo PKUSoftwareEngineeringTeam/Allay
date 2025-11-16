@@ -19,8 +19,8 @@ pub fn extract_token_from_headers(headers: HeaderMap) -> Result<String, AuthErro
         .to_str()
         .map_err(|_| AuthError::InvalidToken)?;
 
-    if auth_header.starts_with("Bearer ") {
-        Ok(auth_header.trim_start_matches("Bearer ").to_string())
+    if auth_header.len() >= 7 && auth_header[..7].eq_ignore_ascii_case("Bearer ") {
+        Ok(auth_header[7..].to_string())
     } else {
         Err(AuthError::InvalidToken)
     }
