@@ -83,7 +83,9 @@ pub type AuthResult<T> = std::result::Result<T, AuthError>;
 
 /// Deserializes the request body into the specified type
 async fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
-    let bytes = to_bytes(request.into_body(), usize::MAX).await.unwrap_or_default();
+    let bytes = to_bytes(request.into_body(), usize::MAX)
+        .await
+        .map_err(|_| AuthError::InvalidPayload)?;
     serde_json::from_slice(&bytes).map_err(|_| AuthError::InvalidPayload)
 }
 
