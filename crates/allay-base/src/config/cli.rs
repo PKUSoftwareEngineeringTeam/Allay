@@ -44,10 +44,17 @@ pub enum CLICommand {
 pub struct NewArgs {
     /// Directory to create the new site in
     pub dir: String,
+    /// Skip cloning the default theme
+    #[arg(long, default_value_t = false)]
+    pub skip_theme: bool,
 }
 
 #[derive(Args, Debug)]
-pub struct InitArgs {}
+pub struct InitArgs {
+    /// Skip cloning the default theme
+    #[arg(long, default_value_t = false)]
+    pub skip_theme: bool,
+}
 
 #[derive(Args, Debug)]
 pub struct BuildArgs {}

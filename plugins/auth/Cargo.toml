@@ -1,0 +1,17 @@
+[package]
+name = "plugin-auth"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8.6", default-features = false, features = ["json"] }
+serde = "1.0"
+tokio = { version = "1.48", default-features = false, features = ["sync"] }
+allay-plugin-api = { path = "../../crates/allay-plugin-api" }
+uuid = { version = "1.18", features = ["v4"] }
+bcrypt = "0.17"
+async-trait = "0.1"
+chrono = "0.4"
+serde_json = "1.0"
+libsqlite3-sys = { version = "0.35", features = ["bundled"] }
+diesel = { version = "2.3", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "chrono"] }

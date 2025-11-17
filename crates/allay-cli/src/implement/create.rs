@@ -5,13 +5,16 @@ use std::path::Path;
 use tracing::{info, instrument};
 
 /// CLI Init Command
-pub fn init(_args: &InitArgs) -> anyhow::Result<()> {
-    new(&NewArgs { dir: ".".into() })
+pub fn init(args: &InitArgs) -> anyhow::Result<()> {
+    new(&NewArgs {
+        dir: ".".into(),
+        skip_theme: args.skip_theme,
+    })
 }
 
 /// CLI New Command
-#[instrument(name = "initializing the site", skip(_args))]
-pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
+#[instrument(name = "initializing the site", skip(args))]
+pub fn new(args: &NewArgs) -> anyhow::Result<()> {
     file::create_dir_recursively(file::root())?;
     let config = get_allay_config();
 
@@ -28,7 +31,7 @@ pub fn new(_args: &NewArgs) -> anyhow::Result<()> {
 
     file::write_file(file::workspace(SITE_CONFIG_FILE), DEFAULT_SITE_CONFIG)?;
 
-    if !config.theme.default.repository.is_empty() {
+    if !args.skip_theme && !config.theme.default.repository.is_empty() {
         ask_to_clone_default_theme()?;
     }
 
