@@ -79,7 +79,7 @@ impl IntoResponse for AuthError {
     }
 }
 
-pub type AuthResult<T> = std::result::Result<T, AuthError>;
+pub type AuthResult<T> = Result<T, AuthError>;
 
 /// Deserializes the request body into the specified type
 async fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
