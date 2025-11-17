@@ -21,12 +21,21 @@ pub struct NewUser<'a> {
     pub password_hash: &'a str,
 }
 
-#[derive(Queryable, Selectable, Insertable)]
+#[derive(Queryable, Selectable)]
 #[diesel(table_name = schema::sessions)]
 #[diesel(check_for_backend(Sqlite))]
+#[allow(dead_code)]
 pub struct Session {
     pub token: String,
     pub user_id: i32,
-    pub expires_at: String,
-    pub created_at: Option<String>,
+    pub expires_at: chrono::NaiveDateTime,
+    pub created_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = schema::sessions)]
+pub struct NewSession<'a> {
+    pub token: &'a str,
+    pub user_id: i32,
+    pub expires_at: chrono::NaiveDateTime,
 }

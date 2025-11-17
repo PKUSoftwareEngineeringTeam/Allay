@@ -4,7 +4,7 @@ diesel::table! {
     sessions (token) {
         token -> Text,
         user_id -> Integer,
-        expires_at -> Text,
+        expires_at -> Timestamp,
         created_at -> Nullable<Timestamp>,
     }
 }

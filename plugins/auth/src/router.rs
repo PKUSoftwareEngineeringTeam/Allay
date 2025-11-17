@@ -1,6 +1,6 @@
 //! Authentication plugin for user registration and login
 use crate::AuthError;
-use crate::model::{NewUser, Session, User};
+use crate::model::{NewSession, NewUser, Session, User};
 use crate::schema::*;
 use crate::verify;
 use allay_plugin_api::route::{TryRouteComponent, unimplemented_response};
@@ -119,11 +119,10 @@ impl AuthRouter {
         let token = Uuid::new_v4().to_string();
         let expires_at = Utc::now() + Self::TOKEN_EXPIRY;
 
-        let session = Session {
-            token,
+        let session = NewSession {
+            token: &token,
             user_id,
-            expires_at: expires_at.to_rfc3339(),
-            created_at: None,
+            expires_at: expires_at.naive_utc(),
         };
 
         diesel::insert_into(sessions::table)
@@ -131,7 +130,7 @@ impl AuthRouter {
             .execute(&mut self.create_conn())
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
 
-        Ok(session.token)
+        Ok(token)
     }
 
     fn valid_session(&self, user_token: &str) -> AuthResult<User> {
@@ -145,10 +144,7 @@ impl AuthRouter {
             .first::<Session>(conn)
             .map_err(|_| AuthError::InvalidToken)?;
 
-        let expiry = chrono::DateTime::parse_from_rfc3339(&session.expires_at)
-            .map_err(|_| AuthError::InvalidToken)?;
-
-        if Utc::now() >= expiry.with_timezone(&Utc) {
+        if session.expires_at < Utc::now().naive_utc() {
             return Err(AuthError::InvalidToken);
         }
 
