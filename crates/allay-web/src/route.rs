@@ -157,7 +157,7 @@ fn register_custom_route(router: Router, plugin: Plugin) -> Router {
     if let Ok(route_path) = plugin.route_path() {
         route_path.into_iter().fold(router, |router, (method, path)| {
             let plugin = plugin.clone();
-            let handler = async move |req| plugin.handle_request(req).await.unwrap();
+            let handler = async move |req| plugin.handle_request(req).unwrap();
             match method {
                 Method::GET => router.route(&path, get(handler)),
                 Method::POST => router.route(&path, post(handler)),

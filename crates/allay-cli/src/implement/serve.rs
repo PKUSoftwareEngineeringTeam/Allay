@@ -11,6 +11,13 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     println!("Starting the site server at {}", url);
     allay_publish::start();
 
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "plugin")] {
+            allay_plugin::load_plugins();
+            println!("Plugins loaded");
+        }
+    }
+
     if args.open {
         webbrowser::open(&url).unwrap_or_else(|_| println!("Failed to open the browser"));
     }

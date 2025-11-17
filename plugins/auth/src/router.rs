@@ -14,6 +14,7 @@ use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{fs, path};
+use tokio::runtime;
 use uuid::Uuid;
 
 /// User data for registration
@@ -82,9 +83,10 @@ impl IntoResponse for AuthError {
 pub type AuthResult<T> = Result<T, AuthError>;
 
 /// Deserializes the request body into the specified type
-async fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
-    let bytes = to_bytes(request.into_body(), usize::MAX)
-        .await
+fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
+    let runtime = runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    let bytes = runtime
+        .block_on(to_bytes(request.into_body(), usize::MAX))
         .map_err(|_| AuthError::InvalidPayload)?;
     serde_json::from_slice(&bytes).map_err(|_| AuthError::InvalidPayload)
 }
@@ -240,19 +242,18 @@ impl AuthRouter {
     }
 }
 
-#[async_trait::async_trait]
 impl TryRouteComponent for AuthRouter {
     type Error = AuthError;
 
-    async fn try_handle(&self, request: Request) -> Result<Response, AuthError> {
+    fn try_handle(&self, request: Request) -> Result<Response, AuthError> {
         // match request path and method
         let response = match (request.uri().path(), request.method()) {
             ("/api/auth/register", &Method::POST) => {
-                self.handle_register(deserialize_body(request).await?).into_response()
+                self.handle_register(deserialize_body(request)?).into_response()
             }
 
             ("/api/auth/login", &Method::POST) => {
-                self.handle_login(deserialize_body(request).await?).into_response()
+                self.handle_login(deserialize_body(request)?).into_response()
             }
 
             ("/api/auth/logout", &Method::POST) => {

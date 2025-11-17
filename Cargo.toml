@@ -1,22 +1,14 @@
 [workspace]
 resolver = "3"
-members = [
-    "crates/allay-web",
-    "crates/allay-cli",
-    "crates/allay-compiler",
-    "crates/allay-base",
-    "crates/allay-publish",
-    "crates/allay-plugin",
-    "crates/allay-plugin-api",
-    "crates/allay-plugin-host",
-    "plugins/auth"
-]
+members = ["crates/*", "plugins/*"]
 
 [workspace.dependencies]
+axum = { version = "0.8", default-features = false }
+tokio = { version = "1.48", default-features = false, features = ["rt"]}
+tokio-util = { version = "0.7", features = ["io"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-axum = "0.8"
 thiserror = "2.0"
 toml = "0.9"
 anyhow = "1.0"
@@ -28,8 +20,6 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 itertools = "0.14"
-tokio = { version = "1.48", features = ["net", "fs", "sync"] }
-tokio-util = { version = "0.7", features = ["io"] }
 async-trait = "0.1"
 clap = { version = "4.5", features = ["derive", "env", "cargo"] }
 git2 = "0.20"
@@ -39,12 +29,8 @@ pulldown-cmark = "0.13"
 pest = "2.8"
 pest_derive = "2.8"
 regex = "1.12"
-wit-bindgen = "0.48"
-wasmtime = { version = "38.0", features = [
-    "runtime",
-    "async",
-    "component-model-async",
-] }
-wasmtime-wasi = "38.0"
+wit-bindgen = "0.47"
+wasmtime = { version = "38.0", features = ["runtime"] }
+wasmtime-wasi = { version = "38.0" }
 mime_guess = "2.0"
 cfg-if = "1.0"

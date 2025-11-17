@@ -2,7 +2,7 @@ use component::Plugin;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use wasmtime::component::{Component, Instance, Linker, ResourceTable};
+use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::{AsContextMut, Config, Engine, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
@@ -26,33 +26,22 @@ impl WasiView for PluginState {
 pub struct PluginHost {
     store: Arc<Mutex<Store<PluginState>>>,
     plugin: Arc<Plugin>,
-    instance: Instance,
 }
 
 impl PluginHost {
     pub fn new(wasm_path: impl AsRef<Path>) -> wasmtime::Result<Self> {
-        let mut config = Config::new();
-        config.wasm_component_model(true).async_support(true);
-
-        let engine = Engine::new(&config)?;
+        let engine = Engine::new(&Config::default())?;
         let component = Component::from_file(&engine, wasm_path)?;
         let mut store = Store::new(&engine, PluginState::default());
 
         let mut linker = Linker::new(&engine);
-        wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
+        wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
 
-        let instance = linker.instantiate(&mut store, &component)?;
-
-        let plugin = Plugin::new(&mut store, &instance)?;
-        plugin.call_init_plugin(&mut store)?;
+        let plugin = Plugin::instantiate(&mut store, &component, &linker)?;
         let plugin = Arc::new(plugin);
         let store = Arc::new(Mutex::new(store));
 
-        let host = Self {
-            store,
-            plugin,
-            instance,
-        };
+        let host = Self { store, plugin };
         Ok(host)
     }
 

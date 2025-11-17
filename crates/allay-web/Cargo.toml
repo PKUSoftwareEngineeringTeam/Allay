@@ -6,9 +6,9 @@ edition = "2024"
 [dependencies]
 allay-base = { path = "../allay-base" }
 allay-plugin = { path = "../allay-plugin", optional = true }
-tokio.workspace = true
+tokio = { workspace = true, default-features = true, features = ["fs", "net", "sync"] }
 tokio-util.workspace = true
-axum.workspace = true
+axum = { workspace = true, default-features = true }
 thiserror.workspace = true
 serde.workspace = true
 walkdir.workspace = true

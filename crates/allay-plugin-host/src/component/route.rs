@@ -1,10 +1,10 @@
 use super::wit::route;
 use crate::PluginHost;
-use allay_base::async_util::{AsyncFrom, AsyncInto};
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
+use tokio::runtime;
 use wasmtime::AsContextMut;
 
 impl From<route::Method> for Method {
@@ -18,9 +18,8 @@ impl From<route::Method> for Method {
     }
 }
 
-#[async_trait::async_trait]
-impl AsyncFrom<Request> for route::Request {
-    async fn async_from(request: Request) -> Self {
+impl From<Request> for route::Request {
+    fn from(request: Request) -> Self {
         let (parts, body) = request.into_parts();
 
         // Convert method
@@ -43,7 +42,8 @@ impl AsyncFrom<Request> for route::Request {
             }
         }
 
-        let body = to_bytes(body, usize::MAX).await.unwrap_or_default().to_vec();
+        let runtime = runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let body = runtime.block_on(to_bytes(body, usize::MAX)).unwrap_or_default().to_vec();
 
         route::Request {
             ty,
@@ -76,21 +76,12 @@ impl From<route::Response> for Response {
 }
 
 impl PluginHost {
-    pub async fn handle_request(&self, request: Request) -> wasmtime::Result<Response> {
-        let plugin = self.plugin.clone();
-        let mut store = self.store.lock().await;
-
-        let response = self
-            .instance
-            .run_concurrent(store.as_context_mut(), async move |accessor| {
-                plugin
-                    .allay_plugin_route()
-                    .call_handle(accessor, request.async_into().await)
-                    .await
-            })
-            .await??;
-
-        Ok(response.into())
+    pub fn handle_request(&self, request: Request) -> wasmtime::Result<Response> {
+        let mut store = self.store.blocking_lock();
+        self.plugin
+            .allay_plugin_route()
+            .call_handle(store.as_context_mut(), &request.into())
+            .map(Response::from)
     }
 
     pub fn route_path(&self) -> wasmtime::Result<Vec<(Method, String)>> {

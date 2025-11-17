@@ -1,19 +1,18 @@
 use super::PluginGuest;
 use super::wit::route;
 use crate::plugin;
-use allay_base::async_util::{AsyncFrom, AsyncInto};
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::{Method, StatusCode};
 use axum::response::{IntoResponse, Response};
+use tokio::runtime;
 
 /// Component trait for handling HTTP routes.
 /// See the default implementation in [`unimplemented_response`]
-#[async_trait::async_trait]
 pub trait RouteComponent: Sync + Send {
     /// Handle an incoming HTTP request and return a response.
     /// Both defined by crate [`axum`].
-    async fn handle(&self, _request: Request) -> Response {
+    fn handle(&self, _request: Request) -> Response {
         unimplemented_response()
     }
 
@@ -26,20 +25,18 @@ pub trait RouteComponent: Sync + Send {
 /// A helpers trait for RouteComponent that allows returning errors.
 ///
 /// Note: The trait is automatically implemented for [`RouteComponent`]
-#[async_trait::async_trait]
 pub trait TryRouteComponent: Sync + Send + RouteComponent {
     /// Error type for the route handler
     type Error: IntoResponse;
 
-    async fn try_handle(&self, _request: Request) -> Result<Response, Self::Error> {
+    fn try_handle(&self, _request: Request) -> Result<Response, Self::Error> {
         Ok(unimplemented_response())
     }
 }
 
-#[async_trait::async_trait]
 impl<T: TryRouteComponent> RouteComponent for T {
-    async fn handle(&self, request: Request) -> Response {
-        self.try_handle(request).await.into_response()
+    fn handle(&self, request: Request) -> Response {
+        self.try_handle(request).into_response()
     }
 }
 
@@ -64,8 +61,8 @@ impl From<route::Method> for Method {
 }
 
 impl route::Guest for PluginGuest {
-    async fn handle(request: route::Request) -> route::Response {
-        plugin().route_component().handle(request.into()).await.async_into().await
+    fn handle(request: route::Request) -> route::Response {
+        plugin().route_component().handle(request.into()).into()
     }
     fn route_paths() -> Vec<(route::Method, String)> {
         plugin().route_component().route_path()
@@ -90,9 +87,8 @@ impl From<route::Request> for Request {
     }
 }
 
-#[async_trait::async_trait]
-impl AsyncFrom<Response> for route::Response {
-    async fn async_from(response: Response) -> route::Response {
+impl From<Response> for route::Response {
+    fn from(response: Response) -> route::Response {
         // Extract status code
         let status_code = response.status().as_u16();
 
@@ -103,8 +99,12 @@ impl AsyncFrom<Response> for route::Response {
             headers.push((name.as_str().into(), value.as_bytes().into()));
         }
 
-        // Extract body
-        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap_or_default().to_vec();
+        // Extract body4
+        let runtime = runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let body = runtime
+            .block_on(to_bytes(response.into_body(), usize::MAX))
+            .unwrap_or_default()
+            .to_vec();
 
         route::Response {
             status_code,
