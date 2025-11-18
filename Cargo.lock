@@ -47,6 +47,7 @@ dependencies = [
  "cfg-if",
  "dialoguer",
  "git2",
+ "tokio",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",

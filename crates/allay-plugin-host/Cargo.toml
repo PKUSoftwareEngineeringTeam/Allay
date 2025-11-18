@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+allay-base.workspace = true
 wasmtime.workspace = true
 wasmtime-wasi.workspace = true
-allay-base = { path = "../allay-base" }
 axum.workspace = true

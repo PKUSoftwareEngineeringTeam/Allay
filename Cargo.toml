@@ -3,6 +3,15 @@ resolver = "3"
 members = ["crates/*", "plugins/*"]
 
 [workspace.dependencies]
+
+# workspace member crates
+allay-base = { path = "crates/allay-base" }
+allay-plugin-host = { path = "crates/allay-plugin-host" }
+allay-compiler = { path = "crates/allay-compiler", default-features = false }
+allay-publish = { path = "crates/allay-publish", default-features = false }
+allay-web = { path = "crates/allay-web", default-features = false }
+allay-plugin = { path = "crates/allay-plugin" }
+
 axum = { version = "0.8", default-features = false }
 tokio = { version = "1.48", default-features = false, features = ["rt"] }
 tokio-util = { version = "0.7", features = ["io"] }

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-allay-base = { path = "../allay-base" }
-allay-plugin-host = { path = "../allay-plugin-host" }
+allay-base.workspace = true
+allay-plugin-host.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
