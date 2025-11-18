@@ -1,3 +1,5 @@
+#[cfg(feature = "plugin")]
+use crate::plugin_worker::PluginWorker;
 use allay_base::config::get_allay_config;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
@@ -18,6 +20,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{self, PathBuf};
 use std::sync::Arc;
+#[cfg(feature = "plugin")]
+use std::sync::LazyLock;
 use std::time::UNIX_EPOCH;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
@@ -154,6 +158,12 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
 }
 
 #[cfg(feature = "plugin")]
+fn plugin_worker() -> &'static PluginWorker {
+    static PLUGIN_WORKER: LazyLock<PluginWorker> = LazyLock::new(|| PluginWorker::new(2));
+    &PLUGIN_WORKER
+}
+
+#[cfg(feature = "plugin")]
 fn register_custom_route(router: Router, plugin: Plugin) -> Router {
     let mut plugin_host = plugin.lock().expect("poisoned lock");
     let route_paths = plugin_host.route_paths();
@@ -164,8 +174,7 @@ fn register_custom_route(router: Router, plugin: Plugin) -> Router {
             let plugin = plugin.clone();
             let handler = async move |req| -> Response {
                 let req = allay_plugin::types::Request::from_axum(req).await;
-                let mut plugin = plugin.lock().expect("poisoned lock");
-                plugin.handle_request(req).unwrap().into()
+                plugin_worker().handle_request(plugin, req).into()
             };
             match method {
                 Method::GET => router.route(&path, get(handler)),
