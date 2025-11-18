@@ -249,7 +249,7 @@ impl AuthRouter {
                 self.handle_logout(request.headers()).into_response()
             }
 
-            ("/api/auth/profile", &Method::Post) => {
+            ("/api/auth/profile", &Method::Get) => {
                 self.handle_profile(request.headers()).into_response()
             }
             _ => unimplemented_response(),
@@ -269,7 +269,7 @@ impl RouteComponent for AuthRouter {
             (Method::Post, "/api/auth/register".to_string()),
             (Method::Post, "/api/auth/login".to_string()),
             (Method::Post, "/api/auth/logout".to_string()),
-            (Method::Post, "/api/auth/profile".to_string()),
+            (Method::Get, "/api/auth/profile".to_string()),
         ]
     }
 }

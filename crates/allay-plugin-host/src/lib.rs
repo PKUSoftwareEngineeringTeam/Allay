@@ -1,4 +1,5 @@
 use component::Plugin;
+pub use component::wit::route::{Header, Method, Request, Response};
 use std::path::Path;
 use std::sync::Arc;
 use wasmtime::component::{Component, Linker, ResourceTable};
@@ -6,8 +7,6 @@ use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxView, WasiView};
 
 mod component;
-
-pub use component::wit::route::{Header, Method, Request, Response};
 
 #[derive(Default)]
 struct PluginState {
