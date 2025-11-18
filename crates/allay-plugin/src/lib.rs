@@ -1,8 +1,10 @@
 pub mod config;
 pub mod manager;
+pub mod types;
 
 use allay_base::{config::get_allay_config, file};
 pub use manager::PluginManager;
+use std::path::Path;
 use tracing::{info, warn};
 
 pub fn load_plugins() {
@@ -21,7 +23,7 @@ pub fn load_plugins() {
                 if let Some(ext) = path.extension()
                     && ext == "wasm"
                 {
-                    match manager.register_plugin(&path) {
+                    match manager.register_plugin(&path, Path::new(dir)) {
                         Ok(()) => info!("Registered plugin from {}", path.to_string_lossy()),
                         Err(e) => warn!(
                             "Failed to register plugin from {}: {}",

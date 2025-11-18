@@ -10,9 +10,7 @@ authors = ["Leo Dreamer <leodreamer2004@gmail.com>"]
 crate-type = ["cdylib"]
 
 [dependencies]
-axum = { version = "0.8.6", default-features = false, features = ["json"] }
 serde = "1.0"
-tokio = { version = "1.48", default-features = false, features = ["sync"] }
 allay-plugin-api = { path = "../../crates/allay-plugin-api" }
 uuid = { version = "1.18", features = ["v4"] }
 bcrypt = "0.17"

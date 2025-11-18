@@ -85,7 +85,8 @@ dependencies = [
  "allay-base",
  "axum",
  "plugin-macro",
- "tokio",
+ "serde",
+ "serde_json",
  "wit-bindgen 0.47.0",
 ]
 
@@ -94,9 +95,7 @@ name = "allay-plugin-host"
 version = "0.1.0"
 dependencies = [
  "allay-base",
- "async-trait",
  "axum",
- "tokio",
  "wasmtime",
  "wasmtime-wasi",
 ]
@@ -2023,14 +2022,12 @@ name = "plugin-auth"
 version = "0.1.0"
 dependencies = [
  "allay-plugin-api",
- "axum",
  "bcrypt",
  "chrono",
  "diesel",
  "libsqlite3-sys",
  "serde",
  "serde_json",
- "tokio",
  "uuid",
 ]
 

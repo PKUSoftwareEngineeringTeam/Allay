@@ -1,5 +1,7 @@
 use allay_base::config::{ServeArgs, get_allay_config};
 use allay_base::file;
+#[cfg(feature = "plugin")]
+use allay_plugin::PluginManager;
 use allay_web::server::Server;
 use tracing::instrument;
 
@@ -14,7 +16,10 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "plugin")] {
             allay_plugin::load_plugins();
-            println!("Plugins loaded");
+            let plugin_names = PluginManager::instance().plugin_names();
+            if !plugin_names.is_empty() {
+                println!("Loaded plugins: {}", plugin_names.join(", "));
+            }
         }
     }
 

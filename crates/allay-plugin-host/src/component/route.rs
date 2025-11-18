@@ -4,8 +4,6 @@ use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
-use tokio::runtime;
-use wasmtime::AsContextMut;
 
 impl From<route::Method> for Method {
     fn from(method: route::Method) -> Self {
@@ -18,8 +16,8 @@ impl From<route::Method> for Method {
     }
 }
 
-impl From<Request> for route::Request {
-    fn from(request: Request) -> Self {
+impl route::Request {
+    pub async fn from_axum(request: Request) -> Self {
         let (parts, body) = request.into_parts();
 
         // Convert method
@@ -42,8 +40,7 @@ impl From<Request> for route::Request {
             }
         }
 
-        let runtime = runtime::Builder::new_current_thread().enable_all().build().unwrap();
-        let body = runtime.block_on(to_bytes(body, usize::MAX)).unwrap_or_default().to_vec();
+        let body = to_bytes(body, usize::MAX).await.unwrap_or_default().to_vec();
 
         route::Request {
             ty,
@@ -76,20 +73,15 @@ impl From<route::Response> for Response {
 }
 
 impl PluginHost {
-    pub fn handle_request(&self, request: Request) -> wasmtime::Result<Response> {
-        let mut store = self.store.blocking_lock();
-        self.plugin
-            .allay_plugin_route()
-            .call_handle(store.as_context_mut(), &request.into())
-            .map(Response::from)
+    pub fn handle_request(&mut self, request: route::Request) -> wasmtime::Result<route::Response> {
+        self.plugin.allay_plugin_route().call_handle(&mut self.store, &request)
     }
 
-    pub fn route_path(&self) -> wasmtime::Result<Vec<(Method, String)>> {
-        let mut store = self.store.blocking_lock();
+    pub fn route_paths(&mut self) -> wasmtime::Result<Vec<(Method, String)>> {
         let path = self
             .plugin
             .allay_plugin_route()
-            .call_route_paths(store.as_context_mut())?
+            .call_route_paths(&mut self.store)?
             .into_iter()
             .map(|(method, path)| (method.into(), path))
             .collect();

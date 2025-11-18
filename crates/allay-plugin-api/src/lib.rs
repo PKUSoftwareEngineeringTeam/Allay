@@ -1,6 +1,7 @@
 //! APIs for Allay Plugins.
 
 mod component;
+pub mod http;
 
 pub use component::*;
 use std::sync::OnceLock;

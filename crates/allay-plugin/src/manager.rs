@@ -1,9 +1,9 @@
 use allay_plugin_host::PluginHost;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 
-pub type Plugin = Arc<PluginHost>;
+pub type Plugin = Arc<Mutex<PluginHost>>;
 
 /// Manager for plugins.
 /// Handles registration and retrieval of plugins
@@ -18,12 +18,12 @@ impl PluginManager {
         INSTANCE.get_or_init(PluginManager::default)
     }
 
-    pub fn register_plugin(&self, wasm_path: impl AsRef<Path>) -> anyhow::Result<()> {
-        let host = PluginHost::new(wasm_path)?;
+    pub fn register_plugin(&self, wasm_path: &Path, working_dir: &Path) -> anyhow::Result<()> {
+        let mut host = PluginHost::new(wasm_path, working_dir)?;
         let name = host.plugin_name()?;
         let mut plugins = self.plugins.write().expect("Failed to acquire write lock on plugins");
 
-        plugins.insert(name, Arc::new(host));
+        plugins.insert(name, Arc::new(Mutex::new(host)));
         Ok(())
     }
 
@@ -35,5 +35,10 @@ impl PluginManager {
     pub fn plugins(&self) -> Vec<Plugin> {
         let plugins = self.plugins.read().unwrap();
         plugins.values().cloned().collect()
+    }
+
+    pub fn plugin_names(&self) -> Vec<String> {
+        let plugins = self.plugins.read().unwrap();
+        plugins.keys().cloned().collect()
     }
 }

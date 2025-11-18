@@ -5,6 +5,8 @@ mod router;
 mod schema;
 mod verify;
 
+extern crate libsqlite3_sys;
+
 /// Authentication error types
 #[derive(Debug)]
 pub enum AuthError {
@@ -39,7 +41,7 @@ impl Plugin for AuthPlugin {
     where
         Self: Sized,
     {
-        let db_url = "sqlite:auth.db";
+        let db_url = "auth.db";
         AuthPlugin {
             router: AuthRouter::new(db_url),
         }

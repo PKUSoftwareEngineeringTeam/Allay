@@ -4,7 +4,7 @@ members = ["crates/*", "plugins/*"]
 
 [workspace.dependencies]
 axum = { version = "0.8", default-features = false }
-tokio = { version = "1.48", default-features = false, features = ["rt"]}
+tokio = { version = "1.48", default-features = false, features = ["rt"] }
 tokio-util = { version = "0.7", features = ["io"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -30,7 +30,7 @@ pest = "2.8"
 pest_derive = "2.8"
 regex = "1.12"
 wit-bindgen = "0.47"
-wasmtime = { version = "38.0", features = ["runtime"] }
-wasmtime-wasi = { version = "38.0" }
+wasmtime = "38.0"
+wasmtime-wasi = "38.0"
 mime_guess = "2.0"
 cfg-if = "1.0"

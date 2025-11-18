@@ -7,7 +7,8 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 #[cfg(feature = "plugin")]
 use axum::http::Method;
-use axum::http::{HeaderValue, Response, StatusCode, header, response::Builder};
+use axum::http::{HeaderValue, StatusCode, header, response::Builder};
+use axum::response::Response;
 use axum::routing::get;
 #[cfg(feature = "plugin")]
 use axum::routing::{delete, post, put};
@@ -103,7 +104,7 @@ async fn handle_file(
     State(root): State<Arc<PathBuf>>,
     Path(file_path): Path<String>,
     Query(params): Query<DownloadParams>,
-) -> Result<Response<Body>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     match file_response(&file_path, &params, Arc::clone(&root)).await {
         Ok(response) => Ok(response),
         Err((StatusCode::NOT_FOUND, _)) => {
@@ -116,7 +117,7 @@ async fn handle_file(
 async fn handle_index(
     State(root): State<Arc<PathBuf>>,
     Query(params): Query<DownloadParams>,
-) -> Result<Response<Body>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     file_response(&get_allay_config().theme.template.index, &params, root).await
 }
 
@@ -154,10 +155,18 @@ async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
 
 #[cfg(feature = "plugin")]
 fn register_custom_route(router: Router, plugin: Plugin) -> Router {
-    if let Ok(route_path) = plugin.route_path() {
+    let mut plugin_host = plugin.lock().expect("poisoned lock");
+    let route_paths = plugin_host.route_paths();
+    drop(plugin_host);
+
+    if let Ok(route_path) = route_paths {
         route_path.into_iter().fold(router, |router, (method, path)| {
             let plugin = plugin.clone();
-            let handler = async move |req| plugin.handle_request(req).unwrap();
+            let handler = async move |req| -> Response {
+                let req = allay_plugin::types::Request::from_axum(req).await;
+                let mut plugin = plugin.lock().expect("poisoned lock");
+                plugin.handle_request(req).unwrap().into()
+            };
             match method {
                 Method::GET => router.route(&path, get(handler)),
                 Method::POST => router.route(&path, post(handler)),
