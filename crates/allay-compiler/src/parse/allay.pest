@@ -9,7 +9,7 @@ toml_front_matter = { "+++\n" ~ toml_mata ~ "+++\n" }
 template = { control* }
 control = { no_escape_text | text | shortcode | command | substitution }
 
-text = { (!("{-" | "{<" | "{:") ~ ANY)+ }
+text = { (!("{-" | "{<" | "{:" | "{{") ~ ANY)+ }
 no_escape_text_inner = @{ (!"}}" ~ ANY)* }
 no_escape_text = { "{{" ~ no_escape_text_inner ~ "}}" }
 
