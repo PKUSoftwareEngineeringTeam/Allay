@@ -157,3 +157,26 @@ fn test_null() {
     let res = Compiler::raw(source_file, include_dir, shortcode_dir).unwrap();
     assert_eq!(to_tokens(res), vec!["<p>is", "null</p>"])
 }
+
+#[test]
+fn test_no_escape() {
+    let temp_dir = tempdir().unwrap();
+    let include_dir = create_include_dir(&temp_dir);
+    let shortcode_dir = create_shortcode_dir(&temp_dir);
+
+    let source_file = create_test_file(
+        &temp_dir,
+        "source.md",
+        r#"---
+name: "Test Page"
+---
+{{ {: .name :} }}
+{: .name :}
+    "#,
+    );
+    let res = Compiler::raw(source_file, include_dir, shortcode_dir).unwrap();
+    assert_eq!(
+        to_tokens(res),
+        vec!["<p>{:", ".name", ":}", "Test", "Page</p>"]
+    )
+}

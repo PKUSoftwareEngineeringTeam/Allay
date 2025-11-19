@@ -21,6 +21,7 @@ pub enum Control {
     Shortcode(Shortcode),
     Command(Command),
     Substitution(Substitution),
+    NoEscape(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
