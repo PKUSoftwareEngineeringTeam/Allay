@@ -121,7 +121,7 @@ impl Compiler<String> {
         let meta = get_meta(article)?;
 
         let default = &get_allay_config().theme.template.content;
-        let template = match meta.get(&magic::TEMPLATE.to_string()) {
+        let template = match meta.get(magic::TEMPLATE) {
             Some(data) => data.as_str().unwrap_or(default),
             None => default,
         };
