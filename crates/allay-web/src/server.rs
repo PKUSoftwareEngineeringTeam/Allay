@@ -3,7 +3,6 @@ use crate::ServerResult;
 use crate::route::build_route;
 use std::path::{self, PathBuf};
 use tokio::net::TcpListener;
-use tokio::runtime;
 
 /// Represents a server configuration.
 ///
@@ -59,16 +58,13 @@ impl Server {
     /// ```ignore
     /// use allay_web::server::Server;
     /// let server = Server::new("/path/to/directory", 8080, "localhost".to_string());
-    /// server.serve().unwrap();
+    /// server.serve().await.unwrap();
     /// ```
-    pub fn serve(&self) -> ServerResult<()> {
-        let runtime = runtime::Builder::new_current_thread().enable_all().build()?;
-        runtime.block_on(async move {
-            let addr = format!("{}:{}", self.host, self.port);
-            let app = build_route(self.path.clone());
-            let listener = TcpListener::bind(addr).await?;
-            axum::serve(listener, app).await?;
-            Ok(())
-        })
+    pub async fn serve(&self) -> ServerResult<()> {
+        let addr = format!("{}:{}", self.host, self.port);
+        let app = build_route(self.path.clone());
+        let listener = TcpListener::bind(addr).await?;
+        axum::serve(listener, app).await?;
+        Ok(())
     }
 }

@@ -11,6 +11,7 @@ pub struct AllayConfig {
     pub content: ContentConfig,
     pub publish: PublishConfig,
     pub statics: StaticConfig,
+    pub plugin: PluginConfig,
     pub shortcode: ShortcodeConfig,
     pub theme: ThemeConfig,
     pub log: LogConfig,
@@ -47,6 +48,11 @@ pub struct PublishConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticConfig {
+    pub dir: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginConfig {
     pub dir: String,
 }
 

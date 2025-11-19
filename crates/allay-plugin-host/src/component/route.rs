@@ -1,11 +1,9 @@
 use super::wit::route;
 use crate::PluginHost;
-use allay_base::async_util::{AsyncFrom, AsyncInto};
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::{Method, StatusCode};
 use axum::response::Response;
-use wasmtime::AsContextMut;
 
 impl From<route::Method> for Method {
     fn from(method: route::Method) -> Self {
@@ -18,9 +16,8 @@ impl From<route::Method> for Method {
     }
 }
 
-#[async_trait::async_trait]
-impl AsyncFrom<Request> for route::Request {
-    async fn async_from(request: Request) -> Self {
+impl route::Request {
+    pub async fn from_axum(request: Request) -> Self {
         let (parts, body) = request.into_parts();
 
         // Convert method
@@ -76,29 +73,15 @@ impl From<route::Response> for Response {
 }
 
 impl PluginHost {
-    pub async fn handle_request(&self, request: Request) -> wasmtime::Result<Response> {
-        let plugin = self.plugin.clone();
-        let mut store = self.store.lock().await;
-
-        let response = self
-            .instance
-            .run_concurrent(store.as_context_mut(), async move |accessor| {
-                plugin
-                    .allay_plugin_route()
-                    .call_handle(accessor, request.async_into().await)
-                    .await
-            })
-            .await??;
-
-        Ok(response.into())
+    pub fn handle_request(&mut self, request: route::Request) -> wasmtime::Result<route::Response> {
+        self.plugin.allay_plugin_route().call_handle(&mut self.store, &request)
     }
 
-    pub fn route_path(&self) -> wasmtime::Result<Vec<(Method, String)>> {
-        let mut store = self.store.blocking_lock();
+    pub fn route_paths(&mut self) -> wasmtime::Result<Vec<(Method, String)>> {
         let path = self
             .plugin
             .allay_plugin_route()
-            .call_route_paths(store.as_context_mut())?
+            .call_route_paths(&mut self.store)?
             .into_iter()
             .map(|(method, path)| (method.into(), path))
             .collect();

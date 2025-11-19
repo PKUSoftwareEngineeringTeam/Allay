@@ -3,4 +3,4 @@ mod export;
 mod route;
 
 pub use export::Plugin;
-use export::exports::allay::plugin as wit;
+pub use export::exports::allay::plugin as wit;

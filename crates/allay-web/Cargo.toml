@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-allay-base = { path = "../allay-base" }
-allay-plugin = { path = "../allay-plugin", optional = true }
-tokio.workspace = true
+allay-base.workspace = true
+allay-plugin = { workspace = true, optional = true }
+tokio = { workspace = true, default-features = true, features = ["fs", "net", "sync"] }
 tokio-util.workspace = true
-axum.workspace = true
+axum = { workspace = true, default-features = true }
 thiserror.workspace = true
 serde.workspace = true
 walkdir.workspace = true

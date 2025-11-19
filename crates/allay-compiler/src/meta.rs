@@ -35,6 +35,7 @@ fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObj
 fn before_compile(content: String, kind: TemplateKind) -> String {
     let plugin_manager = PluginManager::instance();
     plugin_manager.plugins().iter().fold(content, |content, plugin| {
+        let mut plugin = plugin.lock().expect("Plugin lock poisoned!");
         plugin.before_compile(content, kind.clone())
     })
 }

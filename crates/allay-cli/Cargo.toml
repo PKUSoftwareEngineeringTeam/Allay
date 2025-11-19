@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-allay-base = { path = "../allay-base" }
-allay-publish = { path = "../allay-publish", default-features = false }
-allay-web = { path = "../allay-web", default-features = false }
+allay-base.workspace = true
+allay-publish.workspace = true
+allay-web.workspace = true
+allay-plugin = { workspace = true, optional = true }
+tokio.workspace = true
 anyhow.workspace = true
+cfg-if.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
@@ -21,4 +24,4 @@ path = "src/main.rs"
 
 [features]
 default = ["plugin"]
-plugin = ["allay-web/plugin", "allay-publish/plugin"]
+plugin = ["allay-web/plugin", "allay-publish/plugin", "allay-plugin"]

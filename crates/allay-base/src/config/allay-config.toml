@@ -13,6 +13,9 @@ dir = "public"
 [statics]
 dir = "static"
 
+[plugin]
+dir = "plugins"
+
 [shortcode]
 dir = "shortcodes"
 

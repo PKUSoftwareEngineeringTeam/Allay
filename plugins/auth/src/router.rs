@@ -3,12 +3,11 @@ use crate::AuthError;
 use crate::model::{NewSession, NewUser, Session, User};
 use crate::schema::*;
 use crate::verify;
-use allay_plugin_api::route::{TryRouteComponent, unimplemented_response};
-use axum::Json;
-use axum::body::to_bytes;
-use axum::extract::Request;
-use axum::http::{HeaderMap, Method, StatusCode};
-use axum::response::{IntoResponse, Response};
+use allay_plugin_api::RouteComponent;
+use allay_plugin_api::http::response::IntoResponse;
+use allay_plugin_api::http::{
+    Header, Method, Request, Response, StatusCode, unimplemented_response,
+};
 use chrono::{Duration, NaiveDateTime, Utc};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
@@ -75,18 +74,15 @@ impl IntoResponse for AuthError {
             user_id: None,
         };
 
-        (status, Json(response)).into_response()
+        (status, response).into_response()
     }
 }
 
 pub type AuthResult<T> = Result<T, AuthError>;
 
 /// Deserializes the request body into the specified type
-async fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
-    let bytes = to_bytes(request.into_body(), usize::MAX)
-        .await
-        .map_err(|_| AuthError::InvalidPayload)?;
-    serde_json::from_slice(&bytes).map_err(|_| AuthError::InvalidPayload)
+fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
+    serde_json::from_slice(request.body()).map_err(|_| AuthError::InvalidPayload)
 }
 
 pub struct AuthRouter {
@@ -154,7 +150,7 @@ impl AuthRouter {
             .map_err(|_| AuthError::InvalidToken)
     }
 
-    fn handle_register(&self, request: RegisterRequest) -> AuthResult<Json<AuthResponse>> {
+    fn handle_register(&self, request: RegisterRequest) -> AuthResult<AuthResponse> {
         let user = NewUser {
             username: &request.username,
             email: &request.email,
@@ -176,10 +172,10 @@ impl AuthRouter {
             user_id: Some(user.id),
         };
 
-        Ok(Json(response))
+        Ok(response)
     }
 
-    fn handle_login(&self, request: LoginRequest) -> AuthResult<Json<AuthResponse>> {
+    fn handle_login(&self, request: LoginRequest) -> AuthResult<AuthResponse> {
         use crate::schema::users::dsl::*;
 
         let user = users
@@ -196,13 +192,13 @@ impl AuthRouter {
                 user_id: Some(user.id),
             };
 
-            Ok(Json(response))
+            Ok(response)
         } else {
             Err(AuthError::InvalidCredentials)
         }
     }
 
-    fn handle_logout(&self, headers: HeaderMap) -> AuthResult<Json<AuthResponse>> {
+    fn handle_logout(&self, headers: &[Header]) -> AuthResult<AuthResponse> {
         use crate::schema::sessions::dsl::*;
 
         let user_token = verify::extract_token_from_headers(headers)?;
@@ -224,10 +220,10 @@ impl AuthRouter {
             user_id: Some(user.id),
         };
 
-        Ok(Json(response))
+        Ok(response)
     }
 
-    fn handle_profile(&self, headers: HeaderMap) -> AuthResult<Json<ProfileResponse>> {
+    fn handle_profile(&self, headers: &[Header]) -> AuthResult<ProfileResponse> {
         let token = verify::extract_token_from_headers(headers);
         let user = self.valid_session(&token?)?;
         let response = ProfileResponse {
@@ -236,35 +232,44 @@ impl AuthRouter {
             email: user.email,
             created_at: user.created_at.as_ref().map(NaiveDateTime::to_string),
         };
-        Ok(Json(response))
+        Ok(response)
     }
-}
 
-#[async_trait::async_trait]
-impl TryRouteComponent for AuthRouter {
-    type Error = AuthError;
-
-    async fn try_handle(&self, request: Request) -> Result<Response, AuthError> {
-        // match request path and method
-        let response = match (request.uri().path(), request.method()) {
-            ("/api/auth/register", &Method::POST) => {
-                self.handle_register(deserialize_body(request).await?).into_response()
+    fn try_handle(&self, request: Request) -> Result<Response, AuthError> {
+        let response = match (request.uri(), request.method()) {
+            ("/api/auth/register", &Method::Post) => {
+                self.handle_register(deserialize_body(request)?).into_response()
             }
 
-            ("/api/auth/login", &Method::POST) => {
-                self.handle_login(deserialize_body(request).await?).into_response()
+            ("/api/auth/login", &Method::Post) => {
+                self.handle_login(deserialize_body(request)?).into_response()
             }
 
-            ("/api/auth/logout", &Method::POST) => {
-                self.handle_logout(request.headers().clone()).into_response()
+            ("/api/auth/logout", &Method::Post) => {
+                self.handle_logout(request.headers()).into_response()
             }
 
-            ("/api/auth/profile", &Method::GET) => {
-                self.handle_profile(request.headers().clone()).into_response()
+            ("/api/auth/profile", &Method::Get) => {
+                self.handle_profile(request.headers()).into_response()
             }
             _ => unimplemented_response(),
         };
 
         Ok(response)
+    }
+}
+
+impl RouteComponent for AuthRouter {
+    fn handle(&self, request: Request) -> Response {
+        self.try_handle(request).unwrap_or_else(|e| e.into_response())
+    }
+
+    fn route_paths(&self) -> Vec<(Method, String)> {
+        vec![
+            (Method::Post, "/api/auth/register".to_string()),
+            (Method::Post, "/api/auth/login".to_string()),
+            (Method::Post, "/api/auth/logout".to_string()),
+            (Method::Get, "/api/auth/profile".to_string()),
+        ]
     }
 }

@@ -1,5 +1,5 @@
 pub mod compiler;
-mod export;
+pub(crate) mod export;
 pub mod route;
 
 use crate::plugin_info;

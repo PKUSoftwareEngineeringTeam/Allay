@@ -5,7 +5,8 @@ edition = "2024"
 
 [dependencies]
 plugin-macro = { path = "crates/plugin-macro" }
-allay-base = { path = "../allay-base" }
+allay-base.workspace = true
 wit-bindgen.workspace = true
-axum = { version = "0.8", default-features = false }
-async-trait.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true

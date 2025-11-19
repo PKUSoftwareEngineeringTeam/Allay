@@ -201,10 +201,10 @@ pub trait Compiled {
 #[cfg(feature = "plugin")]
 fn after_compile(html: String, ty: TemplateKind) -> String {
     let plugin_manager = PluginManager::instance();
-    plugin_manager
-        .plugins()
-        .iter()
-        .fold(html, |html, plugin| plugin.after_compile(html, ty.clone()))
+    plugin_manager.plugins().iter().fold(html, |html, plugin| {
+        let mut plugin = plugin.lock().expect("Plugin lock poisoned!");
+        plugin.after_compile(html, ty.clone())
+    })
 }
 
 impl Compiled for Arc<Mutex<Page>> {
