@@ -975,4 +975,25 @@ After comment.
             }
         );
     }
+
+    #[test]
+    fn test_no_escape_regression() {
+        let source = "text{{ {: .name :} }}";
+        let ast = parse_file(source);
+        assert!(ast.is_ok());
+        let ast = ast.unwrap();
+
+        assert_eq!(
+            ast,
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![
+                        Control::Text("text".to_string()),
+                        Control::NoEscape("{: .name :}".to_string()),
+                    ],
+                }
+            }
+        );
+    }
 }
