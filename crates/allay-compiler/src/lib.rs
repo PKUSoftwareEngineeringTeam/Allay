@@ -31,6 +31,8 @@ mod magic {
     pub const URL: &str = "url";
     /// the template used for an article (default `template`-`content` key defined in allay config)
     pub const TEMPLATE: &str = "template";
+    /// if the post is hidden from listings (default `false`)
+    pub const HIDDEN: &str = "hidden";
 }
 
 #[derive(Debug, Clone, Default)]

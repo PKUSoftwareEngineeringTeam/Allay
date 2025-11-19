@@ -1,7 +1,7 @@
-use crate::InterpretResult;
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Variable};
 use crate::meta::get_meta;
+use crate::{InterpretResult, magic};
 use allay_base::config::{get_allay_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
@@ -34,7 +34,6 @@ impl Variable for SiteVar {}
 #[derive(Debug)]
 pub struct PagesVar {
     data: RwLock<Arc<AllayData>>,
-    locked: bool,
 }
 
 impl PagesVar {
@@ -43,7 +42,6 @@ impl PagesVar {
         INSTANCE.get_or_init(|| {
             let instance = PagesVar {
                 data: RwLock::new(Arc::new(AllayList::new().into())),
-                locked: false,
             };
             instance.update();
             Mutex::new(instance)
@@ -53,13 +51,11 @@ impl PagesVar {
     pub fn update(&self) {
         let dir = file::workspace(&get_allay_config().content.dir);
         // walk through the content directory and get all markdown/html files
-        if self.locked {
-            return;
-        }
         if let Ok(entries) = file::read_dir_all_files(&dir) {
             let data = entries
                 .into_iter()
                 .filter_map(|e| get_meta(e).ok())
+                .filter(|meta| meta.get(magic::HIDDEN) != Some(&Arc::new(true.into())))
                 .map(AllayData::from)
                 .map(Arc::new)
                 .collect::<AllayList>()

@@ -35,10 +35,6 @@ pub enum InterpretError {
     #[error("Field not found: {0:?}")]
     FieldNotFound(String),
 
-    /// Index out of bounds when accessing a list
-    #[error("Index out of bounds: {0}")]
-    IndexOutOfBounds(usize),
-
     /// Variable not found in the scope
     #[error("Variable not found: {0}")]
     VariableNotFound(String),

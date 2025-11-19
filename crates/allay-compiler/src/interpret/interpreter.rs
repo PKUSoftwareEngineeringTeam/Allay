@@ -398,6 +398,17 @@ impl Interpretable for AddSub {
             return self.left.interpret(ctx, page);
         }
 
+        if self.left.interpret(ctx, page)?.is_str() {
+            let mut res = self.left.interpret(ctx, page)?.as_str()?.clone();
+            for (op, right) in &self.rights {
+                if !matches!(op, AddSubOp::Add) {
+                    return Err(converse_error("cannot subtract strings".to_string()));
+                }
+                res.push_str(&right.interpret(ctx, page)?.to_string());
+            }
+            return Ok(Arc::new(res.into()));
+        }
+
         let res = self.rights.iter().try_fold(
             self.left.interpret(ctx, page)?.as_int()?,
             |acc, (op, right)| {
