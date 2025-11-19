@@ -97,6 +97,9 @@ impl ASTBuilder for Control {
             Rule::shortcode => Ok(Control::Shortcode(Shortcode::build(inner)?)),
             Rule::command => Ok(Control::Command(Command::build(inner)?)),
             Rule::substitution => Ok(Control::Substitution(Substitution::build(inner)?)),
+            Rule::no_escape_text => Ok(Control::NoEscape(
+                single_inner(inner).as_str().trim().to_string(),
+            )),
             _ => parser_unreachable!(),
         }
     }
@@ -950,6 +953,24 @@ After comment.
                             }])])),
                         })
                     ],
+                }
+            }
+        );
+    }
+
+    #[test]
+    fn test_no_escape() {
+        let source = "{{ {: .name :} }}";
+        let ast = parse_file(source);
+        assert!(ast.is_ok());
+        let ast = ast.unwrap();
+
+        assert_eq!(
+            ast,
+            File {
+                meta: None,
+                template: Template {
+                    controls: vec![Control::NoEscape("{: .name :}".to_string()),],
                 }
             }
         );
