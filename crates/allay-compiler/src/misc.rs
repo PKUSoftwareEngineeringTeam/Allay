@@ -71,7 +71,7 @@ impl Compiler<String> {
         kind: ContentKind,
     ) -> CompileResult<()> {
         match kind {
-            ContentKind::Article => self.modify_article(source),
+            ContentKind::Article => self.modify_article(source)?,
             ContentKind::General => self.modify(source),
             ContentKind::Static => {}
         }
@@ -89,7 +89,7 @@ impl Compiler<String> {
         kind: ContentKind,
     ) -> CompileResult<()> {
         match kind {
-            ContentKind::Article => self.remove_article(source),
+            ContentKind::Article => self.remove_article(source)?,
             ContentKind::General => self.remove(source),
             ContentKind::Static => {}
         }
@@ -117,13 +117,20 @@ impl Compiler<String> {
     }
 
     /// Get the template path for an article
-    fn get_article_template<P: AsRef<Path>>(_article: P) -> PathBuf {
-        // TODO: Support custom templates for articles (currently use the default "page.html")
-        file::workspace(
-            get_theme_path()
-                .join(&get_allay_config().theme.template.dir)
-                .join(&get_allay_config().theme.template.content),
-        )
+    fn get_article_template<P: AsRef<Path>>(article: P) -> CompileResult<PathBuf> {
+        let meta = get_meta(article)?;
+
+        let default = &get_allay_config().theme.template.content;
+        let template = match meta.get(magic::TEMPLATE) {
+            Some(data) => data.as_str().unwrap_or(default),
+            None => default,
+        };
+
+        let path = file::workspace(
+            get_theme_path().join(&get_allay_config().theme.template.dir).join(template),
+        );
+
+        Ok(path)
     }
 
     /// Generate a unique cache key for an article with its template
@@ -138,7 +145,7 @@ impl Compiler<String> {
     /// Compile an article
     fn article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<CompileOutput> {
         let article = article.as_ref().into();
-        let template = Self::get_article_template(&article);
+        let template = Self::get_article_template(&article)?;
         let article_key = Self::default_key(&article);
         let template_article_key = Self::template_article_key(&template, &article);
 
@@ -170,18 +177,20 @@ impl Compiler<String> {
         page.compile(interpreter)
     }
 
-    fn modify_article<P: AsRef<Path>>(&mut self, article: P) {
-        let template = Self::get_article_template(&article);
+    fn modify_article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<()> {
+        let template = Self::get_article_template(&article)?;
 
         self.modify(&article);
         self.modify(&template);
+        Ok(())
     }
 
     /// Remove an article and its associated template page from the cache and influenced mapping.
-    fn remove_article<P: AsRef<Path>>(&mut self, article: P) {
-        let template = Self::get_article_template(&article);
+    fn remove_article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<()> {
+        let template = Self::get_article_template(&article)?;
 
         self.remove(&article);
         self.remove(&template);
+        Ok(())
     }
 }
