@@ -1,6 +1,6 @@
+use crate::InterpretResult;
 use crate::ast::GetField;
 use crate::interpret::var::{LocalVar, ThisVar};
-use crate::{InterpretError, InterpretResult};
 use allay_base::data::AllayData;
 use std::sync::Arc;
 
@@ -12,11 +12,11 @@ pub(crate) fn get_field_once(
     match field {
         GetField::Index(i) => {
             let list = cur.as_list()?;
-            list.get(*i).map(Arc::clone).ok_or(InterpretError::IndexOutOfBounds(*i))
+            Ok(list.get(*i).map(Arc::clone).unwrap_or_default())
         }
         GetField::Name(name) => {
             let obj = cur.as_obj()?;
-            Ok(obj.get(name).map(Arc::clone).unwrap_or(Arc::new(AllayData::Null)))
+            Ok(obj.get(name).map(Arc::clone).unwrap_or_default())
         }
     }
 }

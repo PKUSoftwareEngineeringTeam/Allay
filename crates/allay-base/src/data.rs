@@ -31,9 +31,6 @@ pub enum AllayDataError {
     #[error("Key not found: {0}")]
     KeyNotFound(String),
 
-    #[error("Index out of bounds: {0}")]
-    IndexOutOfBounds(usize),
-
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
 }
