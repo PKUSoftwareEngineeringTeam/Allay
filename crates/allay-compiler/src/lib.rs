@@ -23,9 +23,14 @@ use std::sync::{Arc, Mutex};
 mod magic {
     //! Common magic words used in Allay templates
 
+    /// the inner keyword for shortcode
     pub const INNER: &str = "inner";
+    /// the markdown content embedded in the template
     pub const CONTENT: &str = "content";
+    /// the URL of the page (auto-generated if not specified)
     pub const URL: &str = "url";
+    /// the template used for an article (default `template`-`content` key defined in allay config)
+    pub const TEMPLATE: &str = "template";
 }
 
 #[derive(Debug, Clone, Default)]
