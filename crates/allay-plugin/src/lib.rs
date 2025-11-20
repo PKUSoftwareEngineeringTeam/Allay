@@ -25,7 +25,7 @@ pub fn load_plugins() {
                 {
                     match manager.register_plugin(&path, &dir) {
                         Ok(()) => info!("Registered plugin from {}", path.to_string_lossy()),
-                        Err(e) => warn!(
+                        Err(e) => eprintln!(
                             "Failed to register plugin from {}: {}",
                             path.to_string_lossy(),
                             e

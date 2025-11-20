@@ -1,5 +1,6 @@
 use crate::router::AuthRouter;
 use allay_plugin_api::{Plugin, RouteComponent, register_plugin};
+mod conn_pool;
 mod model;
 mod router;
 mod schema;

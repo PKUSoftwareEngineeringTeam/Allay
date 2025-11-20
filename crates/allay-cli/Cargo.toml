@@ -8,7 +8,6 @@ allay-base.workspace = true
 allay-publish.workspace = true
 allay-web.workspace = true
 allay-plugin = { workspace = true, optional = true }
-tokio.workspace = true
 anyhow.workspace = true
 cfg-if.workspace = true
 tracing.workspace = true
