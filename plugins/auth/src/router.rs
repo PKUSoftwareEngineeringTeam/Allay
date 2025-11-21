@@ -1,5 +1,6 @@
 //! Authentication plugin for user registration and login
 use crate::AuthError;
+use crate::conn_pool::ConnPool;
 use crate::model::{NewSession, NewUser, Session, User};
 use crate::schema::*;
 use crate::verify;
@@ -12,6 +13,7 @@ use chrono::{Duration, NaiveDateTime, Utc};
 use diesel::RunQueryDsl;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::ops::DerefMut;
 use std::{fs, path};
 use uuid::Uuid;
 
@@ -86,29 +88,23 @@ fn deserialize_body<T: DeserializeOwned>(request: Request) -> AuthResult<T> {
 }
 
 pub struct AuthRouter {
-    db_url: String,
-}
-
-impl AuthRouter {
-    pub fn new(db_url: &str) -> Self {
-        AuthRouter {
-            db_url: db_url.to_string(),
-        }
-    }
+    conn_pool: ConnPool,
 }
 
 impl AuthRouter {
     const TOKEN_EXPIRY: Duration = Duration::hours(24);
 
-    fn create_conn(&self) -> SqliteConnection {
+    pub fn new(db_url: &str) -> Self {
         const EMPTY_DATABASE: &[u8] = include_bytes!("../db/dev.db");
+        const CONN_POOL_SIZE: usize = 4;
 
-        if !path::Path::new(&self.db_url).exists() {
-            fs::write(&self.db_url, EMPTY_DATABASE).expect("Failed to create database file");
+        if !path::Path::new(db_url).exists() {
+            fs::write(db_url, EMPTY_DATABASE).expect("Failed to create database file");
         }
 
-        SqliteConnection::establish(&self.db_url)
-            .unwrap_or_else(|_| panic!("Error connecting to {}", &self.db_url))
+        let conn_pool = ConnPool::new(db_url, CONN_POOL_SIZE);
+
+        AuthRouter { conn_pool }
     }
 
     fn create_session(&self, user_id: i32) -> AuthResult<String> {
@@ -121,9 +117,10 @@ impl AuthRouter {
             expires_at: expires_at.naive_utc(),
         };
 
+        let mut conn = self.conn_pool.get().lock().expect("Failed to acquire lock");
         diesel::insert_into(sessions::table)
             .values(&session)
-            .execute(&mut self.create_conn())
+            .execute(conn.deref_mut())
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
 
         Ok(token)
@@ -133,11 +130,10 @@ impl AuthRouter {
         use crate::schema::sessions::dsl::*;
         use crate::schema::users::dsl::*;
 
-        let conn = &mut self.create_conn();
-
+        let mut conn = self.conn_pool.get().lock().expect("Failed to acquire lock");
         let session = sessions
             .filter(token.eq(user_token))
-            .first::<Session>(conn)
+            .first::<Session>(conn.deref_mut())
             .map_err(|_| AuthError::InvalidToken)?;
 
         if session.expires_at < Utc::now().naive_utc() {
@@ -146,7 +142,7 @@ impl AuthRouter {
 
         users
             .filter(id.eq(session.user_id))
-            .first::<User>(conn)
+            .first::<User>(conn.deref_mut())
             .map_err(|_| AuthError::InvalidToken)
     }
 
@@ -157,10 +153,11 @@ impl AuthRouter {
             password_hash: &verify::hash_password(&request.password)?,
         };
 
+        let mut conn = self.conn_pool.get().lock().expect("Failed to acquire lock");
         let user = diesel::insert_into(users::table)
             .values(&user)
             .returning(User::as_returning())
-            .get_result(&mut self.create_conn())
+            .get_result(conn.deref_mut())
             .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
 
         let token = self.create_session(user.id)?;
@@ -178,9 +175,10 @@ impl AuthRouter {
     fn handle_login(&self, request: LoginRequest) -> AuthResult<AuthResponse> {
         use crate::schema::users::dsl::*;
 
+        let mut conn = self.conn_pool.get().lock().expect("Failed to acquire lock");
         let user = users
             .filter(username.eq(&request.username))
-            .first::<User>(&mut self.create_conn())
+            .first::<User>(conn.deref_mut())
             .map_err(|_| AuthError::InvalidCredentials)?;
 
         if verify::verify_password(&request.password, &user.password_hash)? {
@@ -204,9 +202,10 @@ impl AuthRouter {
         let user_token = verify::extract_token_from_headers(headers)?;
         let user = self.valid_session(&user_token)?;
 
+        let mut conn = self.conn_pool.get().lock().expect("Failed to acquire lock");
         let deleted =
             diesel::delete(sessions.filter(token.eq(&user_token)).filter(user_id.eq(user.id)))
-                .execute(&mut self.create_conn())
+                .execute(conn.deref_mut())
                 .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
 
         if deleted == 0 {

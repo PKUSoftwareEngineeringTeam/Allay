@@ -1,6 +1,5 @@
 use allay_cli::execute;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    execute().await
+fn main() -> anyhow::Result<()> {
+    execute()
 }

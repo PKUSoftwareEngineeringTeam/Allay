@@ -7,7 +7,7 @@ use tracing::instrument;
 
 /// CLI Server Command
 #[instrument(name = "serving the site", skip(args))]
-pub async fn serve(args: &ServeArgs) -> anyhow::Result<()> {
+pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     let url = format!("http://{}:{}", args.address, args.port);
 
     println!("Starting the site server at {}", url);
@@ -32,6 +32,6 @@ pub async fn serve(args: &ServeArgs) -> anyhow::Result<()> {
         args.port,
         args.address.clone(),
     );
-    server.serve().await?;
+    server.serve()?;
     Ok(())
 }
