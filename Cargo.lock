@@ -75,6 +75,7 @@ dependencies = [
  "allay-base",
  "allay-plugin-host",
  "anyhow",
+ "semver",
  "tracing",
 ]
 

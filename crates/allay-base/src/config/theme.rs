@@ -1,5 +1,6 @@
 use crate::config::get_theme_path;
 use crate::file;
+use crate::log::show_error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -108,10 +109,10 @@ pub fn get_theme_config() -> &'static ThemeConfig {
     THEME_CONFIG.get_or_init(|| {
         let theme_path = file::workspace(get_theme_path());
         let config_file = theme_path.join("theme.toml");
-        let config_str = file::read_file_string(&config_file).expect("Failed to read theme config");
-        let config: ThemeConfig =
-            toml::from_str(&config_str).expect("Failed to parse theme config");
-        println!("Theme config: {:#?}", config);
+        let config_str = file::read_file_string(&config_file)
+            .unwrap_or_else(|e| show_error(&format!("Failed to read theme config: {e}")));
+        let config: ThemeConfig = toml::from_str(&config_str)
+            .unwrap_or_else(|_| show_error("Failed to parse theme config"));
         config
     })
 }

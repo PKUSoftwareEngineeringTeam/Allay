@@ -1,4 +1,6 @@
+use allay_base::log::show_error;
 use allay_plugin_host::PluginHost;
+use semver::{Version, VersionReq};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
@@ -21,7 +23,10 @@ impl PluginManager {
     pub fn register_plugin(&self, wasm_path: &Path, working_dir: &Path) -> anyhow::Result<()> {
         let mut host = PluginHost::new(wasm_path, working_dir)?;
         let name = host.plugin_name()?;
-        let mut plugins = self.plugins.write().expect("Failed to acquire write lock on plugins");
+        let mut plugins = self
+            .plugins
+            .write()
+            .unwrap_or_else(|_| show_error("Failed to acquire write lock on plugins"));
 
         plugins.insert(name, Arc::new(Mutex::new(host)));
         Ok(())
@@ -40,5 +45,22 @@ impl PluginManager {
     pub fn plugin_names(&self) -> Vec<String> {
         let plugins = self.plugins.read().unwrap();
         plugins.keys().cloned().collect()
+    }
+
+    pub fn version_match(&self, name: &str, req_version: &str) -> anyhow::Result<bool> {
+        let req = VersionReq::parse(req_version)?;
+        let plugins = self
+            .plugins
+            .read()
+            .unwrap_or_else(|_| show_error("failed to acquire read lock on plugins"));
+        if let Some(plugin) = plugins.get(name) {
+            let mut plugin =
+                plugin.lock().unwrap_or_else(|_| show_error("failed to acquire lock on plugin"));
+            let version = plugin.plugin_version()?;
+            let version = Version::parse(&version)?;
+            Ok(req.matches(&version))
+        } else {
+            Ok(false)
+        }
     }
 }
