@@ -1,5 +1,7 @@
+use allay_base::config::theme::get_theme_config;
 use allay_base::config::{ServeArgs, get_allay_config};
 use allay_base::file;
+use allay_base::log::show_error;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 use allay_web::server::Server;
@@ -13,6 +15,7 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     println!("Starting the site server at {}", url);
     allay_publish::start();
 
+    // load plugins
     cfg_if::cfg_if! {
         if #[cfg(feature = "plugin")] {
             allay_plugin::load_plugins();
@@ -23,12 +26,29 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
         }
     }
 
+    // check plugin dependencies
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "plugin")] {
+            let plugin_manager = PluginManager::instance();
+            let required_plugins = &get_theme_config().dependencies.plugins;
+            for (name, version) in required_plugins {
+                if !plugin_manager.version_match(name, version)? {
+                    show_error(&format!("Plugin {} version {} is required", name, version));
+                }
+            }
+        } else {
+            if !get_theme_config().dependencies.plugins.is_empty() {
+                show_error("Plugin dependencies are not supported without the plugin feature");
+            }
+        }
+    }
+
     if args.open {
         webbrowser::open(&url).unwrap_or_else(|_| println!("Failed to open the browser"));
     }
 
     let server = Server::new(
-        file::workspace(get_allay_config().publish.dir.as_str()),
+        file::workspace(get_allay_config().publish_dir.as_str()),
         args.port,
         args.address.clone(),
     );

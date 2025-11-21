@@ -1,6 +1,6 @@
 #[cfg(feature = "plugin")]
 use crate::plugin_worker::PluginWorker;
-use allay_base::config::get_allay_config;
+use allay_base::config::theme::get_theme_config;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 #[cfg(feature = "plugin")]
@@ -112,7 +112,12 @@ async fn handle_file(
     match file_response(&file_path, &params, Arc::clone(&root)).await {
         Ok(response) => Ok(response),
         Err((StatusCode::NOT_FOUND, _)) => {
-            file_response(&get_allay_config().theme.template.not_found, &params, root).await
+            file_response(
+                &get_theme_config().config.templates.not_found,
+                &params,
+                root,
+            )
+            .await
         }
         Err(err) => Err(err),
     }
@@ -122,7 +127,7 @@ async fn handle_index(
     State(root): State<Arc<PathBuf>>,
     Query(params): Query<DownloadParams>,
 ) -> Result<Response, (StatusCode, String)> {
-    file_response(&get_allay_config().theme.template.index, &params, root).await
+    file_response(&get_theme_config().config.templates.index, &params, root).await
 }
 
 async fn handle_last_modify(
