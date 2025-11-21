@@ -1,6 +1,6 @@
 use diesel::{Connection, SqliteConnection};
 use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct ConnPool {
     pool: Vec<Mutex<SqliteConnection>>,
@@ -19,7 +19,7 @@ impl ConnPool {
     }
 
     pub fn get(&self) -> &Mutex<SqliteConnection> {
-        let idx = self.idx.fetch_add(1, std::sync::atomic::Ordering::SeqCst) % self.pool.len();
+        let idx = self.idx.fetch_add(1, Ordering::SeqCst) % self.pool.len();
         &self.pool[idx]
     }
 }

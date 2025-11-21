@@ -96,12 +96,13 @@ impl AuthRouter {
 
     pub fn new(db_url: &str) -> Self {
         const EMPTY_DATABASE: &[u8] = include_bytes!("../db/dev.db");
+        const CONN_POOL_SIZE: usize = 4;
 
         if !path::Path::new(db_url).exists() {
             fs::write(db_url, EMPTY_DATABASE).expect("Failed to create database file");
         }
 
-        let conn_pool = ConnPool::new(db_url, 4);
+        let conn_pool = ConnPool::new(db_url, CONN_POOL_SIZE);
 
         AuthRouter { conn_pool }
     }
