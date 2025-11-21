@@ -1,20 +1,67 @@
+use crate::file;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AllayConfig {
-    pub name: String,
-    pub description: String,
-    pub version: String,
-    pub repository: String,
-    pub issue: String,
-    pub content: ContentConfig,
-    pub publish: PublishConfig,
-    pub statics: StaticConfig,
-    pub plugin: PluginConfig,
-    pub shortcode: ShortcodeConfig,
-    pub theme: ThemeConfig,
-    pub log: LogConfig,
+    #[serde(default = "AllayConfig::default_content_dir")]
+    pub content_dir: String,
+    #[serde(default = "AllayConfig::default_publish_dir")]
+    pub publish_dir: String,
+    #[serde(default = "AllayConfig::default_statics_dir")]
+    pub statics_dir: String,
+    #[serde(default = "AllayConfig::default_plugin_dir")]
+    pub plugin_dir: String,
+    #[serde(default = "AllayConfig::default_shortcode_dir")]
+    pub shortcode_dir: String,
+    #[serde(default = "AllayConfig::default_theme_dir")]
+    pub theme_dir: String,
+    #[serde(default = "AllayConfig::default_log_dir")]
+    pub log_dir: String,
+}
+
+impl Default for AllayConfig {
+    fn default() -> Self {
+        Self {
+            content_dir: "contents".into(),
+            publish_dir: "publish".into(),
+            statics_dir: "static".into(),
+            plugin_dir: "plugins".into(),
+            shortcode_dir: "shortcodes".into(),
+            theme_dir: "themes".into(),
+            log_dir: "logs".into(),
+        }
+    }
+}
+
+impl AllayConfig {
+    fn default_content_dir() -> String {
+        "contents".into()
+    }
+
+    fn default_publish_dir() -> String {
+        "publish".into()
+    }
+
+    fn default_statics_dir() -> String {
+        "static".into()
+    }
+
+    fn default_plugin_dir() -> String {
+        "plugins".into()
+    }
+
+    fn default_shortcode_dir() -> String {
+        "shortcodes".into()
+    }
+
+    fn default_theme_dir() -> String {
+        "themes".into()
+    }
+
+    fn default_log_dir() -> String {
+        "logs".into()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -36,64 +83,6 @@ impl Environment {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContentConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PublishConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StaticConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PluginConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThemeConfig {
-    pub dir: String,
-    pub custom_dir: String,
-    pub default: DefaultThemeConfig,
-    pub statics: ThemeStaticConfig,
-    pub template: TemplateConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ShortcodeConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DefaultThemeConfig {
-    pub name: String,
-    pub repository: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThemeStaticConfig {
-    pub dir: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateConfig {
-    pub dir: String,
-    pub index: String,
-    pub content: String,
-    pub not_found: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LogConfig {
-    pub dir: String,
-}
-
 pub fn get_env() -> &'static Environment {
     static INSTANCE: OnceLock<Environment> = OnceLock::new();
 
@@ -112,7 +101,16 @@ pub fn get_allay_config() -> &'static AllayConfig {
     static INSTANCE: OnceLock<AllayConfig> = OnceLock::new();
 
     INSTANCE.get_or_init(|| {
-        let config = include_str!("allay-config.toml");
-        toml::from_str(config).unwrap()
+        let home_dir = std::env::home_dir();
+        if let Some(home_dir) = home_dir {
+            let config_file = home_dir.join(".config/allay/config.toml");
+            if let Ok(config) = file::read_file_string(config_file) {
+                toml::from_str(&config).unwrap_or_default()
+            } else {
+                AllayConfig::default()
+            }
+        } else {
+            AllayConfig::default()
+        }
     })
 }

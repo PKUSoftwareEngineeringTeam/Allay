@@ -134,7 +134,7 @@ pub trait FileMapper {
 
     /// The root directory of the destination files.
     fn dest_root(&self) -> PathBuf {
-        get_allay_config().publish.dir.clone().into()
+        get_allay_config().publish_dir.clone().into()
     }
 
     /// The rule to map the path from source to destination.

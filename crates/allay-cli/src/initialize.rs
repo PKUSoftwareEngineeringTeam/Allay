@@ -35,7 +35,7 @@ fn init_root() -> anyhow::Result<()> {
 
 /// Initialize the global logger
 fn init_logger() -> anyhow::Result<()> {
-    let log_dir = &get_allay_config().log.dir;
+    let log_dir = &get_allay_config().log_dir;
     file::create_dir_if_not_exists(file::workspace(log_dir))?;
 
     let format = format()

@@ -7,7 +7,7 @@ pub use manager::PluginManager;
 use tracing::{info, warn};
 
 pub fn load_plugins() {
-    let dir = &get_allay_config().plugin.dir;
+    let dir = &get_allay_config().plugin_dir;
     let dir = file::absolute_workspace(dir);
 
     let manager = PluginManager::instance();

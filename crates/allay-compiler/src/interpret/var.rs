@@ -49,7 +49,7 @@ impl PagesVar {
     }
 
     pub fn update(&self) {
-        let dir = file::workspace(&get_allay_config().content.dir);
+        let dir = file::workspace(&get_allay_config().content_dir);
         // walk through the content directory and get all markdown/html files
         if let Ok(entries) = file::read_dir_all_files(&dir) {
             let data = entries

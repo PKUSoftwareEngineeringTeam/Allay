@@ -36,12 +36,13 @@ pub fn get_theme_path() -> &'static PathBuf {
     static INSTANCE: OnceLock<PathBuf> = OnceLock::new();
 
     INSTANCE.get_or_init(|| {
-        let dir = get_allay_config().theme.dir.clone();
+        const DEFAULT_THEME_NAME: &str = "Axolotl";
+        let dir = &get_allay_config().theme_dir;
         let chosen = match get_site_config().get("theme") {
             Some(data) => data.as_str().expect("Theme name must be a string"),
-            None => &get_allay_config().theme.default.name, // use default theme
+            None => DEFAULT_THEME_NAME, // use default theme
         }
-        .clone();
+        .to_string();
         PathBuf::from(dir).join(chosen)
     })
 }

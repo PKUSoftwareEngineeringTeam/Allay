@@ -6,7 +6,8 @@ use crate::interpret::Interpreter;
 use crate::meta::get_meta;
 use crate::{CompileError, CompileResult, Compiler};
 use crate::{CompileOutput, magic};
-use allay_base::config::{get_allay_config, get_theme_path};
+use allay_base::config::get_theme_path;
+use allay_base::config::theme::get_theme_config;
 use allay_base::file;
 use allay_base::template::ContentKind;
 use std::path::{Path, PathBuf};
@@ -120,14 +121,14 @@ impl Compiler<String> {
     fn get_article_template<P: AsRef<Path>>(article: P) -> CompileResult<PathBuf> {
         let meta = get_meta(article)?;
 
-        let default = &get_allay_config().theme.template.content;
+        let default = &get_theme_config().config.templates.content;
         let template = match meta.get(magic::TEMPLATE) {
             Some(data) => data.as_str().unwrap_or(default),
             None => default,
         };
 
         let path = file::workspace(
-            get_theme_path().join(&get_allay_config().theme.template.dir).join(template),
+            get_theme_path().join(&get_theme_config().config.templates.dir).join(template),
         );
 
         Ok(path)

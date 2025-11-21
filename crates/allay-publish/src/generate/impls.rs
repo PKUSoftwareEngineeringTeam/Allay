@@ -1,4 +1,5 @@
 use super::traits::{FileGenerator, FileMapper};
+use allay_base::config::theme::get_theme_config;
 use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_theme_path};
 use allay_base::file::{self, FileResult};
 use allay_base::template::{ContentKind, TemplateKind};
@@ -49,7 +50,7 @@ struct GeneralGenerator;
 
 impl FileMapper for StaticGenerator {
     fn src_root(&self) -> PathBuf {
-        get_allay_config().statics.dir.clone().into()
+        get_allay_config().statics_dir.clone().into()
     }
 }
 
@@ -57,7 +58,7 @@ impl FileGenerator for StaticGenerator {}
 
 impl FileMapper for ThemeStaticGenerator {
     fn src_root(&self) -> PathBuf {
-        get_theme_path().join(&get_allay_config().theme.statics.dir)
+        get_theme_path().join(&get_theme_config().config.static_dir)
     }
 }
 
@@ -65,7 +66,7 @@ impl FileGenerator for ThemeStaticGenerator {}
 
 impl FileMapper for ArticleGenerator {
     fn src_root(&self) -> PathBuf {
-        get_allay_config().content.dir.clone().into()
+        get_allay_config().content_dir.clone().into()
     }
 
     fn path_mapping(&self, src: &Path) -> PathBuf {
@@ -79,7 +80,7 @@ impl FileMapper for ArticleGenerator {
 
 impl FileMapper for GeneralGenerator {
     fn src_root(&self) -> PathBuf {
-        get_theme_path().join(&get_allay_config().theme.custom_dir)
+        get_theme_path().join(&get_theme_config().config.custom_dir)
     }
 
     fn path_mapping(&self, src: &Path) -> PathBuf {

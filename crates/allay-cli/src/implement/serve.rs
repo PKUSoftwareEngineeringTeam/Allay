@@ -28,7 +28,7 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     }
 
     let server = Server::new(
-        file::workspace(get_allay_config().publish.dir.as_str()),
+        file::workspace(get_allay_config().publish_dir.as_str()),
         args.port,
         args.address.clone(),
     );

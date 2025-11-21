@@ -19,10 +19,10 @@ pub fn new(args: &NewArgs) -> anyhow::Result<()> {
     let config = get_allay_config();
 
     let dirs = [
-        &config.content.dir,
-        &config.publish.dir,
-        &config.theme.dir,
-        &config.statics.dir,
+        &config.content_dir,
+        &config.publish_dir,
+        &config.theme_dir,
+        &config.statics_dir,
     ];
 
     for dir_name in dirs {
@@ -31,7 +31,7 @@ pub fn new(args: &NewArgs) -> anyhow::Result<()> {
 
     file::write_file(file::workspace(SITE_CONFIG_FILE), DEFAULT_SITE_CONFIG)?;
 
-    if !args.skip_theme && !config.theme.default.repository.is_empty() {
+    if !args.skip_theme {
         ask_to_clone_default_theme()?;
     }
 
@@ -44,18 +44,18 @@ pub fn new(args: &NewArgs) -> anyhow::Result<()> {
 }
 
 fn ask_to_clone_default_theme() -> anyhow::Result<()> {
-    let theme_url = &get_allay_config().theme.default.repository;
+    const THEME_URL: &str = "https://github.com/PKUSoftwareEngineeringTeam/Axolotl.git";
 
     let should_clone = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
             "Do you want to clone the default theme from {}?",
-            theme_url
+            THEME_URL
         ))
         .default(true)
         .interact()?;
 
     if should_clone {
-        clone_default_theme(theme_url)?;
+        clone_default_theme(THEME_URL)?;
     } else {
         println!("⚠️  Skipping theme cloning as per user choice.");
     }
@@ -64,9 +64,9 @@ fn ask_to_clone_default_theme() -> anyhow::Result<()> {
 }
 
 fn clone_default_theme(url: &str) -> anyhow::Result<()> {
-    let theme_config = &get_allay_config().theme;
+    const THEME_NAME: &str = "Axolotl";
 
-    let target_dir = file::workspace(&theme_config.dir).join(&theme_config.default.name);
+    let target_dir = file::workspace(&get_allay_config().theme_dir).join(THEME_NAME);
 
     if file::dir_exists(&target_dir) {
         println!("⚠️  Theme directory already exists at: {:?}", target_dir);
