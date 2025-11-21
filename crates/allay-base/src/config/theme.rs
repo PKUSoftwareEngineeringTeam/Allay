@@ -111,8 +111,6 @@ pub fn get_theme_config() -> &'static ThemeConfig {
         let config_file = theme_path.join("theme.toml");
         let config_str = file::read_file_string(&config_file)
             .unwrap_or_else(|e| show_error(&format!("Failed to read theme config: {e}")));
-        let config: ThemeConfig = toml::from_str(&config_str)
-            .unwrap_or_else(|_| show_error("Failed to parse theme config"));
-        config
+        toml::from_str(&config_str).unwrap_or_else(|_| show_error("Failed to parse theme config"))
     })
 }
