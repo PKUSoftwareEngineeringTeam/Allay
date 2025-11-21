@@ -101,14 +101,11 @@ pub fn get_allay_config() -> &'static AllayConfig {
     static INSTANCE: OnceLock<AllayConfig> = OnceLock::new();
 
     INSTANCE.get_or_init(|| {
-        let home_dir = std::env::home_dir();
-        if let Some(home_dir) = home_dir {
-            let config_file = home_dir.join(".config/allay/config.toml");
-            if let Ok(config) = file::read_file_string(config_file) {
-                toml::from_str(&config).unwrap_or_default()
-            } else {
-                AllayConfig::default()
-            }
+        let config_file = std::env::home_dir().map(|p| p.join(".config/allay/config.toml"));
+        if let Some(config_file) = config_file
+            && let Ok(config) = file::read_file_string(config_file)
+        {
+            toml::from_str(&config).unwrap_or_default()
         } else {
             AllayConfig::default()
         }
