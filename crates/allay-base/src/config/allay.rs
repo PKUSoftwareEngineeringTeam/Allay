@@ -23,13 +23,13 @@ pub struct AllayConfig {
 impl Default for AllayConfig {
     fn default() -> Self {
         Self {
-            content_dir: "contents".into(),
-            publish_dir: "publish".into(),
-            statics_dir: "static".into(),
-            plugin_dir: "plugins".into(),
-            shortcode_dir: "shortcodes".into(),
-            theme_dir: "themes".into(),
-            log_dir: "logs".into(),
+            content_dir: Self::default_content_dir(),
+            publish_dir: Self::default_publish_dir(),
+            statics_dir: Self::default_statics_dir(),
+            plugin_dir: Self::default_plugin_dir(),
+            shortcode_dir: Self::default_shortcode_dir(),
+            theme_dir: Self::default_theme_dir(),
+            log_dir: Self::default_log_dir(),
         }
     }
 }
@@ -40,7 +40,7 @@ impl AllayConfig {
     }
 
     fn default_publish_dir() -> String {
-        "publish".into()
+        "public".into()
     }
 
     fn default_statics_dir() -> String {
@@ -87,9 +87,7 @@ pub fn get_env() -> &'static Environment {
     static INSTANCE: OnceLock<Environment> = OnceLock::new();
 
     INSTANCE.get_or_init(|| {
-        let env = std::env::var("ALLAY_ENV")
-            .unwrap_or_else(|_| "production".into())
-            .to_lowercase();
+        let env = std::env::var("ALLAY_ENV").unwrap_or("production".into()).to_lowercase();
         match env.as_str() {
             "dev" | "development" => Environment::Development,
             _ => Environment::Production,

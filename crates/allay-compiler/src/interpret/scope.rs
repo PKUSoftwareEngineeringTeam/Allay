@@ -96,12 +96,8 @@ impl DataProvider for PageScope {
     fn get_data(&self) -> Arc<AllayData> {
         self.merged
             .get_or_init(|| {
-                // Merge inherited and extra data
-                let mut merged = if let Some(inherited) = &self.inherited {
-                    inherited.deref().clone()
-                } else {
-                    AllayObject::new()
-                };
+                let mut merged =
+                    self.inherited.as_ref().map_or(AllayObject::new(), |data| data.deref().clone());
 
                 for (k, v) in self.owned.deref().clone() {
                     merged.insert(k, v);

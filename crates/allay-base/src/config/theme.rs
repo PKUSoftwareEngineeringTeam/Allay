@@ -1,6 +1,6 @@
 use crate::config::get_theme_path;
 use crate::file;
-use crate::log::show_error;
+use crate::log::NoPanicUnwrap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -29,8 +29,8 @@ pub struct FileConfig {
 impl Default for FileConfig {
     fn default() -> Self {
         Self {
-            custom_dir: "content".to_string(),
-            static_dir: "static".to_string(),
+            custom_dir: Self::default_custom_dir(),
+            static_dir: Self::default_static_dir(),
             templates: TemplateConfig::default(),
         }
     }
@@ -38,7 +38,7 @@ impl Default for FileConfig {
 
 impl FileConfig {
     fn default_custom_dir() -> String {
-        "content".to_string()
+        "custom".to_string()
     }
 
     fn default_static_dir() -> String {
@@ -54,28 +54,28 @@ pub struct Dependencies {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateConfig {
-    #[serde(default = "FileConfig::default_dir")]
+    #[serde(default = "TemplateConfig::default_dir")]
     pub dir: String,
-    #[serde(default = "FileConfig::default_index")]
+    #[serde(default = "TemplateConfig::default_index")]
     pub index: String,
-    #[serde(default = "FileConfig::default_content")]
+    #[serde(default = "TemplateConfig::default_content")]
     pub content: String,
-    #[serde(default = "FileConfig::default_not_found")]
+    #[serde(default = "TemplateConfig::default_not_found")]
     pub not_found: String,
 }
 
 impl Default for TemplateConfig {
     fn default() -> Self {
         Self {
-            dir: "templates".to_string(),
-            index: "index.html".to_string(),
-            content: "page.html".to_string(),
-            not_found: "404.html".to_string(),
+            dir: Self::default_dir(),
+            index: Self::default_index(),
+            content: Self::default_content(),
+            not_found: Self::default_not_found(),
         }
     }
 }
 
-impl FileConfig {
+impl TemplateConfig {
     fn default_dir() -> String {
         "templates".to_string()
     }
@@ -104,13 +104,14 @@ pub struct ThemeConfig {
 }
 
 pub fn get_theme_config() -> &'static ThemeConfig {
+    const THEME_CONFIG_FILE: &str = "theme.toml";
     static THEME_CONFIG: OnceLock<ThemeConfig> = OnceLock::new();
 
     THEME_CONFIG.get_or_init(|| {
         let theme_path = file::workspace(get_theme_path());
-        let config_file = theme_path.join("theme.toml");
+        let config_file = theme_path.join(THEME_CONFIG_FILE);
         let config_str = file::read_file_string(&config_file)
-            .unwrap_or_else(|e| show_error(&format!("Failed to read theme config: {e}")));
-        toml::from_str(&config_str).unwrap_or_else(|_| show_error("Failed to parse theme config"))
+            .expect_on(|e| format!("Failed to read theme config: {e}"));
+        toml::from_str(&config_str).expect_("Failed to parse theme config")
     })
 }
