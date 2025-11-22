@@ -36,9 +36,16 @@ impl GeneratorWorker {
     pub fn start(&'static self) {
         for g in self.gens.iter() {
             spawn(move || {
-                g.cold_start();
+                g.generate_all();
                 g.watch();
             });
+        }
+    }
+
+    /// Generate all files once
+    pub fn generate_once(&self) {
+        for g in self.gens.iter() {
+            g.generate_all();
         }
     }
 }
