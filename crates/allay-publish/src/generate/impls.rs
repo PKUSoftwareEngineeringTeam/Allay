@@ -102,7 +102,6 @@ impl FileMapper for GeneralGenerator {
 }
 
 fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
-    // let head = include_str!("head.html");
     let head = get_cli_config()
         .online
         .then(|| {
