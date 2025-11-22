@@ -1,6 +1,8 @@
 use super::traits::{FileGenerator, FileMapper};
 use allay_base::config::theme::get_theme_config;
-use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_theme_path};
+use allay_base::config::{
+    CLICommand, get_allay_config, get_cli_config, get_site_config, get_theme_path,
+};
 use allay_base::file::{self, FileResult};
 use allay_base::template::{ContentKind, TemplateKind};
 use allay_compiler::Compiler;
@@ -100,12 +102,25 @@ impl FileMapper for GeneralGenerator {
 }
 
 fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
+    let head = get_cli_config()
+        .online
+        .then(|| {
+            let base_url = get_site_config()
+                .get("base_url")
+                .expect("base_url not found in online mode")
+                .as_str()
+                .expect("base_url should be a string")
+                .clone();
+            format!(include_str!("head.html"), base_url)
+        })
+        .unwrap_or_default();
+
     let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
         .then_some(include_str!("auto-reload.js"))
         .unwrap_or_default();
     file::write_file(
         dest,
-        &format!(include_str!("wrapper.html"), html, hot_reload),
+        &format!(include_str!("wrapper.html"), head, html, hot_reload),
     )
 }
 

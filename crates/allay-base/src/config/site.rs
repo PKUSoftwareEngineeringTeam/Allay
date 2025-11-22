@@ -8,7 +8,7 @@ use std::{path::PathBuf, sync::OnceLock};
 pub const SITE_CONFIG_FILE: &str = "allay.toml";
 
 pub const DEFAULT_SITE_CONFIG: &str = r#"# Default Allay site configuration
-baseUrl = "http://your-site.com/"
+base_url = "http://your-site.com/"
 title = "Your Site Title"
 theme = "your-theme-name"
 description = "A brief description of your site."

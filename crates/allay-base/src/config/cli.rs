@@ -18,6 +18,10 @@ pub struct AllayCLI {
     #[arg(short, long, global = true)]
     pub root: Option<String>,
 
+    /// Serve the site in online mode (which means it will use the base_url in the config)
+    #[arg(long, global = true, default_value_t = false)]
+    pub online: bool,
+
     /// Subcommand to execute
     #[command(subcommand)]
     pub command: CLICommand,
