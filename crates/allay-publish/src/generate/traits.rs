@@ -33,7 +33,7 @@ pub trait FileListener: Send + Sync {
 
     /// Perform a cold start by scanning all existing files in the root directory
     /// and triggering the `on_create` event for each file.
-    fn cold_start(&self) {
+    fn generate_all(&self) {
         let root = file::absolute_workspace(self.root());
         for entry in WalkDir::new(&root).follow_links(true) {
             match entry {
