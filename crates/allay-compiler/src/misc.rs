@@ -122,10 +122,8 @@ impl Compiler<String> {
         let meta = get_meta(article)?;
 
         let default = &get_theme_config().config.templates.content;
-        let template = match meta.get(magic::TEMPLATE) {
-            Some(data) => data.as_str().unwrap_or(default),
-            None => default,
-        };
+        let template =
+            meta.get(magic::TEMPLATE).and_then(|data| data.as_str().ok()).unwrap_or(default);
 
         let path = file::workspace(
             get_theme_path().join(&get_theme_config().config.templates.dir).join(template),

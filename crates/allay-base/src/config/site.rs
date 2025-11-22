@@ -1,7 +1,7 @@
 use crate::config::get_allay_config;
 use crate::data::{AllayData, AllayObject};
 use crate::file::{read_file_string, workspace};
-use crate::log::show_error;
+use crate::log::NoPanicUnwrap;
 use std::sync::Arc;
 use std::{path::PathBuf, sync::OnceLock};
 
@@ -38,14 +38,14 @@ pub fn get_theme_path() -> &'static PathBuf {
 
     INSTANCE.get_or_init(|| {
         const DEFAULT_THEME_NAME: &str = "Axolotl";
+
         let dir = &get_allay_config().theme_dir;
-        let chosen = match get_site_config().get("theme") {
-            Some(data) => {
-                data.as_str().unwrap_or_else(|_| show_error("Theme name must be a string"))
-            }
-            None => DEFAULT_THEME_NAME, // use default theme
-        }
-        .to_string();
+        let chosen = get_site_config()
+            .get("theme")
+            .map_or(DEFAULT_THEME_NAME, |data| {
+                data.as_str().expect_("Theme name must be a string")
+            })
+            .to_string();
         PathBuf::from(dir).join(chosen)
     })
 }
