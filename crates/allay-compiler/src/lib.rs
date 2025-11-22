@@ -32,6 +32,8 @@ mod magic {
     pub const URL: &str = "url";
     /// the template used for an article (default `template`-`content` key defined in allay config)
     pub const TEMPLATE: &str = "template";
+    /// whether to treat the content as raw Markdown, which means it will not be compiled (default `false`)
+    pub const RAW: &str = "raw";
     /// if the post is hidden from listings (default `false`)
     pub const HIDDEN: &str = "hidden";
 }

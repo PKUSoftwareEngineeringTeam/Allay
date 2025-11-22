@@ -1,9 +1,9 @@
 //! Miscellaneous utility functions for the Allay compiler.
 //! These functions provide implementation for compiling source files (such as Markdown or HTML) into HTML strings.
 
-use crate::env::{Compiled, Page};
+use crate::env::{Compiled, Page, convert_to_html};
 use crate::interpret::Interpreter;
-use crate::meta::get_meta;
+use crate::meta::{get_meta, get_raw_content};
 use crate::{CompileError, CompileResult, Compiler};
 use crate::{CompileOutput, magic};
 use allay_base::config::get_theme_path;
@@ -11,6 +11,7 @@ use allay_base::config::theme::get_theme_config;
 use allay_base::file;
 use allay_base::template::ContentKind;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 impl Compiler<String> {
     /// the key generation method for caching
@@ -162,12 +163,20 @@ impl Compiler<String> {
         // Note that the template may generate many articles
         // so for each article, give a unique cache key, like `template|foo.md` (`template_article_key` here)
         let mut page = Page::new(template.clone());
+        let front_matter = get_meta(&article)?;
+
         // replace the "content" key with the article page
-        page.add_stash(magic::CONTENT.into(), sub);
+        if front_matter.get(magic::RAW) == Some(&Arc::new(true.into())) {
+            // raw content, do not compile the markdown
+            let content = convert_to_html(&get_raw_content(article)?)?;
+            page.scope_mut().add_key(magic::CONTENT.into(), Arc::new(content.into()));
+        } else {
+            // stash the subpage as the content
+            page.add_stash(magic::CONTENT.into(), sub);
+        }
 
         // let the front matter of the article accessible in the template
         let page = page.into();
-        let front_matter = get_meta(&article)?;
         page.lock().unwrap().scope_mut().merge_data(front_matter);
 
         self.published.insert(template_article_key.clone());

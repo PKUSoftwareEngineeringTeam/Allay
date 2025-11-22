@@ -140,7 +140,7 @@ impl Page {
     }
 }
 
-fn convert_to_html(text: &str) -> CompileResult<String> {
+pub fn convert_to_html(text: &str) -> CompileResult<String> {
     let mut html_output = String::new();
     html::push_html(&mut html_output, Parser::new(text));
     Ok(html_output)
