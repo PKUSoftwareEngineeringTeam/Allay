@@ -19,8 +19,8 @@ fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObj
                 // ignore if the file is not under the content directory
                 Err(_) => return Arc::new(().into()),
             };
-        // for "foo\\bar.html", we change it to "/foo/bar.html"
-        let url = Path::new("/")
+        // for "foo\\bar.html", we change it to "foo/bar.html"
+        let url = Path::new("")
             .join(entry)
             .with_extension(TemplateKind::Html.extension())
             .to_string_lossy()
