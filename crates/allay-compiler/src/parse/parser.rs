@@ -84,7 +84,7 @@ impl ASTBuilder for Template {
                 Rule::EOI => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<ParseResult<Vec<Control>>>()?;
+            .try_collect()?;
         Ok(Template { controls })
     }
 }
@@ -397,11 +397,11 @@ impl ASTBuilder for Or {
         let ands = pair
             .into_inner()
             .filter_map(|item| match item.as_rule() {
-                Rule::logic_or => None,
                 Rule::logic_and => Some(And::build(item)),
+                Rule::or_op => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<ParseResult<Vec<And>>>()?;
+            .try_collect()?;
         Ok(Or(ands))
     }
 }
@@ -412,10 +412,10 @@ impl ASTBuilder for And {
             .into_inner()
             .filter_map(|item| match item.as_rule() {
                 Rule::comparison => Some(Comparison::build(item)),
-                Rule::logic_and => None,
+                Rule::and_op => None,
                 _ => parser_unreachable!(),
             })
-            .collect::<ParseResult<Vec<Comparison>>>()?;
+            .try_collect()?;
         Ok(And(cmps))
     }
 }
@@ -469,10 +469,9 @@ impl ASTBuilder for AddSub {
                     "-" => AddSubOp::Subtract,
                     _ => parser_unreachable!(),
                 };
-                let val = MulDiv::build(val_pair)?;
-                Ok((op, val))
+                MulDiv::build(val_pair).map(|val| (op, val))
             })
-            .collect::<ParseResult<Vec<_>>>()?;
+            .try_collect()?;
 
         Ok(AddSub { left, rights })
     }
@@ -491,10 +490,9 @@ impl ASTBuilder for MulDiv {
                     "%" => MulDivOp::Modulo,
                     _ => parser_unreachable!(),
                 };
-                let val = Unary::build(val_pair)?;
-                Ok((op, val))
+                Unary::build(val_pair).map(|val| (op, val))
             })
-            .collect::<ParseResult<Vec<_>>>()?;
+            .try_collect()?;
 
         Ok(MulDiv { left, rights })
     }

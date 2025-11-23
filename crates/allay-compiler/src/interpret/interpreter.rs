@@ -146,6 +146,10 @@ impl Interpretable for WithCommand {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let scope_data = self.scope.interpret(ctx, page)?;
+        if scope_data.is_null() {
+            return Ok(());
+        }
+    
         let var = LocalVar::create(scope_data);
         interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
         self.inner.interpret(ctx, page)?;
@@ -158,8 +162,8 @@ impl Interpretable for IfCommand {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        let cond = self.condition.interpret(ctx, page)?.as_bool()?;
-        if cond {
+        let cond = self.condition.interpret(ctx, page)?;
+        if !cond.is_null() && cond.as_bool()? {
             self.inner.interpret(ctx, page)
         } else if let Some(else_branch) = &self.else_inner {
             else_branch.interpret(ctx, page)
