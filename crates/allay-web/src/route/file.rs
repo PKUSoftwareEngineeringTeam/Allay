@@ -109,10 +109,8 @@ pub async fn handle_file(
         possible_paths.push(&html_file);
     }
 
-    dbg!(&possible_paths);
-
     for path in possible_paths.into_iter() {
-        let response = file_response(&path, &params, root.clone()).await;
+        let response = file_response(path, &params, root.clone()).await;
         if let Err(RouteError::NotFound) = response {
             continue; // try next possible path
         }
