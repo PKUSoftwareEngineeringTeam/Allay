@@ -9,6 +9,10 @@ pub(crate) fn get_field_once(
     cur: Arc<AllayData>,
     field: &GetField,
 ) -> InterpretResult<Arc<AllayData>> {
+    if cur.is_null() {
+        return Ok(cur);
+    }
+
     match field {
         GetField::Index(i) => {
             let list = cur.as_list()?;
