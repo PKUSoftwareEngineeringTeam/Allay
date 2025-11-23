@@ -27,7 +27,7 @@ pub async fn last_modify(root: Arc<PathBuf>) -> Option<HashMap<String, u64>> {
             let metadata = tokio::fs::metadata(path).await.ok()?;
             let modified_time = metadata.modified().ok()?;
             files.insert(
-                safe_filename(path.file_name().map(|s| s.to_str())??),
+                safe_filename(path),
                 modified_time.duration_since(UNIX_EPOCH).ok()?.as_secs(),
             );
         }
