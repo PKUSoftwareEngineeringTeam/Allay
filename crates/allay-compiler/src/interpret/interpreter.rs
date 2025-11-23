@@ -149,7 +149,7 @@ impl Interpretable for WithCommand {
         if scope_data.is_null() {
             return Ok(());
         }
-    
+
         let var = LocalVar::create(scope_data);
         interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
         self.inner.interpret(ctx, page)?;
