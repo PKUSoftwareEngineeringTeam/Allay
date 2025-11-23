@@ -14,7 +14,7 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     load_plugins()?;
 
     if args.open {
-        webbrowser::open(&url).unwrap_or_else(|_| println!("Failed to open the browser"));
+        webbrowser::open(&url).unwrap_or_else(|_| eprintln!("Failed to open the browser"));
     }
 
     let server = Server::new(

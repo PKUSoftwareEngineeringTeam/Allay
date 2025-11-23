@@ -4,8 +4,7 @@ use crate::route::{RouteError, RouteResult};
 use allay_base::config::get_theme_config;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderValue, StatusCode, header, response::Builder};
-use axum::response::IntoResponse;
+use axum::http::{HeaderValue, header, response::Builder};
 use mime_guess::from_path;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -32,11 +31,12 @@ pub async fn handle_index(
     State(root): State<Arc<PathBuf>>,
     Query(params): Query<DownloadParams>,
 ) -> RouteResult {
-    file_response(&get_theme_config().config.templates.index, &params, root).await
+    let index = &get_theme_config().config.templates.index;
+    file_response(&index.into(), &params, root).await
 }
 
 pub async fn file_response(
-    file_path: &str,
+    file_path: &PathBuf,
     params: &DownloadParams,
     root: Arc<PathBuf>,
 ) -> RouteResult {
@@ -95,12 +95,28 @@ pub async fn handle_file(
     Path(file_path): Path<String>,
     Query(params): Query<DownloadParams>,
 ) -> RouteResult {
-    let response = file_response(&file_path, &params, root.clone()).await.into_response();
+    // foo.html -> foo.html
+    let path = PathBuf::from(&file_path);
+    // foo/ -> foo/index.html
+    let sub_index = path.join(&get_theme_config().config.templates.index);
+    // foo -> foo.html
+    let html_file = path.with_extension("html");
 
-    if response.status() == StatusCode::NOT_FOUND {
-        let file = &get_theme_config().config.templates.not_found;
-        file_response(file, &params, root).await
-    } else {
-        Ok(response)
+    let mut possible_paths = vec![&path];
+    if file_path.ends_with("/") {
+        possible_paths.push(&sub_index);
+    } else if path.extension().is_none() {
+        possible_paths.push(&html_file);
     }
+
+    for path in possible_paths.into_iter() {
+        let response = file_response(path, &params, root.clone()).await;
+        if let Err(RouteError::NotFound) = response {
+            continue; // try next possible path
+        }
+        return response;
+    }
+
+    let not_found = &get_theme_config().config.templates.not_found;
+    file_response(&not_found.into(), &params, root).await
 }
