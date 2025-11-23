@@ -4,7 +4,7 @@ use crate::{CompileOutput, CompileResult};
 use allay_base::template::TemplateKind;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
-use pulldown_cmark::{Parser, html};
+use pulldown_cmark::{Options, Parser, html};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
@@ -142,7 +142,16 @@ impl Page {
 
 pub fn convert_to_html(text: &str) -> CompileResult<String> {
     let mut html_output = String::new();
-    html::push_html(&mut html_output, Parser::new(text));
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_FOOTNOTES);
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_GFM);
+    options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+    options.insert(Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS);
+
+    let parser = Parser::new_ext(text, options);
+    html::push_html(&mut html_output, parser);
     Ok(html_output)
 }
 

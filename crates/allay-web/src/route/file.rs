@@ -96,14 +96,18 @@ pub async fn handle_file(
     Query(params): Query<DownloadParams>,
 ) -> RouteResult {
     let file_path = PathBuf::from(&file_path);
-    let possible_paths = [
-        file_path.clone(),
-        file_path.with_extension("html"),
-        file_path.join(&get_theme_config().config.templates.index),
+
+    let mut possible_paths = vec![
+        file_path.clone(),                                          // foo.html -> foo.html
+        file_path.join(&get_theme_config().config.templates.index), // foo -> foo/index.html
     ];
 
-    for file_path in possible_paths.iter() {
-        let response = file_response(file_path, &params, root.clone()).await;
+    if file_path.extension().is_none() {
+        possible_paths.push(file_path.with_extension("html")); // foo -> foo.html
+    }
+
+    for path in possible_paths.into_iter() {
+        let response = file_response(&path, &params, root.clone()).await;
         if let Err(RouteError::NotFound) = response {
             continue; // try next possible path
         }

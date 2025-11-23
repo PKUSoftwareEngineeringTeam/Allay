@@ -92,17 +92,5 @@ pub fn get_raw_content<P: AsRef<Path>>(source: P) -> CompileResult<String> {
     };
     #[cfg(feature = "plugin")]
     let content = before_compile(content, kind);
-
-    // remove the front-matter
-    let yaml_re = Regex::new(r"(?s)^---\s*.*?\s*---\s*").unwrap();
-    let toml_re = Regex::new(r"(?s)^\+\+\+\s*.*?\s*\+\+\+\s*").unwrap();
-    let content = if yaml_re.find(&content).is_some() {
-        yaml_re.replace(&content, "").to_string()
-    } else if toml_re.find(&content).is_some() {
-        toml_re.replace(&content, "").to_string()
-    } else {
-        content
-    };
-
     Ok(content)
 }
