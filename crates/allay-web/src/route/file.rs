@@ -95,16 +95,21 @@ pub async fn handle_file(
     Path(file_path): Path<String>,
     Query(params): Query<DownloadParams>,
 ) -> RouteResult {
-    let file_path = PathBuf::from(&file_path);
+    // foo.html -> foo.html
+    let path = PathBuf::from(&file_path);
+    // foo/ -> foo/index.html
+    let sub_index = path.join(&get_theme_config().config.templates.index);
+    // foo -> foo.html
+    let html_file = path.with_extension("html");
 
-    let mut possible_paths = vec![
-        file_path.clone(),                                          // foo.html -> foo.html
-        file_path.join(&get_theme_config().config.templates.index), // foo -> foo/index.html
-    ];
-
-    if file_path.extension().is_none() {
-        possible_paths.push(file_path.with_extension("html")); // foo -> foo.html
+    let mut possible_paths = vec![&path];
+    if file_path.ends_with("/") {
+        possible_paths.push(&sub_index);
+    } else if path.extension().is_none() {
+        possible_paths.push(&html_file);
     }
+
+    dbg!(&possible_paths);
 
     for path in possible_paths.into_iter() {
         let response = file_response(&path, &params, root.clone()).await;
