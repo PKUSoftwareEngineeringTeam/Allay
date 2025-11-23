@@ -1,5 +1,4 @@
-use allay_base::config::BuildArgs;
-use allay_base::config::theme::get_theme_config;
+use allay_base::config::{BuildArgs, get_theme_config};
 use allay_base::log::show_error;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
