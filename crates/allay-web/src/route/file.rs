@@ -1,7 +1,7 @@
 use crate::route::utils::safe_filename;
 use crate::route::{RouteError, RouteResult};
 
-use allay_base::config::theme::get_theme_config;
+use allay_base::config::get_theme_config;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, StatusCode, header, response::Builder};

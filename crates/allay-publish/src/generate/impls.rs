@@ -1,7 +1,6 @@
 use super::traits::{FileGenerator, FileMapper};
-use allay_base::config::theme::get_theme_config;
 use allay_base::config::{
-    CLICommand, get_allay_config, get_cli_config, get_site_config, get_theme_path,
+    CLICommand, get_allay_config, get_cli_config, get_site_config, get_theme_config, get_theme_path,
 };
 use allay_base::file::{self, FileResult};
 use allay_base::template::{ContentKind, TemplateKind};
@@ -103,12 +102,17 @@ impl FileMapper for GeneralGenerator {
 
 fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
     let head = if get_cli_config().online {
+        // In online mode, use the base_url from site config
         let base_url = get_site_config()
             .get("base_url")
             .expect("base_url not found in online mode")
             .as_str()
             .expect("base_url should be a string")
             .clone();
+        format!(include_str!("head.html"), base_url)
+    } else if let CLICommand::Serve(args) = &get_cli_config().command {
+        // In serve mode, use the local address and port
+        let base_url = format!("http://{}:{}/", args.address, args.port);
         format!(include_str!("head.html"), base_url)
     } else {
         String::new()

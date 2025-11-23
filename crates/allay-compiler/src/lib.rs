@@ -8,8 +8,7 @@ mod meta;
 mod misc;
 mod parse;
 
-use allay_base::config::theme::get_theme_config;
-use allay_base::config::{get_allay_config, get_theme_path};
+use allay_base::config::{get_allay_config, get_theme_config, get_theme_path};
 use allay_base::data::AllayObject;
 use allay_base::file;
 use env::{Compiled, Page};
