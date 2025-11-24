@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 /// The path is normalized to handle common cases such as directory paths and HTML files.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AllayUrlPath {
-    /// a directory path ending with '/'
+    /// a directory path ending with '/' (if the root, it is just "/")
     Index(PathBuf),
     /// an HTML file without extension
     Html(PathBuf),
@@ -54,7 +54,7 @@ impl AllayUrlPath {
             && TemplateKind::from_extension(ext).is_html()
         {
             if path.file_name() == Some(get_theme_config().config.templates.index.as_ref()) {
-                AllayUrlPath::Index(path.parent().map(Self::to_dir).unwrap_or_default())
+                AllayUrlPath::Index(path.parent().map(Self::to_dir).unwrap_or(PathBuf::from("/")))
             } else {
                 AllayUrlPath::Html(path.with_extension(""))
             }
@@ -90,7 +90,14 @@ impl AllayUrlPath {
     /// ```
     pub fn possible_paths(&self) -> Vec<PathBuf> {
         match self {
-            AllayUrlPath::Index(p) => vec![p.join(&get_theme_config().config.templates.index)],
+            AllayUrlPath::Index(p) => {
+                let index = &get_theme_config().config.templates.index;
+                if p.to_string_lossy() == "/" {
+                    vec![PathBuf::from(index)] // fix for root index
+                } else {
+                    vec![p.join(&get_theme_config().config.templates.index)]
+                }
+            }
             AllayUrlPath::Html(p) => {
                 vec![p.clone(), p.with_extension(TemplateKind::Html.extension())]
             }
