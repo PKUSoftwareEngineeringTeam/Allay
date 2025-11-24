@@ -12,8 +12,6 @@ pub enum AllayUrlPath {
     Html(PathBuf),
     /// other file types
     Other(PathBuf),
-    /// paths with invalid UTF-8
-    NotUTF8(PathBuf),
 }
 
 impl AsRef<Path> for AllayUrlPath {
@@ -22,7 +20,6 @@ impl AsRef<Path> for AllayUrlPath {
             AllayUrlPath::Index(p) => p.as_ref(),
             AllayUrlPath::Html(p) => p.as_ref(),
             AllayUrlPath::Other(p) => p.as_ref(),
-            AllayUrlPath::NotUTF8(p) => p.as_ref(),
         }
     }
 }
@@ -50,17 +47,14 @@ impl AllayUrlPath {
     /// ```
     pub fn from(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
-        if path.to_str().is_none() {
-            AllayUrlPath::NotUTF8(path.into())
-        } else if path.to_str().unwrap().ends_with("/") {
+        if Self::is_dir(path) {
             AllayUrlPath::Index(path.into())
         } else if let Some(ext) = path.extension()
             && let Some(ext) = ext.to_str()
             && TemplateKind::from_extension(ext).is_html()
         {
             if path.file_name() == Some(get_theme_config().config.templates.index.as_ref()) {
-                let parent = path.parent().map(Path::to_str).unwrap_or_default().unwrap();
-                AllayUrlPath::Index(PathBuf::from(format!("{}/", parent)))
+                AllayUrlPath::Index(path.parent().map(Self::to_dir).unwrap_or_default())
             } else {
                 AllayUrlPath::Html(path.with_extension(""))
             }
@@ -74,7 +68,6 @@ impl AllayUrlPath {
     /// 1. If the path is not a directory, the path itself.
     /// 2. If the path is a directory, the `index.html` file inside it.
     /// 3. the `.html` file with the same name.
-    /// 4. If the path has invalid UTF-8 characters, only the path itself.
     ///
     /// # Examples
     ///
@@ -107,7 +100,19 @@ impl AllayUrlPath {
                     p.with_added_extension(TemplateKind::Html.extension()),
                 ]
             }
-            AllayUrlPath::NotUTF8(p) => vec![p.clone()],
+        }
+    }
+
+    pub fn is_dir(path: impl AsRef<Path>) -> bool {
+        path.as_ref().to_string_lossy().ends_with("/")
+    }
+
+    pub fn to_dir(path: impl AsRef<Path>) -> PathBuf {
+        let str = path.as_ref().to_string_lossy();
+        if str.ends_with("/") {
+            PathBuf::from(str.as_ref())
+        } else {
+            PathBuf::from(format!("{}/", str))
         }
     }
 }

@@ -26,7 +26,7 @@ use std::sync::LazyLock;
 enum RouteError {
     NotFound,
     Forbidden,
-    InternalServerError(String),
+    Internal(String),
 }
 
 impl IntoResponse for RouteError {
@@ -34,9 +34,7 @@ impl IntoResponse for RouteError {
         match self {
             RouteError::NotFound => (StatusCode::NOT_FOUND, "Not Found").into_response(),
             RouteError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden").into_response(),
-            RouteError::InternalServerError(msg) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response()
-            }
+            RouteError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg).into_response(),
         }
     }
 }

@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 pub async fn handle_last_modify(
     State(root): State<Arc<PathBuf>>,
 ) -> RouteResult<Json<HashMap<String, u64>>> {
-    last_modify(root).await.map(Json).ok_or(RouteError::InternalServerError(
+    last_modify(root).await.map(Json).ok_or(RouteError::Internal(
         "Failed to get last modified times".into(),
     ))
 }

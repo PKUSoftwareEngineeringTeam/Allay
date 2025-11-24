@@ -52,11 +52,11 @@ pub async fn file_response(
 
     let metadata = tokio::fs::metadata(&path)
         .await
-        .map_err(|e| RouteError::InternalServerError(format!("Failed to get metadata: {}", e)))?;
+        .map_err(|e| RouteError::Internal(format!("Failed to get metadata: {}", e)))?;
 
     let file = File::open(&path)
         .await
-        .map_err(|e| RouteError::InternalServerError(format!("Failed to open file: {}", e)))?;
+        .map_err(|e| RouteError::Internal(format!("Failed to open file: {}", e)))?;
 
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
@@ -109,13 +109,8 @@ pub async fn handle_file(
     }
 
     // try to redirect to index-like if possible
-    let redirect_url = match url {
-        AllayUrlPath::Html(p) => Some(AllayUrlPath::Index(p)),
-        AllayUrlPath::Other(p) => Some(AllayUrlPath::Index(p)),
-        _ => None,
-    };
-
-    if let Some(url) = redirect_url {
+    if let AllayUrlPath::Html(p) | AllayUrlPath::Other(p) = url {
+        let url = AllayUrlPath::Index(AllayUrlPath::to_dir(p));
         for path in url.possible_paths() {
             let response = file_response(&path, &params, root.clone()).await;
             if let Err(RouteError::NotFound) = response {
@@ -125,12 +120,12 @@ pub async fn handle_file(
                 .status(302)
                 .header(
                     header::LOCATION,
-                    HeaderValue::from_str(&format!("/{}", url.as_ref().to_string_lossy())).unwrap(),
+                    HeaderValue::from_str(&url.as_ref().to_string_lossy()).map_err(|e| {
+                        RouteError::Internal(format!("Failed to build redirect: {}", e))
+                    })?,
                 )
                 .body(Body::empty())
-                .map_err(|e| {
-                    RouteError::InternalServerError(format!("Failed to build redirect: {}", e))
-                });
+                .map_err(|e| RouteError::Internal(format!("Failed to build redirect: {}", e)));
         }
     }
 
