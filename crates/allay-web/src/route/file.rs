@@ -121,7 +121,16 @@ pub async fn handle_file(
             if let Err(RouteError::NotFound) = response {
                 continue; // try next possible path
             }
-            return response;
+            return Builder::new()
+                .status(302)
+                .header(
+                    header::LOCATION,
+                    HeaderValue::from_str(&format!("/{}", url.as_ref().to_string_lossy())).unwrap(),
+                )
+                .body(Body::empty())
+                .map_err(|e| {
+                    RouteError::InternalServerError(format!("Failed to build redirect: {}", e))
+                });
         }
     }
 
