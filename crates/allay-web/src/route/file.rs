@@ -1,7 +1,7 @@
 use crate::route::utils::safe_filename;
 use crate::route::{RouteError, RouteResult};
-
 use allay_base::config::get_theme_config;
+use allay_base::url::AllayUrlPath;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, header, response::Builder};
@@ -95,26 +95,34 @@ pub async fn handle_file(
     Path(file_path): Path<String>,
     Query(params): Query<DownloadParams>,
 ) -> RouteResult {
-    // foo.html -> foo.html
     let path = PathBuf::from(&file_path);
-    // foo/ -> foo/index.html
-    let sub_index = path.join(&get_theme_config().config.templates.index);
-    // foo -> foo.html
-    let html_file = path.with_extension("html");
 
-    let mut possible_paths = vec![&path];
-    if file_path.ends_with("/") {
-        possible_paths.push(&sub_index);
-    } else if path.extension().is_none() {
-        possible_paths.push(&html_file);
-    }
+    // try all possible file paths for this URL path
+    let url = AllayUrlPath::from(&path);
 
-    for path in possible_paths.into_iter() {
-        let response = file_response(path, &params, root.clone()).await;
+    for path in url.possible_paths() {
+        let response = file_response(&path, &params, root.clone()).await;
         if let Err(RouteError::NotFound) = response {
             continue; // try next possible path
         }
         return response;
+    }
+
+    // try to redirect to index-like if possible
+    let redirect_url = match url {
+        AllayUrlPath::Html(p) => Some(AllayUrlPath::Index(p)),
+        AllayUrlPath::Other(p) => Some(AllayUrlPath::Index(p)),
+        _ => None,
+    };
+
+    if let Some(url) = redirect_url {
+        for path in url.possible_paths() {
+            let response = file_response(&path, &params, root.clone()).await;
+            if let Err(RouteError::NotFound) = response {
+                continue; // try next possible path
+            }
+            return response;
+        }
     }
 
     let not_found = &get_theme_config().config.templates.not_found;

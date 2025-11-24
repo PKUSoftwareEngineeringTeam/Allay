@@ -3,7 +3,9 @@ use crate::interpret::interpret_meta;
 use crate::parse::parse_file;
 use crate::{CompileError, CompileResult, magic};
 use allay_base::config::get_allay_config;
-use allay_base::{data::AllayObject, file, template::TemplateKind};
+use allay_base::data::{AllayData, AllayObject};
+use allay_base::url::AllayUrlPath;
+use allay_base::{file, template::TemplateKind};
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 use regex::Regex;
@@ -15,19 +17,12 @@ fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObj
         // Add the `url` field to the metadata
         let entry =
             match source.as_ref().strip_prefix(file::workspace(&get_allay_config().content_dir)) {
-                Ok(e) => e,
+                Ok(e) => e.with_extension(TemplateKind::Html.extension()),
                 // ignore if the file is not under the content directory
-                Err(_) => return Arc::new(().into()),
+                Err(_) => return Arc::new(AllayData::default()),
             };
-        // for "foo\\bar.html", we change it to "foo/bar.html"
-        let url = Path::new("")
-            .join(entry)
-            .with_extension(TemplateKind::Html.extension())
-            .to_string_lossy()
-            .to_string()
-            .replace('\\', "/") // for Windows paths
-            .into();
-        Arc::new(url)
+        let url = AllayUrlPath::from(entry).as_ref().to_string_lossy().to_string();
+        Arc::new(url.into())
     });
     meta
 }
