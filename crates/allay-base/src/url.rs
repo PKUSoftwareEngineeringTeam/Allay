@@ -95,7 +95,7 @@ impl AllayUrlPath {
                 if p.to_string_lossy() == "/" {
                     vec![PathBuf::from(index)] // fix for root index
                 } else {
-                    vec![p.join(&get_theme_config().config.templates.index)]
+                    vec![p.join(index)]
                 }
             }
             AllayUrlPath::Html(p) => {
