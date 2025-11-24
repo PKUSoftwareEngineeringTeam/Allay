@@ -51,10 +51,8 @@ impl AllayUrlPath {
     pub fn from(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref();
         if path.to_str().is_none() {
-            return AllayUrlPath::NotUTF8(path.into());
-        }
-
-        if path.to_str().unwrap().ends_with("/") {
+            AllayUrlPath::NotUTF8(path.into())
+        } else if path.to_str().unwrap().ends_with("/") {
             AllayUrlPath::Index(path.into())
         } else if let Some(ext) = path.extension()
             && let Some(ext) = ext.to_str()
