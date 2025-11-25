@@ -12,16 +12,16 @@ class LiveReloadClient {
     }
 
     async init() {
-        this.lastTimestamp = await this.fetchTimpstamp();
+        this.lastTimestamp = await this.fetchTimestamp();
         console.log("Live Reload Client initialized with timestamp:", this.lastTimestamp);
         this.startPolling();
     }
 
     /**
-     * fetches the last modified timestamp for the current URI from the server.
+     * Fetches the last modified timestamp for the current URI from the server.
      * @returns {Promise<number>} The last modified timestamp.
      */
-    async fetchTimpstamp() {
+    async fetchTimestamp() {
         try {
             let url = location.pathname;
             if (url.startsWith('/')) {
@@ -30,7 +30,8 @@ class LiveReloadClient {
             const response = await fetch('/api/last-modified?url=' + encodeURIComponent(url));
             return await response.json();
         } catch (error) {
-            console.error('Failed to fetch initial timestamps:', error);
+            console.error('Failed to fetch timestamps:', error);
+            return 0;
         }
     }
 
@@ -48,7 +49,7 @@ class LiveReloadClient {
      */
     async checkForChange() {
         try {
-            const currentTimestamp = await this.fetchTimpstamp();
+            const currentTimestamp = await this.fetchTimestamp();
 
             if (currentTimestamp > this.lastTimestamp) {
                 this.lastTimestamp = currentTimestamp;

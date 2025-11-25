@@ -7,6 +7,7 @@ use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
+use tokio::fs;
 
 #[derive(Deserialize)]
 pub struct LastModifiedParams {
@@ -18,6 +19,8 @@ pub async fn handle_last_modify(
     Query(params): Query<LastModifiedParams>,
 ) -> RouteResult<Json<u64>> {
     let path = root.join(&params.url);
+    check_travesal(root.as_ref(), &path).await?;
+
     for path in AllayUrlPath::from(path).possible_paths() {
         if let Some(last_modify) = last_modify(path).await {
             return Ok(Json(last_modify));
@@ -31,8 +34,21 @@ pub async fn handle_last_modify(
     ))
 }
 
+pub async fn check_travesal(root: &PathBuf, path: &PathBuf) -> RouteResult<()> {
+    let canonical_root = fs::canonicalize(root)
+        .await
+        .map_err(|_| RouteError::Internal("Failed to canonicalize root directory".into()))?;
+    let canonical_path = fs::canonicalize(&path)
+        .await
+        .map_err(|_| RouteError::Internal("Invalid path".into()))?;
+    if !canonical_path.starts_with(&canonical_root) {
+        return Err(RouteError::Internal("Path traversal detected".into()));
+    }
+    Ok(())
+}
+
 pub async fn last_modify(path: PathBuf) -> Option<u64> {
-    let metadata = tokio::fs::metadata(path).await.ok()?;
+    let metadata = fs::metadata(path).await.ok()?;
     let modified_time = metadata.modified().ok()?;
     let duration = modified_time.duration_since(UNIX_EPOCH).ok()?;
     Some(duration.as_secs())
