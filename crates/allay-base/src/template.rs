@@ -52,11 +52,14 @@ impl TemplateKind {
     }
 }
 
-pub enum ContentKind {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileKind {
     /// The article content, usually in markdown format
     Article,
+    /// The article wrapper template, like `page.html`
+    Wrapper,
     /// The general page template, like `index.html`
-    General,
+    Custom,
     /// A static file, like CSS, JS, images, etc.
     Static,
 }

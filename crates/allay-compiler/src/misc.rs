@@ -4,11 +4,10 @@
 use crate::env::{Compiled, Page, convert_to_html};
 use crate::interpret::Interpreter;
 use crate::meta::{get_meta, get_raw_content};
-use crate::{CompileError, CompileResult, Compiler};
-use crate::{CompileOutput, magic};
+use crate::{CompileOutput, CompileResult, Compiler, magic};
 use allay_base::config::{get_theme_config, get_theme_path};
 use allay_base::file;
-use allay_base::template::ContentKind;
+use allay_base::template::FileKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -44,61 +43,17 @@ impl Compiler<String> {
     pub fn compile_file<P: AsRef<Path>>(
         &mut self,
         source: P,
-        kind: ContentKind,
+        kind: FileKind,
     ) -> CompileResult<CompileOutput> {
         match kind {
-            ContentKind::Article => self.article(source),
-            ContentKind::General => self.general(source),
-            ContentKind::Static => Err(CompileError::FileTypeNotSupported(
-                source
-                    .as_ref()
-                    .to_path_buf()
-                    .extension()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into(),
-            )),
+            FileKind::Article => self.article(source),
+            FileKind::Custom => self.custom(source),
+            _ => unreachable!("Only article and general can be the compile entry"),
         }
-    }
-
-    /// Mark an article source file as modified, so that all cached pages depending on it will be cleared.
-    ///
-    /// # Arguments
-    /// - `source`: The path to the source file (markdown or html)
-    /// - `kind`: The kind of content
-    pub fn modify_file<P: AsRef<Path>>(
-        &mut self,
-        source: P,
-        kind: ContentKind,
-    ) -> CompileResult<()> {
-        match kind {
-            ContentKind::Article => self.modify_article(source)?,
-            ContentKind::General => self.modify(source),
-            ContentKind::Static => {}
-        }
-        Ok(())
-    }
-
-    /// Remove a source file from the cache and influenced mapping.
-    ///
-    /// # Arguments
-    /// - `source`: The path to the source file (markdown or html)
-    /// - `kind`: The kind of content
-    pub fn remove_file<P: AsRef<Path>>(
-        &mut self,
-        source: P,
-        kind: ContentKind,
-    ) -> CompileResult<()> {
-        match kind {
-            ContentKind::Article => self.remove_article(source)?,
-            ContentKind::General => self.remove(source),
-            ContentKind::Static => {}
-        }
-        Ok(())
     }
 
     /// Compile a general file
-    fn general<P: AsRef<Path>>(&mut self, source: P) -> CompileResult<CompileOutput> {
+    fn custom(&mut self, source: impl AsRef<Path>) -> CompileResult<CompileOutput> {
         let key = Self::default_key(&source);
         let source = source.as_ref().to_path_buf();
 
@@ -110,94 +65,71 @@ impl Compiler<String> {
 
         let page = Page::new(source.clone()).into();
 
-        self.published.insert(key.clone());
-        self.add(source.clone(), key.clone());
+        self.publish(source, key.clone());
         self.remember(key, page.clone());
 
         page.compile(interpreter)
     }
 
-    /// Get the template path for an article
-    fn get_article_template<P: AsRef<Path>>(article: P) -> CompileResult<PathBuf> {
+    /// Get the wrapper path for an article
+    fn get_article_wrapper(article: impl AsRef<Path>) -> CompileResult<PathBuf> {
         let meta = get_meta(article)?;
 
         let default = &get_theme_config().config.templates.content;
-        let template =
+        let wrapper =
             meta.get(magic::TEMPLATE).and_then(|data| data.as_str().ok()).unwrap_or(default);
 
         let path = file::workspace(
-            get_theme_path().join(&get_theme_config().config.templates.dir).join(template),
+            get_theme_path().join(&get_theme_config().config.templates.dir).join(wrapper),
         );
 
         Ok(path)
     }
 
-    /// Generate a unique cache key for an article with its template
-    fn template_article_key<P: AsRef<Path>>(template: P, article: P) -> String {
+    /// Generate a unique cache key for an article with its wrapper
+    fn wrapper_article_key(wrapper: impl AsRef<Path>, article: impl AsRef<Path>) -> String {
         format!(
             "{}|{}",
-            Self::default_key(template),
+            Self::default_key(wrapper),
             Self::default_key(article)
         )
     }
 
     /// Compile an article
-    fn article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<CompileOutput> {
-        let article = article.as_ref().into();
-        let template = Self::get_article_template(&article)?;
-        let article_key = Self::default_key(&article);
-        let template_article_key = Self::template_article_key(&template, &article);
+    fn article(&mut self, article: impl AsRef<Path>) -> CompileResult<CompileOutput> {
+        let wrapper = Self::get_article_wrapper(&article)?;
 
-        let interpreter = &mut Self::default_interpreter();
-
-        // generate an intermediate page based on its content (`sub` here)
-        // listening to the article's changes with cache key `foo.md` (`article_key` here)
-        // this page is just a <p>...</p> wrapper of the article content
-        let sub = self.cache(&article_key).unwrap_or(Page::new(article.clone()).into());
-        self.add(article.clone(), article_key.clone());
-        self.remember(article_key, sub.clone());
-
-        // then generate the final page based on the template (`page` here)
-        // listening to template's changes
-        // Note that the template may generate many articles
-        // so for each article, give a unique cache key, like `template|foo.md` (`template_article_key` here)
-        let mut page = Page::new(template.clone());
+        let mut page = Page::new(wrapper.clone());
         let front_matter = get_meta(&article)?;
 
         // replace the "content" key with the article page
-        if front_matter.get(magic::RAW) == Some(&Arc::new(true.into())) {
+        let content = if front_matter.get(magic::RAW) == Some(&Arc::new(true.into())) {
             // raw content, do not compile the markdown
-            let content = convert_to_html(&get_raw_content(article)?)?;
-            page.scope_mut().add_key(magic::CONTENT.into(), Arc::new(content.into()));
+            convert_to_html(&get_raw_content(&article)?)?
         } else {
-            // stash the subpage as the content
-            page.add_stash(magic::CONTENT.into(), sub);
-        }
+            let key = Self::default_key(&article);
+            let article_page =
+                self.cache(&key).unwrap_or_else(|| Page::new(article.as_ref().into()).into());
+            // the article page can also be cached
+            // however, the actual page published is the wrapper page, so do not use `publish` here
+            self.remember(key.clone(), article_page.clone());
+            self.listen(&article, key);
+            article_page.compile(&mut Self::default_interpreter())?.html
+        };
+        page.scope_mut().add_key(magic::CONTENT.into(), Arc::new(content.into()));
+        // let the front matter of the article accessible in the wrapper
+        page.scope_mut().merge_data(front_matter);
 
-        // let the front matter of the article accessible in the template
         let page = page.into();
-        page.lock().unwrap().scope_mut().merge_data(front_matter);
 
-        self.published.insert(template_article_key.clone());
-        self.add(template.clone(), template_article_key.clone());
-        self.remember(template_article_key, page.clone());
-        page.compile(interpreter)
-    }
+        // note that the wrapper may generate many articles
+        // so for each article, give a unique cache key, like `wrapper|foo.md`
+        let key = Self::wrapper_article_key(&wrapper, &article);
+        self.publish(&article, key.clone());
+        // if the wrapper changes, the article also needs recompilation
+        self.listen(wrapper.clone(), key.clone());
+        self.remember(key, page.clone());
 
-    fn modify_article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<()> {
-        let template = Self::get_article_template(&article)?;
-
-        self.modify(&article);
-        self.modify(&template);
-        Ok(())
-    }
-
-    /// Remove an article and its associated template page from the cache and influenced mapping.
-    fn remove_article<P: AsRef<Path>>(&mut self, article: P) -> CompileResult<()> {
-        let template = Self::get_article_template(&article)?;
-
-        self.remove(&article);
-        self.remove(&template);
-        Ok(())
+        page.compile(&mut Self::default_interpreter())
     }
 }

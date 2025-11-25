@@ -5,7 +5,6 @@ use allay_base::template::TemplateKind;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 use pulldown_cmark::{Options, Parser, html};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -25,9 +24,6 @@ pub struct Page {
     path: PathBuf,
     /// the interpret scope of the page
     scope: PageScope,
-    /// subpages which are planned to be added to output when compiling
-    /// like the ".inner", ".content" magic words in the template
-    stash: HashMap<String, Arc<Mutex<Page>>>,
     /// the output tokens
     output: Vec<Token>,
 
@@ -54,7 +50,6 @@ impl Page {
             parent: None,
             path,
             scope: PageScope::new(),
-            stash: HashMap::new(),
             output: Vec::new(),
 
             cachable: true,
@@ -98,7 +93,6 @@ impl Page {
             parent: None,
             path: self.path.clone(),
             scope: self.scope.clone(),
-            stash: self.stash.clone(),
             output: Vec::new(),
 
             cachable: self.cachable,
@@ -106,11 +100,6 @@ impl Page {
             cache: CompileOutput::default(),
             dirty: true,
         }
-    }
-
-    /// Stash a subpage with the given key.
-    pub fn add_stash(&mut self, key: String, page: Arc<Mutex<Page>>) {
-        self.stash.insert(key, page);
     }
 
     /// Clear the compiled state, so that the page will be recompiled on next `compile` call.
@@ -163,10 +152,6 @@ pub(crate) trait TokenInserter: Sized {
     /// Usually called by `include` or `shortcode`.
     /// This page's reference count will be returned.
     fn insert_subpage(&self, path: PathBuf, scope: PageScope) -> Self;
-
-    /// Insert a stashed page with the given key.
-    /// This page's reference count will be returned if the key exists.
-    fn insert_stash(&self, key: &str) -> Option<Self>;
 }
 
 impl TokenInserter for Arc<Mutex<Page>> {
@@ -184,13 +169,6 @@ impl TokenInserter for Arc<Mutex<Page>> {
         let page = page.into();
         get_lock!(self).output.push(Token::Page(page.clone()));
         page
-    }
-
-    fn insert_stash(&self, key: &str) -> Option<Self> {
-        let page = { get_lock!(self).stash.get(key)?.clone() };
-        get_lock!(page).parent = Some(Arc::downgrade(self));
-        get_lock!(self).output.push(Token::Page(page.clone()));
-        Some(page)
     }
 }
 

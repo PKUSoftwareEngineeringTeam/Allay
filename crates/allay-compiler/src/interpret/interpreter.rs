@@ -524,15 +524,6 @@ impl Interpretable for Field {
         _: &mut Interpreter,
         page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output> {
-        // check magic fields
-        if self.top_level.is_none()
-            && self.parts.len() == 1
-            && let GetField::Name(name) = &self.parts[0]
-            && page.insert_stash(name).is_some()
-        {
-            return Ok(Arc::new(AllayData::default()));
-        }
-
         let mut page = interpret_unwrap!(page.lock());
         let scope = page.scope();
         let var: &dyn Variable = match self.top_level.as_ref().unwrap_or(&TopLevel::This) {

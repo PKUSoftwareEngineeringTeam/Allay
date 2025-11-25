@@ -1,9 +1,13 @@
-use allay_base::config::get_allay_config;
+use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_site_config};
 use allay_base::file::{self, FileResult};
+use allay_base::template::{FileKind, TemplateKind};
+use allay_compiler::Compiler;
 use notify::event::{EventKind, ModifyKind, RenameMode};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, new_debouncer};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
+use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 use tracing::{info, warn};
 use walkdir::WalkDir;
@@ -161,22 +165,62 @@ pub trait FileMapper {
 /// file generating capabilities from a source directory to a destination directory.
 /// Note: all path parameters here are both the path relative to the workspace root.
 pub trait FileGenerator: FileListener + FileMapper {
+    fn content_kind(&self) -> FileKind;
+
+    /// Determine whether the file should not be compiled.
+    fn no_compile(&self, src: &PathBuf) -> bool {
+        matches!(self.content_kind(), FileKind::Static)
+            || !TemplateKind::from_filename(src).is_template()
+    }
+
     /// What to do when a file is created.
-    /// Default implementation: copy the file from source to destination.
     fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        file::copy(src, dest)
+        if matches!(self.content_kind(), FileKind::Wrapper) {
+            return Ok(()); // wrapper files are not generated directly
+        }
+        if self.no_compile(&src) {
+            return file::copy(src, dest);
+        }
+
+        FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
+
+        match COMPILER.lock().unwrap().compile_file(&src, self.content_kind()) {
+            Ok(output) => write_with_wrapper(&dest, &output.html)?,
+            Err(e) => warn!("Failed to compile {:?}: {}", src, e),
+        }
+        refresh()
     }
 
     /// What to do when a file is removed.
-    /// Default implementation: remove the file from destination.
-    fn removed(&self, _src: PathBuf, dest: PathBuf) -> FileResult<()> {
+    fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
+        if self.no_compile(&src) {
+            return file::remove(dest);
+        }
+
+        COMPILER.lock().unwrap().remove(&src);
+        if matches!(self.content_kind(), FileKind::Wrapper) {
+            return refresh();
+        }
+
+        FILE_MAP.lock().unwrap().remove(&src);
+        refresh()?;
         file::remove(dest)
     }
 
     /// What to do when a file is modified.
-    /// Default implementation: copy the file from source to destination.
     fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        file::copy(src, dest)
+        if self.no_compile(&src) {
+            return file::copy(src, dest);
+        }
+        COMPILER.lock().unwrap().modify(&src);
+        if matches!(self.content_kind(), FileKind::Wrapper) {
+            return refresh();
+        }
+        match COMPILER.lock().unwrap().compile_file(&src, self.content_kind()) {
+            Ok(output) => write_with_wrapper(&dest, &output.html)?,
+            Err(e) => warn!("Failed to compile {:?}: {}", src, e),
+        }
+        refresh()
     }
 }
 
@@ -214,4 +258,52 @@ impl<T: FileGenerator> FileListener for T {
         }
         Ok(())
     }
+}
+
+static COMPILER: LazyLock<Mutex<Compiler<String>>> =
+    LazyLock::new(|| Mutex::new(Compiler::default()));
+
+/// A global file mapping from source path to destination path
+static FILE_MAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
+    let head = if get_cli_config().online {
+        // In online mode, use the base_url from site config
+        let base_url = get_site_config()
+            .get("base_url")
+            .expect("base_url not found in online mode")
+            .as_str()
+            .expect("base_url should be a string")
+            .clone();
+        format!(include_str!("assets/head.html"), base_url)
+    } else if let CLICommand::Serve(args) = &get_cli_config().command {
+        // In serve mode, use the local address and port
+        let base_url = format!("http://{}:{}/", args.address, args.port);
+        format!(include_str!("assets/head.html"), base_url)
+    } else {
+        String::new()
+    };
+
+    let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
+        .then_some(include_str!("assets/auto-reload.js"))
+        .unwrap_or_default();
+    file::write_file(
+        dest,
+        &format!(include_str!("assets/wrapper.html"), head, html, hot_reload),
+    )
+}
+
+/// handling the recompilation of all affected files
+fn refresh() -> FileResult<()> {
+    let pages = COMPILER.lock().unwrap().refresh_pages();
+    for (path, res) in pages {
+        if let Some(dest) = FILE_MAP.lock().unwrap().get(&path) {
+            match res {
+                Ok(output) => write_with_wrapper(dest, &output.html)?,
+                Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
+            }
+        }
+    }
+    Ok(())
 }
