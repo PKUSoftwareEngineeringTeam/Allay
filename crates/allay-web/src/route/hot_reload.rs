@@ -24,7 +24,7 @@ pub async fn handle_last_modify(
         }
     }
 
-    // retur the 404 page if no file found
+    // return the 404 page if no file found
     let not_found = root.join(&get_theme_config().config.templates.not_found);
     last_modify(not_found).await.map(Json).ok_or(RouteError::Internal(
         "Failed to get last modified times".into(),
