@@ -7,7 +7,7 @@ impl From<TemplateKind> for FileType {
         match value {
             TemplateKind::Html => FileType::Html,
             TemplateKind::Markdown => FileType::Markdown,
-            TemplateKind::Other(_) => FileType::Markdown, // Default to Markdown for unknown types
+            TemplateKind::Other(_) => unreachable!("Unsupported TemplateKind for FileType"),
         }
     }
 }
