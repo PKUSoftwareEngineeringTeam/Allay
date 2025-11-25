@@ -11,9 +11,7 @@ pub enum Meta {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Template {
-    pub controls: Vec<Control>,
-}
+pub struct Template(pub Vec<Control>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Control {

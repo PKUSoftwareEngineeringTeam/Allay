@@ -149,7 +149,7 @@ macro_rules! file_generator_impl {
         impl FileGenerator for $generator {
             fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 if !TemplateKind::from_filename(&src).is_template() {
-                    return FileGenerator::created(self, src, dest);
+                    return file::copy(src, dest);
                 }
 
                 FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
@@ -162,7 +162,7 @@ macro_rules! file_generator_impl {
 
             fn removed(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 if !TemplateKind::from_filename(&src).is_template() {
-                    return FileGenerator::removed(self, src, dest);
+                    return file::remove(dest);
                 }
 
                 FILE_MAP.lock().unwrap().remove(&src);
@@ -175,7 +175,7 @@ macro_rules! file_generator_impl {
 
             fn modified(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
                 if !TemplateKind::from_filename(&src).is_template() {
-                    return FileGenerator::modified(self, src, dest);
+                    return file::copy(src, dest);
                 }
 
                 if let Err(e) = COMPILER.lock().unwrap().modify_file(&src, $kind) {
