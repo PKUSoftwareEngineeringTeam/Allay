@@ -17,6 +17,10 @@ class LiveReloadClient {
         this.startPolling();
     }
 
+    /**
+     * fetches the last modified timestamp for the current URI from the server.
+     * @returns {Promise<number>} The last modified timestamp.
+     */
     async fetchTimpstamp() {
         try {
             let url = location.pathname;
@@ -30,6 +34,9 @@ class LiveReloadClient {
         }
     }
 
+    /**
+     * Starts polling the server at regular intervals to check for file changes.
+     */
     startPolling() {
         setInterval(async () => {
             await this.checkForChange();
