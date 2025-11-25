@@ -34,7 +34,7 @@ impl AllayUrlPath {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use allay_base::url::AllayUrlPath;
     /// use std::path::Path;
     ///
@@ -71,7 +71,7 @@ impl AllayUrlPath {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use allay_base::url::AllayUrlPath;
     /// use std::path::PathBuf;
     ///

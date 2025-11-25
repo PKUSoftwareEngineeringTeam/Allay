@@ -1,9 +1,9 @@
 use crate::config::get_theme_path;
 use crate::file;
+use crate::log::NoPanicUnwrap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ThemeMeta {
@@ -110,13 +110,8 @@ pub fn get_theme_config() -> &'static ThemeConfig {
     THEME_CONFIG.get_or_init(|| {
         let theme_path = file::workspace(get_theme_path());
         let config_file = theme_path.join(THEME_CONFIG_FILE);
-        if let Ok(config_str) = file::read_file_string(&config_file)
-            && let Ok(data) = toml::from_str(&config_str)
-        {
-            data
-        } else {
-            warn!("Failed to read {:?}. Using default config.", config_file);
-            ThemeConfig::default()
-        }
+        let config_str = file::read_file_string(&config_file)
+            .expect_on(|e| format!("Failed to read theme config: {e}"));
+        toml::from_str(&config_str).expect_("Failed to parse theme config")
     })
 }
