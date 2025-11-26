@@ -13,11 +13,11 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, RwLock};
 
-struct Cacher<T> {
+struct FileCacher<T> {
     cache: HashMap<PathBuf, (u64, T)>,
 }
 
-impl<T> Cacher<T> {
+impl<T> FileCacher<T> {
     fn new() -> Self {
         Self {
             cache: HashMap::new(),
@@ -27,7 +27,7 @@ impl<T> Cacher<T> {
     fn get<P: AsRef<Path>>(&self, path: P, timestamp: u64) -> Option<&T> {
         let path = path.as_ref().to_path_buf();
         let (t, value) = self.cache.get(&path)?;
-        if *t == timestamp { Some(value) } else { None }
+        (*t == timestamp).then_some(value)
     }
 
     fn insert<P: AsRef<Path>>(&mut self, path: P, timestamp: u64, value: T) -> Option<T> {
@@ -36,10 +36,10 @@ impl<T> Cacher<T> {
     }
 }
 
-static AST_CACHER: LazyLock<RwLock<Cacher<Template>>> =
-    LazyLock::new(|| RwLock::new(Cacher::new()));
-static META_CACHER: LazyLock<RwLock<Cacher<AllayObject>>> =
-    LazyLock::new(|| RwLock::new(Cacher::new()));
+static AST_CACHER: LazyLock<RwLock<FileCacher<Template>>> =
+    LazyLock::new(|| RwLock::new(FileCacher::new()));
+static META_CACHER: LazyLock<RwLock<FileCacher<AllayObject>>> =
+    LazyLock::new(|| RwLock::new(FileCacher::new()));
 
 fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObject {
     meta.entry(magic::URL.into()).or_insert_with(|| {
