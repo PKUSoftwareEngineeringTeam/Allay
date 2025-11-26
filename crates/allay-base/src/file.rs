@@ -5,6 +5,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::time::{SystemTimeError, UNIX_EPOCH};
 use thiserror::Error;
 use tracing::{info, warn};
 
@@ -15,6 +16,9 @@ pub enum FileError {
 
     #[error("File not found: {0}")]
     FileNotFound(PathBuf),
+
+    #[error("Time error: {0}")]
+    TimeError(#[from] SystemTimeError),
 }
 
 pub type FileResult<T> = Result<T, FileError>;
@@ -273,4 +277,11 @@ pub fn copy<P: AsRef<Path>>(src: P, dest: P) -> FileResult<()> {
     } else {
         Err(FileError::FileNotFound(src.as_ref().into()))
     }
+}
+
+pub fn last_modified<P: AsRef<Path>>(path: P) -> FileResult<u64> {
+    let metadata = fs::metadata(path)?;
+    let modified_time = metadata.modified()?;
+    let duration = modified_time.duration_since(UNIX_EPOCH)?;
+    Ok(duration.as_secs())
 }

@@ -9,8 +9,37 @@ use allay_base::{file, template::TemplateKind};
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 use regex::Regex;
-use std::path::Path;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, RwLock};
+
+struct Cacher<T> {
+    cache: HashMap<PathBuf, (u64, T)>,
+}
+
+impl<T> Cacher<T> {
+    fn new() -> Self {
+        Self {
+            cache: HashMap::new(),
+        }
+    }
+
+    fn get<P: AsRef<Path>>(&self, path: P, timestamp: u64) -> Option<&T> {
+        let path = path.as_ref().to_path_buf();
+        let (t, value) = self.cache.get(&path)?;
+        if *t == timestamp { Some(value) } else { None }
+    }
+
+    fn insert<P: AsRef<Path>>(&mut self, path: P, timestamp: u64, value: T) -> Option<T> {
+        let path = path.as_ref().to_path_buf();
+        self.cache.insert(path, (timestamp, value)).map(|(_, v)| v)
+    }
+}
+
+static AST_CACHER: LazyLock<RwLock<Cacher<Template>>> =
+    LazyLock::new(|| RwLock::new(Cacher::new()));
+static META_CACHER: LazyLock<RwLock<Cacher<AllayObject>>> =
+    LazyLock::new(|| RwLock::new(Cacher::new()));
 
 fn post_preprocess<P: AsRef<Path>>(source: P, mut meta: AllayObject) -> AllayObject {
     meta.entry(magic::URL.into()).or_insert_with(|| {
@@ -38,43 +67,66 @@ fn before_compile(content: String, kind: TemplateKind) -> String {
 
 pub fn get_meta_and_content<P: AsRef<Path>>(source: P) -> CompileResult<(AllayObject, Template)> {
     let kind = TemplateKind::from_filename(&source);
-    let content = match kind {
-        TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&source)?,
-        TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
-    };
+    if let TemplateKind::Other(e) = kind {
+        return Err(CompileError::FileTypeNotSupported(e));
+    }
+
+    let last_modified = file::last_modified(&source)?;
+
+    if let Some(ast) = AST_CACHER.read().unwrap().get(&source, last_modified)
+        && let Some(meta) = META_CACHER.read().unwrap().get(&source, last_modified)
+    {
+        return Ok((meta.clone(), ast.clone()));
+    }
+
+    let content = file::read_file_string(&source)?;
+
     #[cfg(feature = "plugin")]
     let content = before_compile(content, kind);
     let ast = parse_file(&content)?;
     let mut meta = interpret_meta(&ast.meta)?;
-    meta = post_preprocess(source, meta);
+    meta = post_preprocess(&source, meta);
+
+    AST_CACHER.write().unwrap().insert(&source, last_modified, ast.template.clone());
+    META_CACHER.write().unwrap().insert(source, last_modified, meta.clone());
 
     Ok((meta, ast.template))
 }
 
 pub fn get_meta<P: AsRef<Path>>(source: P) -> CompileResult<AllayObject> {
     let kind = TemplateKind::from_filename(&source);
-    let content = match kind {
-        TemplateKind::Html | TemplateKind::Markdown => file::read_file_string(&source)?,
-        TemplateKind::Other(e) => return Err(CompileError::FileTypeNotSupported(e)),
-    };
+    if let TemplateKind::Other(e) = kind {
+        return Err(CompileError::FileTypeNotSupported(e));
+    }
+
+    let last_modified = file::last_modified(&source)?;
+
+    if let Some(meta) = META_CACHER.read().unwrap().get(&source, last_modified) {
+        return Ok(meta.clone());
+    }
+
+    let content = file::read_file_string(&source)?;
 
     #[cfg(feature = "plugin")]
     let content = before_compile(content, kind);
 
-    // find the meta without parsing the whole template
-    let yaml_re = Regex::new(r"(?s)^---\s*(?P<yaml>.*?)\s*---").unwrap();
-    let toml_re = Regex::new(r"(?s)^\+\+\+\s*(?P<toml>.*?)\s*\+\+\+").unwrap();
+    static YAML_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)^---\s*(?P<yaml>.*?)\s*---").unwrap());
+    static TOML_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)^\+\+\+\s*(?P<toml>.*?)\s*\+\+\+").unwrap());
 
-    let meta = if let Some(caps) = yaml_re.captures(&content) {
+    let meta = if let Some(caps) = YAML_RE.captures(&content) {
         caps.name("yaml").map(|m| Meta::Yaml(m.as_str().into()))
-    } else if let Some(caps) = toml_re.captures(&content) {
+    } else if let Some(caps) = TOML_RE.captures(&content) {
         caps.name("toml").map(|m| Meta::Toml(m.as_str().into()))
     } else {
         None
     };
 
-    let mut meta = interpret_meta(&meta)?;
-    meta = post_preprocess(source, meta);
+    let meta = interpret_meta(&meta)?;
+    let meta = post_preprocess(&source, meta);
+
+    META_CACHER.write().unwrap().insert(source, last_modified, meta.clone());
 
     Ok(meta)
 }
