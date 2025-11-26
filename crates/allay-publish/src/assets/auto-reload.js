@@ -7,75 +7,52 @@
 class LiveReloadClient {
     constructor() {
         this.pollingInterval = 50; // 50 ms
-        this.lastTimestamps = new Map();
+        this.lastTimestamp = 0;
         this.init().then();
     }
 
     async init() {
-        console.log('Live reload client initialized');
-        await this.fetchInitialTimestamps();
+        this.lastTimestamp = await this.fetchTimestamp();
+        console.log("Live Reload Client initialized with timestamp:", this.lastTimestamp);
         this.startPolling();
     }
 
     /**
-     * Fetches the initial timestamps for files and stores them.
-     * This method sends a request to the server to get the last modified timestamps of files,
-     * then updates the `lastTimestamps` with the received data.
+     * Fetches the last modified timestamp for the current URI from the server.
+     * @returns {Promise<number>} The last modified timestamp.
      */
-    async fetchInitialTimestamps() {
+    async fetchTimestamp() {
         try {
-            const response = await fetch('/api/last-modified');
-            const timestamps = await response.json();
-
-            for (const [file, timestamp] of Object.entries(timestamps)) {
-                this.lastTimestamps.set(file, timestamp);
+            let url = location.pathname;
+            if (url.startsWith('/')) {
+                url = url.slice(1);
             }
-
-            console.log('Initial file timestamps loaded');
+            const response = await fetch('/api/last-modified?url=' + encodeURIComponent(url));
+            return await response.json();
         } catch (error) {
-            console.error('Failed to fetch initial timestamps:', error);
+            console.error('Failed to fetch timestamps:', error);
+            return 0;
         }
     }
 
+    /**
+     * Starts polling the server at regular intervals to check for file changes.
+     */
     startPolling() {
         setInterval(async () => {
-            await this.checkForChanges();
+            await this.checkForChange();
         }, this.pollingInterval);
     }
 
     /**
-     * Asynchronously checks for changes in the files by comparing the last modified timestamps.
-     * If any file has been modified or deleted, it logs the changes, shows a reload notification,
-     * and reloads the page after a short delay.
+     * Asynchronously checks for change in the uri by comparing the last modified timestamp.
      */
-    async checkForChanges() {
+    async checkForChange() {
         try {
-            const response = await fetch('/api/last-modified');
-            const currentTimestamps = await response.json();
+            const currentTimestamp = await this.fetchTimestamp();
 
-            let shouldReload = false;
-            let changedFiles = [];
-
-            for (const [file, timestamp] of Object.entries(currentTimestamps)) {
-                const lastTimestamp = this.lastTimestamps.get(file);
-
-                if (!lastTimestamp || lastTimestamp < timestamp) {
-                    shouldReload = true;
-                    changedFiles.push(file);
-                    this.lastTimestamps.set(file, timestamp);
-                }
-            }
-
-            for (const file of this.lastTimestamps.keys()) {
-                if (!currentTimestamps[file]) {
-                    shouldReload = true;
-                    changedFiles.push(`${file} (deleted)`);
-                    this.lastTimestamps.delete(file);
-                }
-            }
-
-            if (shouldReload) {
-                console.log('Files changed, reloading page:', changedFiles);
+            if (currentTimestamp > this.lastTimestamp) {
+                this.lastTimestamp = currentTimestamp;
                 window.location.reload();
             }
         } catch (error) {
