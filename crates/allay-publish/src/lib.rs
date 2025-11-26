@@ -1,6 +1,8 @@
-mod generate;
-use generate::GeneratorWorker;
+mod generator;
+mod worker;
+
 use std::sync::OnceLock;
+use worker::GeneratorWorker;
 
 /// Start the publishing worker.
 pub fn start() {

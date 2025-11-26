@@ -16,6 +16,7 @@ pub use error::*;
 use interpret::Interpreter;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -50,16 +51,20 @@ pub struct CompileOutput {
 #[derive(Default)]
 pub struct Compiler<K> {
     /// A mapping from source files to the set of keys they influence.
+    /// this includes the direct publish mapping like "foo.md" -> "foo.html"
+    /// together with dependencies like "page.html" -> all posts
     influenced: HashMap<PathBuf, HashSet<K>>,
+    /// Pages that will be published. This is 1-to-1 mapping from source files to keys.
+    /// like "foo.md" -> "foo.html"
+    /// When check global refreshing, only these pages are checked.
+    published: HashMap<PathBuf, K>,
     /// A mapping from keys to their compiled pages.
     cached: RefCell<HashMap<K, Arc<Mutex<Page>>>>,
-    /// Pages that will be published
-    published: HashSet<K>,
 }
 
 impl<K> Compiler<K>
 where
-    K: Hash + Eq,
+    K: Hash + Eq + Clone,
 {
     /// Try to get a cached page by its key.
     fn cache(&self, key: &K) -> Option<Arc<Mutex<Page>>> {
@@ -71,26 +76,32 @@ where
         self.cached.borrow_mut().insert(key, page);
     }
 
+    /// Record a publish mapping from source file to key.
+    /// Also add a listener for the source file.
+    fn publish(&mut self, source: impl AsRef<Path>, key: K) {
+        self.listen(&source, key.clone());
+        self.published.insert(source.as_ref().into(), key);
+    }
+
+    /// Add a listener for a source file, so that when the source file is modified,
+    /// all cached pages depending on it will be cleared.
+    fn listen(&mut self, source: impl AsRef<Path>, key: K) {
+        self.influenced.entry(source.as_ref().into()).or_default().insert(key);
+    }
+
     /// Recompile the changed pages.
-    pub fn refresh_pages<P: AsRef<Path>>(
-        &self,
-        skip: P,
-    ) -> HashMap<PathBuf, CompileResult<CompileOutput>> {
+    pub fn refresh_pages(&self) -> HashMap<PathBuf, CompileResult<CompileOutput>> {
         let mut results = HashMap::new();
-        for k in self.published.iter() {
-            let page = self.cache(k);
-            if let Some(page) = page
+
+        for (path, k) in self.published.iter() {
+            if let Some(page) = self.cache(k)
                 && page.lock().unwrap().changed()
             {
-                for (buf, set) in self.influenced.iter() {
-                    if buf != &skip.as_ref().to_path_buf() && set.contains(k) {
-                        let res = page.compile(&mut Self::default_interpreter());
-                        results.insert(buf.clone(), res);
-                        break;
-                    }
-                }
+                let res = page.compile(&mut Self::default_interpreter());
+                results.insert(path.clone(), res);
             }
         }
+
         results
     }
 
@@ -102,15 +113,9 @@ where
         Interpreter::new(include_dir, shortcode_dir)
     }
 
-    /// Add a listener for a source file, so that when the source file is modified,
-    /// all cached pages depending on it will be cleared.
-    fn add<P: AsRef<Path>>(&mut self, source: P, key: K) {
-        self.influenced.entry(source.as_ref().into()).or_default().insert(key);
-    }
-
     /// Mark a source file as modified, so that all cached pages depending on it will be cleared.
     /// This is useful when a source file is changed.
-    fn modify<P: AsRef<Path>>(&mut self, source: P) {
+    pub fn modify<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.get(source.as_ref()) {
             for dep in deps {
                 if let Some(page) = self.cache(dep) {
@@ -123,10 +128,10 @@ where
 
     /// Remove a source file from the cache and influenced mapping.
     /// This is useful when a source file is deleted.
-    fn remove<P: AsRef<Path>>(&mut self, source: P) {
+    pub fn remove<P: AsRef<Path>>(&mut self, source: P) {
         if let Some(deps) = self.influenced.remove(source.as_ref()) {
+            self.published.remove(source.as_ref());
             for dep in deps {
-                self.published.remove(&dep);
                 self.cached.borrow_mut().remove(&dep);
             }
         }
