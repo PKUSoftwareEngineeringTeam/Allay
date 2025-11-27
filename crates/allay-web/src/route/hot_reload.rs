@@ -20,10 +20,11 @@ pub async fn handle_last_modify(
     Query(params): Query<LastModifiedParams>,
 ) -> RouteResult<Json<u64>> {
     let path = root.join(&params.url);
-    check_travesal(root.as_ref(), &path).await?;
 
     for path in AllayUrlPath::from(path).possible_paths() {
-        if let Some(last_modify) = last_modify(path).await {
+        if check_travesal(root.as_ref(), &path).await.is_ok()
+            && let Some(last_modify) = last_modify(path).await
+        {
             return Ok(Json(last_modify));
         }
     }
