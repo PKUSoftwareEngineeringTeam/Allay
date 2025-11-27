@@ -7,6 +7,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use regex::Regex;
 use std::borrow::Cow;
+use std::sync::LazyLock;
 
 /// The template parser using Pest
 #[derive(Parser)]
@@ -14,8 +15,8 @@ use std::borrow::Cow;
 struct TemplateParser;
 
 fn remove_html_comments(html: &'_ str) -> Cow<'_, str> {
-    let re = Regex::new(r"(?s)<!--.*?-->").unwrap();
-    re.replace_all(html, "")
+    static COMMENT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?s)<!--.*?-->").unwrap());
+    COMMENT_RE.replace_all(html, "")
 }
 
 /// Parse a source string into an AST [`File`].

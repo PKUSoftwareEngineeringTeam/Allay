@@ -1,3 +1,4 @@
+use crate::ast::Template;
 use crate::interpret::{Interpretable, Interpreter, PageScope};
 use crate::meta::get_meta_and_content;
 use crate::{CompileOutput, CompileResult};
@@ -176,11 +177,7 @@ pub trait Compiled {
     /// Compile the page and return the rendered HTML string
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput>;
     /// Compile the page on the given AST node in the page
-    fn compile_on<T>(
-        &self,
-        node: &dyn Interpretable<Output = T>,
-        interpreter: &mut Interpreter,
-    ) -> CompileResult<String>;
+    fn compile_on(&self, node: &Template, interpreter: &mut Interpreter) -> CompileResult<String>;
     /// Utility function to generate the result string after the compiling
     fn gen_result_str(&self, interpreter: &mut Interpreter) -> CompileResult<String>;
 }
@@ -231,11 +228,7 @@ impl Compiled for Arc<Mutex<Page>> {
         Ok(output)
     }
 
-    fn compile_on<T>(
-        &self,
-        node: &dyn Interpretable<Output = T>,
-        interpreter: &mut Interpreter,
-    ) -> CompileResult<String> {
+    fn compile_on(&self, node: &Template, interpreter: &mut Interpreter) -> CompileResult<String> {
         node.interpret(interpreter, self)?;
         self.gen_result_str(interpreter)
     }

@@ -5,7 +5,7 @@ use crate::{InterpretResult, magic};
 use allay_base::config::{get_allay_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
-use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 /// The global site variable, usually from site config
 #[derive(Debug)]
@@ -37,14 +37,14 @@ pub struct PagesVar {
 }
 
 impl PagesVar {
-    pub fn get_instance() -> &'static Mutex<PagesVar> {
-        static INSTANCE: OnceLock<Mutex<PagesVar>> = OnceLock::new();
+    pub fn get_instance() -> &'static PagesVar {
+        static INSTANCE: OnceLock<PagesVar> = OnceLock::new();
         INSTANCE.get_or_init(|| {
             let instance = PagesVar {
                 data: RwLock::new(Arc::new(AllayList::new().into())),
             };
             instance.update();
-            Mutex::new(instance)
+            instance
         })
     }
 
@@ -65,14 +65,13 @@ impl PagesVar {
     }
 }
 
-impl DataProvider for Mutex<PagesVar> {
+impl DataProvider for PagesVar {
     fn get_data(&self) -> Arc<AllayData> {
-        let lock = self.lock().unwrap();
-        lock.data.read().unwrap().clone()
+        self.data.read().unwrap().clone()
     }
 }
 
-impl Variable for Mutex<PagesVar> {}
+impl Variable for PagesVar {}
 
 /// The special variable `this`, which points to the current scope data
 #[derive(Clone)]
