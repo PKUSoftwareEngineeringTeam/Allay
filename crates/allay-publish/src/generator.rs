@@ -360,7 +360,7 @@ impl FileGeneratorOptions {
         self
     }
 
-    pub fn to_html(mut self, to_html: bool) -> Self {
+    pub fn map_to_html(mut self, to_html: bool) -> Self {
         self.map_to_html = to_html;
         self
     }

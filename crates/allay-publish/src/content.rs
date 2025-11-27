@@ -20,13 +20,13 @@ impl ContentGeneratorWorker {
             .src_root(content_dir.clone())
             .dest_root(publish.clone())
             .kind(FileKind::Article)
-            .to_html(true)
+            .map_to_html(true)
             .build();
         let custom_generator = FileGeneratorOptions::default()
             .src_root(get_theme_path().join(&get_theme_config().config.custom_dir))
             .dest_root(publish.clone())
             .kind(FileKind::Custom)
-            .to_html(true)
+            .map_to_html(true)
             .build();
         let static_generator = FileGeneratorOptions::default()
             .src_root(get_allay_config().statics_dir.clone().into())
