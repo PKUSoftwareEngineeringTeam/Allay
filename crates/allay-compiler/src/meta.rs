@@ -36,7 +36,7 @@ impl<T> FileCacher<T> {
     }
 }
 
-static AST_CACHER: LazyLock<RwLock<FileCacher<Template>>> =
+static AST_CACHER: LazyLock<RwLock<FileCacher<Arc<Template>>>> =
     LazyLock::new(|| RwLock::new(FileCacher::new()));
 static META_CACHER: LazyLock<RwLock<FileCacher<AllayObject>>> =
     LazyLock::new(|| RwLock::new(FileCacher::new()));
@@ -65,7 +65,9 @@ fn before_compile(content: String, kind: TemplateKind) -> String {
     })
 }
 
-pub fn get_meta_and_content<P: AsRef<Path>>(source: P) -> CompileResult<(AllayObject, Template)> {
+pub fn get_meta_and_content<P: AsRef<Path>>(
+    source: P,
+) -> CompileResult<(AllayObject, Arc<Template>)> {
     let kind = TemplateKind::from_filename(&source);
     if let TemplateKind::Other(e) = kind {
         return Err(CompileError::FileTypeNotSupported(e));
@@ -86,11 +88,12 @@ pub fn get_meta_and_content<P: AsRef<Path>>(source: P) -> CompileResult<(AllayOb
     let ast = parse_file(&content)?;
     let mut meta = interpret_meta(&ast.meta)?;
     meta = post_preprocess(&source, meta);
+    let template = Arc::new(ast.template);
 
-    AST_CACHER.write().unwrap().insert(&source, last_modified, ast.template.clone());
+    AST_CACHER.write().unwrap().insert(&source, last_modified, template.clone());
     META_CACHER.write().unwrap().insert(source, last_modified, meta.clone());
 
-    Ok((meta, ast.template))
+    Ok((meta, template))
 }
 
 pub fn get_meta<P: AsRef<Path>>(source: P) -> CompileResult<AllayObject> {
