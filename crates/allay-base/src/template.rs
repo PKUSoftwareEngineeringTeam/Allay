@@ -52,7 +52,7 @@ impl TemplateKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum FileKind {
     /// The article content, usually in markdown format
     Article,
@@ -61,5 +61,6 @@ pub enum FileKind {
     /// The general page template, like `index.html`
     Custom,
     /// A static file, like CSS, JS, images, etc.
+    #[default]
     Static,
 }

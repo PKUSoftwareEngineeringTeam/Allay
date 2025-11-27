@@ -5,6 +5,8 @@ use crate::{InterpretResult, magic};
 use allay_base::config::{get_allay_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
+use allay_base::sitemap::SiteMap;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 
 /// The global site variable, usually from site config
@@ -33,22 +35,29 @@ impl Variable for SiteVar {}
 
 #[derive(Debug)]
 pub struct PagesVar {
+    cache_version: AtomicU32,
     data: RwLock<Arc<AllayData>>,
 }
 
 impl PagesVar {
     pub fn get_instance() -> &'static PagesVar {
         static INSTANCE: OnceLock<PagesVar> = OnceLock::new();
-        INSTANCE.get_or_init(|| {
-            let instance = PagesVar {
-                data: RwLock::new(Arc::new(AllayList::new().into())),
-            };
-            instance.update();
-            instance
-        })
+        let instance = INSTANCE.get_or_init(|| PagesVar {
+            cache_version: AtomicU32::new(u32::MAX),
+            data: RwLock::new(Arc::new(AllayList::new().into())),
+        });
+        instance.update();
+        instance
     }
 
     pub fn update(&self) {
+        // see the site map version to decide whether to update
+        let site_map = SiteMap::read();
+        if self.cache_version.load(Ordering::SeqCst) == site_map.version() {
+            return;
+        }
+        self.cache_version.store(site_map.version(), Ordering::SeqCst);
+
         let dir = file::workspace(&get_allay_config().content_dir);
         // walk through the content directory and get all markdown/html files
         if let Ok(entries) = file::read_dir_all_files(&dir) {

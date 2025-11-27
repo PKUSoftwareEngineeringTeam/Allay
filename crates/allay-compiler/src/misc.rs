@@ -43,7 +43,7 @@ impl Compiler<String> {
     pub fn compile_file<P: AsRef<Path>>(
         &mut self,
         source: P,
-        kind: FileKind,
+        kind: &FileKind,
     ) -> CompileResult<CompileOutput> {
         match kind {
             FileKind::Article => self.article(source),
