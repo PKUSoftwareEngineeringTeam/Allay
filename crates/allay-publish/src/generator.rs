@@ -1,4 +1,4 @@
-use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_site_config};
+use allay_base::config::{CLICommand, get_cli_config, get_site_config};
 use allay_base::file::{self, FileResult};
 use allay_base::template::{FileKind, TemplateKind};
 use allay_compiler::Compiler;
@@ -35,9 +35,8 @@ pub trait FileListener: Send + Sync {
         self.on_create(new)
     }
 
-    /// Perform a cold start by scanning all existing files in the root directory
-    /// and triggering the `on_create` event for each file.
-    fn generate_all(&self) {
+    /// and triggering the `on_create` event for each file except those that satisfy the `skip` condition.
+    fn cold_start(&self) {
         let root = file::absolute_workspace(self.root());
         for entry in WalkDir::new(&root).follow_links(true) {
             match entry {
@@ -137,9 +136,7 @@ pub trait FileMapper {
     fn src_root(&self) -> PathBuf;
 
     /// The root directory of the destination files.
-    fn dest_root(&self) -> PathBuf {
-        get_allay_config().publish_dir.clone().into()
-    }
+    fn dest_root(&self) -> PathBuf;
 
     /// The rule to map the path from source to destination.
     /// Note: the path parameters are the paths relative to the respective roots.
@@ -161,21 +158,45 @@ pub trait FileMapper {
     }
 }
 
-/// A trait that combines [`FileListener`] and [`FileMapper`] to provide
+/// A struct that combines [`FileListener`] and [`FileMapper`] to provide
 /// file generating capabilities from a source directory to a destination directory.
 /// Note: all path parameters here are both the path relative to the workspace root.
-pub trait FileGenerator: FileListener + FileMapper {
-    fn content_kind(&self) -> FileKind;
+pub struct FileGenerator {
+    options: FileGeneratorOptions,
+}
+
+/// Options for the [`FileGenerator`].
+#[derive(Default)]
+pub struct FileGeneratorOptions {
+    src_root: PathBuf,
+    dest_root: PathBuf,
+    kind: FileKind,
+    map_to_html: bool,
+}
+
+/// Global compiler instance for all file generators
+static COMPILER: LazyLock<Mutex<Compiler<String>>> =
+    LazyLock::new(|| Mutex::new(Compiler::default()));
+
+/// A global file mapping from source path to destination path
+static FILE_MAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+impl FileGenerator {
+    /// Create a new file generator.
+    pub fn new(options: FileGeneratorOptions) -> Self {
+        Self { options }
+    }
 
     /// Determine whether the file should not be compiled.
     fn no_compile(&self, src: &PathBuf) -> bool {
-        matches!(self.content_kind(), FileKind::Static)
+        matches!(self.options.kind, FileKind::Static)
             || !TemplateKind::from_filename(src).is_template()
     }
 
     /// What to do when a file is created.
     fn created(&self, src: PathBuf, dest: PathBuf) -> FileResult<()> {
-        if matches!(self.content_kind(), FileKind::Wrapper) {
+        if matches!(self.options.kind, FileKind::Wrapper) {
             return Ok(()); // wrapper files are not generated directly
         }
         if self.no_compile(&src) {
@@ -184,11 +205,11 @@ pub trait FileGenerator: FileListener + FileMapper {
 
         FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
 
-        match COMPILER.lock().unwrap().compile_file(&src, self.content_kind()) {
-            Ok(output) => write_with_wrapper(&dest, &output.html)?,
+        match COMPILER.lock().unwrap().compile_file(&src, &self.options.kind) {
+            Ok(output) => Self::write_with_wrapper(&dest, &output.html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
-        refresh()
+        Self::refresh()
     }
 
     /// What to do when a file is removed.
@@ -198,12 +219,12 @@ pub trait FileGenerator: FileListener + FileMapper {
         }
 
         COMPILER.lock().unwrap().remove(&src);
-        if matches!(self.content_kind(), FileKind::Wrapper) {
-            return refresh();
+        if matches!(&self.options.kind, FileKind::Wrapper) {
+            return Self::refresh();
         }
 
         FILE_MAP.lock().unwrap().remove(&src);
-        refresh()?;
+        Self::refresh()?;
         file::remove(dest)
     }
 
@@ -213,18 +234,81 @@ pub trait FileGenerator: FileListener + FileMapper {
             return file::copy(src, dest);
         }
         COMPILER.lock().unwrap().modify(&src);
-        if matches!(self.content_kind(), FileKind::Wrapper) {
-            return refresh();
+        if matches!(self.options.kind, FileKind::Wrapper) {
+            return Self::refresh();
         }
-        match COMPILER.lock().unwrap().compile_file(&src, self.content_kind()) {
-            Ok(output) => write_with_wrapper(&dest, &output.html)?,
+        match COMPILER.lock().unwrap().compile_file(&src, &self.options.kind) {
+            Ok(output) => Self::write_with_wrapper(&dest, &output.html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
-        refresh()
+        Self::refresh()
+    }
+
+    fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
+        let head = if get_cli_config().online {
+            // In online mode, use the base_url from site config
+            let base_url = get_site_config()
+                .get("base_url")
+                .expect("base_url not found in online mode")
+                .as_str()
+                .expect("base_url should be a string")
+                .clone();
+            format!(include_str!("assets/head.html"), base_url)
+        } else if let CLICommand::Serve(args) = &get_cli_config().command {
+            // In serve mode, use the local address and port
+            let base_url = format!("http://{}:{}/", args.address, args.port);
+            format!(include_str!("assets/head.html"), base_url)
+        } else {
+            String::new()
+        };
+
+        let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
+            .then_some(include_str!("assets/auto-reload.js"))
+            .unwrap_or_default();
+        file::write_file(
+            dest,
+            &format!(include_str!("assets/wrapper.html"), head, html, hot_reload),
+        )
+    }
+
+    /// handling the recompilation of all affected files
+    fn refresh() -> FileResult<()> {
+        let pages = COMPILER.lock().unwrap().refresh_pages();
+        for (path, res) in pages {
+            if let Some(dest) = FILE_MAP.lock().unwrap().get(&path) {
+                match res {
+                    Ok(output) => Self::write_with_wrapper(dest, &output.html)?,
+                    Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
+                }
+            }
+        }
+        Ok(())
     }
 }
 
-impl<T: FileGenerator> FileListener for T {
+impl FileMapper for FileGenerator {
+    fn src_root(&self) -> PathBuf {
+        self.options.src_root.clone()
+    }
+
+    fn dest_root(&self) -> PathBuf {
+        self.options.dest_root.clone()
+    }
+
+    fn path_mapping(&self, src: &Path) -> PathBuf {
+        if self.options.map_to_html {
+            let mut res = src.to_path_buf();
+            if TemplateKind::from_filename(src).is_md() {
+                res.set_extension(TemplateKind::Html.extension());
+            }
+            res
+        } else {
+            src.into()
+        }
+    }
+}
+
+impl FileListener for FileGenerator {
     fn root(&self) -> PathBuf {
         self.src_root()
     }
@@ -260,50 +344,28 @@ impl<T: FileGenerator> FileListener for T {
     }
 }
 
-static COMPILER: LazyLock<Mutex<Compiler<String>>> =
-    LazyLock::new(|| Mutex::new(Compiler::default()));
-
-/// A global file mapping from source path to destination path
-static FILE_MAP: LazyLock<Mutex<HashMap<PathBuf, PathBuf>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
-fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
-    let head = if get_cli_config().online {
-        // In online mode, use the base_url from site config
-        let base_url = get_site_config()
-            .get("base_url")
-            .expect("base_url not found in online mode")
-            .as_str()
-            .expect("base_url should be a string")
-            .clone();
-        format!(include_str!("assets/head.html"), base_url)
-    } else if let CLICommand::Serve(args) = &get_cli_config().command {
-        // In serve mode, use the local address and port
-        let base_url = format!("http://{}:{}/", args.address, args.port);
-        format!(include_str!("assets/head.html"), base_url)
-    } else {
-        String::new()
-    };
-
-    let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
-        .then_some(include_str!("assets/auto-reload.js"))
-        .unwrap_or_default();
-    file::write_file(
-        dest,
-        &format!(include_str!("assets/wrapper.html"), head, html, hot_reload),
-    )
-}
-
-/// handling the recompilation of all affected files
-fn refresh() -> FileResult<()> {
-    let pages = COMPILER.lock().unwrap().refresh_pages();
-    for (path, res) in pages {
-        if let Some(dest) = FILE_MAP.lock().unwrap().get(&path) {
-            match res {
-                Ok(output) => write_with_wrapper(dest, &output.html)?,
-                Err(e) => warn!("Failed to recompile {:?}: {}", path, e),
-            }
-        }
+impl FileGeneratorOptions {
+    pub fn src_root(mut self, src_root: PathBuf) -> Self {
+        self.src_root = src_root;
+        self
     }
-    Ok(())
+
+    pub fn dest_root(mut self, dest_root: PathBuf) -> Self {
+        self.dest_root = dest_root;
+        self
+    }
+
+    pub fn kind(mut self, kind: FileKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    pub fn map_to_html(mut self, to_html: bool) -> Self {
+        self.map_to_html = to_html;
+        self
+    }
+
+    pub fn build(self) -> FileGenerator {
+        FileGenerator::new(self)
+    }
 }
