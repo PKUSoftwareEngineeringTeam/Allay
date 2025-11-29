@@ -79,6 +79,7 @@ impl Interpretable for Control {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         match self {
+            Control::Comment => Ok(()),
             Control::Text(text) | Control::NoEscape(text) => {
                 page.insert_text(text.clone());
                 Ok(())

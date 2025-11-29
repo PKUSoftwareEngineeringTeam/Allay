@@ -15,6 +15,7 @@ pub struct Template(pub Vec<Control>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Control {
+    Comment,
     Text(String),
     Shortcode(Shortcode),
     Command(Command),

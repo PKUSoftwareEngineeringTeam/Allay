@@ -86,6 +86,7 @@ impl ASTBuilder for Control {
     fn build(pair: Pair<Rule>) -> ParseResult<Control> {
         let inner = single_inner(pair);
         match inner.as_rule() {
+            Rule::comment => Ok(Control::Comment),
             Rule::text => Ok(Control::Text(inner.as_str().to_string())),
             Rule::shortcode => Shortcode::build(inner).map(Control::Shortcode),
             Rule::command => Command::build(inner).map(Control::Command),
@@ -574,7 +575,7 @@ This is a simple text.
     #[test]
     fn test_comment() {
         let source = r#"This is text.
-<!-- this should not appear -->
+{% this should not appear %}
 After comment.
         "#;
         let ast = parse_file(source);
@@ -585,9 +586,11 @@ After comment.
             ast,
             File {
                 meta: None,
-                template: Template(vec![Control::Text(
-                    "This is text.\n\nAfter comment.\n".to_string()
-                )])
+                template: Template(vec![
+                    Control::Text("This is text.\n".to_string()),
+                    Control::Comment,
+                    Control::Text("\nAfter comment.\n".to_string())
+                ])
             }
         )
     }
