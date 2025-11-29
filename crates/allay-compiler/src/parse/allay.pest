@@ -7,11 +7,14 @@ toml_mata = @{ (!"+++\n" ~ ANY)* }
 yaml_front_matter = { "---\n" ~ yaml_mata ~ "---\n" }
 toml_front_matter = { "+++\n" ~ toml_mata ~ "+++\n" }
 template = { control* }
-control = { no_escape_text | text | shortcode | command | substitution }
+control = { comment | no_escape_text | text | shortcode | command | substitution }
 
-text = { (!("{-" | "{<" | "{:" | "{{") ~ ANY)+ }
+text = { (!("{-" | "{<" | "{:" | "{{" | "{%") ~ ANY)+ }
 no_escape_text_inner = @{ (!"}}" ~ ANY)* }
 no_escape_text = { "{{" ~ no_escape_text_inner ~ "}}" }
+
+comment_inner = @{ (!"%}" ~ ANY)* }
+comment = { "{%" ~ comment_inner ~ "%}" }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_" )* }
 variable = { "$" ~ identifier }

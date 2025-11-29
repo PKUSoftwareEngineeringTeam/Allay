@@ -180,3 +180,12 @@ name: "Test Page"
         vec!["<p>{:", ".name", ":}", "Test", "Page</p>"]
     )
 }
+
+#[test]
+fn test_comments() {
+    let res = get_compile_res("Before comment{% comment {: .name :} %}After comment");
+    assert_eq!(
+        to_tokens(res),
+        vec!["<p>Before", "comment", "After", "comment</p>"]
+    )
+}
