@@ -36,6 +36,8 @@ mod magic {
     pub const RAW: &str = "raw";
     /// if the post is hidden from listings (default `false`)
     pub const HIDDEN: &str = "hidden";
+    /// base url for the site
+    pub const BASE_URL: &str = "base_url";
 }
 
 #[derive(Debug, Clone, Default)]

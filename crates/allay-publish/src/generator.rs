@@ -1,4 +1,4 @@
-use allay_base::config::{CLICommand, get_cli_config, get_site_config};
+use allay_base::config::{CLICommand, get_cli_config};
 use allay_base::file::{self, FileResult};
 use allay_base::template::{FileKind, TemplateKind};
 use allay_compiler::Compiler;
@@ -245,29 +245,12 @@ impl FileGenerator {
     }
 
     fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
-        let head = if get_cli_config().online {
-            // In online mode, use the base_url from site config
-            let base_url = get_site_config()
-                .get("base_url")
-                .expect("base_url not found in online mode")
-                .as_str()
-                .expect("base_url should be a string")
-                .clone();
-            format!(include_str!("assets/head.html"), base_url)
-        } else if let CLICommand::Serve(args) = &get_cli_config().command {
-            // In serve mode, use the local address and port
-            let base_url = format!("http://{}:{}/", args.address, args.port);
-            format!(include_str!("assets/head.html"), base_url)
-        } else {
-            String::new()
-        };
-
         let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
             .then_some(include_str!("assets/auto-reload.js"))
             .unwrap_or_default();
         file::write_file(
             dest,
-            &format!(include_str!("assets/wrapper.html"), head, html, hot_reload),
+            &format!(include_str!("assets/wrapper.html"), html, hot_reload),
         )
     }
 
