@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use std::thread;
 use tracing::warn;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
