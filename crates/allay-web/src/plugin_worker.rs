@@ -1,4 +1,4 @@
-use allay_plugin::manager::Plugin;
+use allay_plugin::Plugin;
 use allay_plugin::types::{Request, Response, response_internal_error};
 
 pub struct PluginWorker {

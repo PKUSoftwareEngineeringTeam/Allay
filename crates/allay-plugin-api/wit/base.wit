@@ -3,10 +3,13 @@ package allay:plugin@0.1.0;
 world plugin {
     import route;
     import compiler;
+    import listen;
 
     export name: func() -> string;
     export version: func() -> string;
+
     export route;
     export compiler;
+    export listen;
     export init-plugin: func();
 }

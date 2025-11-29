@@ -2,7 +2,6 @@ use crate::generator::{FileGenerator, FileGeneratorOptions, FileListener};
 use allay_base::config::{get_allay_config, get_theme_config, get_theme_path};
 use allay_base::template::FileKind;
 use std::path::PathBuf;
-use std::thread;
 
 /// A worker that manages multiple file generators
 #[derive(Default)]
@@ -55,10 +54,7 @@ impl ContentGeneratorWorker {
     /// Start the generator worker
     pub fn start(&'static self) {
         for g in self.gens.iter() {
-            thread::spawn(move || {
-                g.cold_start();
-                g.watch();
-            });
+            g.start_listening();
         }
     }
 

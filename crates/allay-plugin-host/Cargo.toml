@@ -8,3 +8,4 @@ allay-base.workspace = true
 wasmtime.workspace = true
 wasmtime-wasi.workspace = true
 axum.workspace = true
+tracing.workspace = true

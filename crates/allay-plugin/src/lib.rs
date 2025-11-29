@@ -3,12 +3,12 @@ pub mod manager;
 pub mod types;
 
 use allay_base::{config::get_allay_config, file};
-pub use manager::PluginManager;
+pub use manager::{Plugin, PluginManager};
 use tracing::{info, warn};
 
 pub fn load_plugins() {
     let dir = &get_allay_config().plugin_dir;
-    let dir = file::absolute_workspace(dir);
+    let dir = file::workspace(dir);
 
     let manager = PluginManager::instance();
 
@@ -18,7 +18,7 @@ pub fn load_plugins() {
             if let Some(ext) = path.extension()
                 && ext == "wasm"
             {
-                if let Err(e) = manager.register_plugin(&path, &dir) {
+                if let Err(e) = manager.register_plugin(&path, &file::absolute_root()) {
                     eprintln!("Failed to register plugin from {:?}: {}", path, e)
                 } else {
                     info!("Registered plugin from {:?}", path);
