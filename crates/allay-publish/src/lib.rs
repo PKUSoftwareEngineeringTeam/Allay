@@ -3,6 +3,7 @@ mod generator;
 mod sitemap;
 
 use content::ContentGeneratorWorker;
+use generator::FileListener;
 use sitemap::SiteMapWorker;
 use std::sync::OnceLock;
 
@@ -18,4 +19,5 @@ pub fn start() {
 /// Generate all files once.
 pub fn generate_once() {
     ContentGeneratorWorker::create().generate_once();
+    SiteMapWorker.cold_start();
 }

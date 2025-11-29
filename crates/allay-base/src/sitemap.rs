@@ -4,10 +4,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::thread;
 use tracing::warn;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct SiteMap {
+    #[serde(skip)]
     version: u32,
     pub urlset: HashMap<PathBuf, UrlEntry>,
 }
@@ -41,7 +43,7 @@ impl SiteMap {
 
     pub fn dump(&self) {
         let path = Self::filepath();
-        if let Ok(content) = serde_json::to_string_pretty(self)
+        if let Ok(content) = serde_json::to_string_pretty(&self)
             && file::write_file(&path, &content).is_ok()
         {
         } else {

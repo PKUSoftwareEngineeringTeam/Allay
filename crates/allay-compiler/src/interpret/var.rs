@@ -52,11 +52,11 @@ impl PagesVar {
 
     pub fn update(&self) {
         // see the site map version to decide whether to update
-        let site_map = SiteMap::read();
-        if self.cache_version.load(Ordering::SeqCst) == site_map.version() {
+        let version = SiteMap::read().version();
+        if self.cache_version.load(Ordering::SeqCst) == version {
             return;
         }
-        self.cache_version.store(site_map.version(), Ordering::SeqCst);
+        self.cache_version.store(version, Ordering::SeqCst);
 
         let dir = file::workspace(&get_allay_config().content_dir);
         // walk through the content directory and get all markdown/html files
