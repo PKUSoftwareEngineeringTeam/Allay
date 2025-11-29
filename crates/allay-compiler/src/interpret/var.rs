@@ -5,6 +5,7 @@ use crate::{InterpretResult, magic};
 use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
+use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
@@ -22,7 +23,7 @@ impl SiteVar {
             let mut data = get_site_config()
                 .get("params")
                 .map(|params| {
-                    params.as_obj().expect("Site params should be an obj").as_ref().clone()
+                    params.as_obj().expect_("Site params should be an obj").as_ref().clone()
                 })
                 .unwrap_or_default();
 
@@ -30,9 +31,9 @@ impl SiteVar {
                 // In online mode, use the base_url from site config
                 get_site_config()
                     .get("base_url")
-                    .expect("base_url not found in online mode")
+                    .expect_("base_url not found in online mode")
                     .as_str()
-                    .expect("base_url should be a string")
+                    .expect_("base_url should be a string")
                     .clone()
             } else if let CLICommand::Serve(args) = &get_cli_config().command {
                 // In serve mode, use the local address and port
