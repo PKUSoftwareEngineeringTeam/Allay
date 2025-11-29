@@ -2,6 +2,7 @@ use component::Plugin;
 pub use component::wit::route::{Header, Method, Request, Response};
 use std::path::Path;
 use std::sync::Arc;
+use tracing::warn;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxView, WasiView};
@@ -64,5 +65,17 @@ impl PluginHost {
 
     pub fn plugin_version(&mut self) -> wasmtime::Result<String> {
         self.plugin.call_version(&mut self.store)
+    }
+}
+
+trait WasmOk<T> {
+    fn ok_(self);
+}
+
+impl<T> WasmOk<T> for wasmtime::Result<T> {
+    fn ok_(self) {
+        if let Err(e) = self {
+            warn!("WASM call failed: {}", e);
+        }
     }
 }

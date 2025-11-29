@@ -49,7 +49,11 @@ fn plugin_worker() -> &'static PluginWorker {
 
 #[cfg(feature = "plugin")]
 fn register_custom_route(router: Router, plugin: Plugin) -> Router {
-    let mut plugin_host = plugin.lock().expect("poisoned lock");
+    let mut plugin_host = match plugin.lock() {
+        Ok(host) => host,
+        Err(_) => return router,
+    };
+
     let route_paths = plugin_host.route_paths();
     drop(plugin_host);
 

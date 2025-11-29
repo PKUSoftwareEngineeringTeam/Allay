@@ -97,6 +97,7 @@ version = "0.1.0"
 dependencies = [
  "allay-base",
  "axum",
+ "tracing",
  "wasmtime",
  "wasmtime-wasi",
 ]
@@ -107,6 +108,7 @@ version = "0.1.0"
 dependencies = [
  "allay-base",
  "allay-compiler",
+ "allay-plugin",
  "notify",
  "notify-debouncer-full",
  "tracing",
@@ -2089,6 +2091,15 @@ dependencies = [
  "convert_case",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "plugin-reading-time"
+version = "0.1.0"
+dependencies = [
+ "allay-plugin-api",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

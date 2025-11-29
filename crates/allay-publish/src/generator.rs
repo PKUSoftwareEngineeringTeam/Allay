@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::{LazyLock, Mutex};
+use std::thread;
 use std::time::Duration;
 use tracing::{info, warn};
 use walkdir::WalkDir;
@@ -80,6 +81,14 @@ pub trait FileListener: Send + Sync {
             });
         }
         info!("File watcher channel in {:?} closed!", root);
+    }
+
+    /// Start listening to file events in a new thread.
+    fn start_listening(&'static self) {
+        thread::spawn(move || {
+            self.cold_start();
+            self.watch();
+        });
     }
 
     /// The main event handler to be called by the file watcher.

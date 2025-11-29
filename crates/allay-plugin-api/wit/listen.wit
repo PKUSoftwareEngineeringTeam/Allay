@@ -1,0 +1,5 @@
+interface listen {
+    on-create: func(source: string);
+    on-modify: func(source: string);
+    on-remove: func(source: string);
+}

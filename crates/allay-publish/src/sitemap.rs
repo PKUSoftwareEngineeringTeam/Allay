@@ -3,7 +3,6 @@ use allay_base::config::get_allay_config;
 use allay_base::file::{self, FileResult};
 use allay_base::sitemap::{SiteMap, UrlEntry};
 use std::path::PathBuf;
-use std::thread;
 
 /// A worker that manages the site map
 pub struct SiteMapWorker;
@@ -28,14 +27,5 @@ impl FileListener for SiteMapWorker {
         map.urlset.remove(&path);
         map.dump();
         Ok(())
-    }
-}
-
-impl SiteMapWorker {
-    pub fn start(&'static self) {
-        thread::spawn(move || {
-            self.cold_start();
-            self.watch();
-        });
     }
 }
