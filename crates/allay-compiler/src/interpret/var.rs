@@ -2,7 +2,7 @@ use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Variable};
 use crate::meta::get_meta;
 use crate::{InterpretResult, magic};
-use allay_base::config::{get_allay_config, get_site_config};
+use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
 use allay_base::sitemap::SiteMap;
@@ -19,8 +19,32 @@ impl SiteVar {
     pub fn get_instance() -> &'static SiteVar {
         static INSTANCE: OnceLock<SiteVar> = OnceLock::new();
         INSTANCE.get_or_init(|| {
-            let site_data = get_site_config().get("params").cloned().unwrap_or_default();
-            SiteVar { data: site_data }
+            let mut data = get_site_config()
+                .get("params")
+                .map(|params| {
+                    params.as_obj().expect("Site params should be an obj").as_ref().clone()
+                })
+                .unwrap_or_default();
+
+            let base_url = if get_cli_config().online {
+                // In online mode, use the base_url from site config
+                get_site_config()
+                    .get("base_url")
+                    .expect("base_url not found in online mode")
+                    .as_str()
+                    .expect("base_url should be a string")
+                    .clone()
+            } else if let CLICommand::Serve(args) = &get_cli_config().command {
+                // In serve mode, use the local address and port
+                format!("http://{}:{}/", args.address, args.port)
+            } else {
+                String::new()
+            };
+
+            data.insert(magic::BASE_URL.into(), Arc::new(AllayData::from(base_url)));
+
+            let data = Arc::new(data.into());
+            SiteVar { data }
         })
     }
 }
