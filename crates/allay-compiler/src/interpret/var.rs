@@ -83,24 +83,22 @@ impl PagesVar {
     fn sort_page_var(data: AllayData) -> AllayData {
         let plugin_manager = PluginManager::instance();
         let plugins = plugin_manager.plugins();
-        let enabled_plugin: Vec<_> = plugins
-            .iter()
-            .filter(|plugin| {
-                let mut plugin = plugin.lock().expect_("poisoned lock");
-                plugin.sort_enabled().unwrap_or(false)
-            })
-            .collect();
+        let mut enabled_plugin = plugins.iter().filter(|plugin| {
+            let mut plugin = plugin.lock().expect_("poisoned lock");
+            plugin.sort_enabled().unwrap_or(false)
+        });
 
-        if enabled_plugin.len() > 1 {
+        let plugin = enabled_plugin.next().cloned();
+        if plugin.is_none() {
+            return data;
+        }
+        let plugin = plugin.unwrap();
+
+        if enabled_plugin.next().is_some() {
             eprintln!("Error: multiple sort plugins enabled, only one is allowed");
             exit(1);
         }
 
-        if enabled_plugin.is_empty() {
-            return data;
-        }
-
-        let plugin = enabled_plugin[0].clone();
         let mut plugin = plugin.lock().expect_("poisoned lock");
 
         if let AllayData::List(list) = data {
