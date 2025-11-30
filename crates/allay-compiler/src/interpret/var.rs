@@ -8,13 +8,9 @@ use allay_base::file;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
 #[cfg(feature = "plugin")]
-use allay_plugin::{Plugin, PluginManager};
-#[cfg(feature = "plugin")]
-use std::cmp;
+use allay_plugin::PluginManager;
 #[cfg(feature = "plugin")]
 use std::process::exit;
-#[cfg(feature = "plugin")]
-use std::rc::Rc;
 use std::sync::atomic::{self, AtomicU32};
 use std::sync::{Arc, OnceLock, RwLock};
 
@@ -105,43 +101,12 @@ impl PagesVar {
         }
 
         let plugin = enabled_plugin[0].clone();
-
-        struct SortKey {
-            json: Rc<String>,
-            plugin: Plugin,
-        }
-
-        impl PartialEq for SortKey {
-            fn eq(&self, other: &Self) -> bool {
-                self.json == other.json
-            }
-        }
-
-        impl Eq for SortKey {}
-
-        impl Ord for SortKey {
-            fn cmp(&self, other: &Self) -> cmp::Ordering {
-                let mut plugin = self.plugin.lock().expect_("poisoned lock");
-                plugin.get_sort_order(&self.json, &other.json).unwrap()
-            }
-        }
-
-        impl PartialOrd for SortKey {
-            fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-                Some(self.cmp(other))
-            }
-        }
+        let mut plugin = plugin.lock().expect_("poisoned lock");
 
         if let AllayData::List(list) = data {
-            let mut list: Vec<_> = list
-                .iter()
-                .cloned()
-                .map(|item| (item.clone(), Rc::new(item.to_json())))
-                .collect();
-            list.sort_by_key(|(_, json)| SortKey {
-                json: json.clone(),
-                plugin: plugin.clone(),
-            });
+            let mut list: Vec<_> =
+                list.iter().cloned().map(|item| (item.clone(), item.to_json())).collect();
+            list.sort_by(|(_, json1), (_, json2)| plugin.get_sort_order(json1, json2).unwrap());
             AllayData::List(Arc::new(list.into_iter().map(|(item, _)| item).collect()))
         } else {
             eprintln!("Error: sort plugin enabled but data is not a list");
