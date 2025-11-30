@@ -1,7 +1,7 @@
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Variable};
 use crate::{InterpretResult, magic};
-use allay_base::config::{CLICommand, get_cli_config, get_site_config};
+use allay_base::config::get_site_config;
 use allay_base::data::{AllayData, AllayList};
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
@@ -29,22 +29,8 @@ impl SiteVar {
                 })
                 .unwrap_or_default();
 
-            let base_url = if get_cli_config().online {
-                // In online mode, use the base_url from site config
-                get_site_config()
-                    .get("base_url")
-                    .expect_("base_url not found in online mode")
-                    .as_str()
-                    .expect_("base_url should be a string")
-                    .clone()
-            } else if let CLICommand::Serve(args) = &get_cli_config().command {
-                // In serve mode, use the local address and port
-                format!("http://{}:{}/", args.address, args.port)
-            } else {
-                String::new()
-            };
-
-            data.insert(magic::BASE_URL.into(), Arc::new(AllayData::from(base_url)));
+            let base_url = SiteMap::read().base_url.clone();
+            data.insert(magic::BASE_URL.into(), Arc::new(base_url.into()));
 
             let data = Arc::new(data.into());
             SiteVar { data }

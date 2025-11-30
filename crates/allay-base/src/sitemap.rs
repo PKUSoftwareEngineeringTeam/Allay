@@ -12,6 +12,7 @@ use tracing::warn;
 pub struct SiteMap {
     #[serde(skip)]
     version: u32,
+    pub base_url: String,
     pub urlset: HashMap<PathBuf, UrlEntry>,
 }
 

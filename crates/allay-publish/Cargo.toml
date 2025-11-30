@@ -11,6 +11,7 @@ notify-debouncer-full.workspace = true
 walkdir.workspace = true
 tracing.workspace = true
 allay-plugin = { workspace = true, optional = true }
+lol_html.workspace = true
 
 [features]
 default = ["plugin"]

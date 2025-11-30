@@ -2,6 +2,7 @@ mod content;
 mod generator;
 #[cfg(feature = "plugin")]
 mod plugin;
+mod process;
 mod sitemap;
 
 use content::ContentGeneratorWorker;
