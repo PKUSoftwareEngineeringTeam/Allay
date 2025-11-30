@@ -10,8 +10,8 @@ pub fn serve(args: &ServeArgs) -> anyhow::Result<()> {
     let url = format!("http://{}:{}", args.address, args.port);
 
     println!("Starting the site server at {}", url);
-    allay_publish::start();
     load_plugins()?;
+    allay_publish::start();
 
     if args.open {
         webbrowser::open(&url).unwrap_or_else(|_| eprintln!("Failed to open the browser"));
