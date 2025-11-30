@@ -88,11 +88,10 @@ impl PagesVar {
             plugin.sort_enabled().unwrap_or(false)
         });
 
-        let plugin = enabled_plugin.next().cloned();
-        if plugin.is_none() {
-            return data;
-        }
-        let plugin = plugin.unwrap();
+        let plugin = match enabled_plugin.next().cloned() {
+            Some(plugin) => plugin,
+            None => return data,
+        };
 
         if enabled_plugin.next().is_some() {
             eprintln!("Error: multiple sort plugins enabled, only one is allowed");
