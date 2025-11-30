@@ -7,11 +7,13 @@ use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
-use allay_plugin::Plugin;
 #[cfg(feature = "plugin")]
-use allay_plugin::PluginManager;
+use allay_plugin::{Plugin, PluginManager};
+#[cfg(feature = "plugin")]
 use std::cmp;
+#[cfg(feature = "plugin")]
 use std::process::exit;
+#[cfg(feature = "plugin")]
 use std::rc::Rc;
 use std::sync::atomic::{self, AtomicU32};
 use std::sync::{Arc, OnceLock, RwLock};
