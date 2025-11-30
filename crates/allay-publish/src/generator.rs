@@ -1,4 +1,4 @@
-use allay_base::config::{CLICommand, get_cli_config};
+use crate::process::postprocess;
 use allay_base::file::{self, FileResult};
 use allay_base::template::{FileKind, TemplateKind};
 use allay_compiler::Compiler;
@@ -254,13 +254,7 @@ impl FileGenerator {
     }
 
     fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
-        let hot_reload = matches!(get_cli_config().command, CLICommand::Serve(_))
-            .then_some(include_str!("assets/auto-reload.js"))
-            .unwrap_or_default();
-        file::write_file(
-            dest,
-            &format!(include_str!("assets/wrapper.html"), html, hot_reload),
-        )
+        file::write_file(dest, &postprocess(html))
     }
 
     /// handling the recompilation of all affected files
