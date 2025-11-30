@@ -28,8 +28,8 @@ pub fn start() {
 
 /// Generate all files once.
 pub fn generate_once() {
+    SiteMapWorker::create().cold_start();
     ContentGeneratorWorker::create().generate_once();
-    SiteMapWorker.cold_start();
     #[cfg(feature = "plugin")]
     PluginListener.cold_start();
 }
