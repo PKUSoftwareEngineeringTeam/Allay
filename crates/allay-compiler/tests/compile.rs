@@ -45,7 +45,6 @@ fn test_simple() {
 fn test_algorithm() {
     let content = "{- set $sum = 5+--(-6)*10 -} {: $sum :}";
     assert_eq!(to_tokens(get_compile_res(content)), vec!["<p>-55</p>"]);
-    // let content = "{- set $a = 10 -} {- set $b = 20 -} {: if $a < $b :}Less{: else :}Greater{: /if :}";
     let content = r#"{- set $a = 10 -}
 {- set $b = 20 -}
 {: ($a + $b) % 7 :}
