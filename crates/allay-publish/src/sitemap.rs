@@ -6,7 +6,7 @@ use allay_base::sitemap::{SiteMap, UrlEntry};
 use allay_compiler::get_meta;
 use std::ops::DerefMut;
 use std::path::PathBuf;
-use tracing::warn;
+use tracing::{info, warn};
 
 /// A worker that manages the site map
 pub struct SiteMapWorker;
@@ -43,6 +43,7 @@ impl SiteMapWorker {
             }
         }
 
+        info!("Site map initialized with {} entries.", map.urlset.len());
         SiteMap::set_instance(map);
 
         instance
