@@ -70,6 +70,23 @@ impl From<RawAllayData> for AllayData {
     }
 }
 
+impl From<AllayData> for RawAllayData {
+    fn from(data: AllayData) -> Self {
+        match data {
+            AllayData::Int(int) => RawAllayData::Int(int),
+            AllayData::Bool(bool) => RawAllayData::Bool(bool),
+            AllayData::String(str) => RawAllayData::String((*str).clone()),
+            AllayData::List(list) => {
+                RawAllayData::List(list.iter().map(|item| item.as_ref().clone().into()).collect())
+            }
+            AllayData::Object(obj) => RawAllayData::Object(
+                obj.iter().map(|(k, v)| (k.clone(), v.as_ref().clone().into())).collect(),
+            ),
+            AllayData::Null => RawAllayData::Null,
+        }
+    }
+}
+
 pub type AllayList = Vec<Arc<AllayData>>;
 pub type AllayObject = HashMap<String, Arc<AllayData>>;
 
@@ -118,26 +135,6 @@ impl AllayData {
             _ => Err(AllayDataError::TypeConversion(
                 "JSON root is not an object".to_string(),
             )),
-        }
-    }
-
-    pub fn to_json(&self) -> String {
-        match self {
-            AllayData::String(s) => format!("\"{}\"", s.replace('\"', "\\\"")),
-            AllayData::Int(i) => i.to_string(),
-            AllayData::Bool(b) => b.to_string(),
-            AllayData::List(list) => {
-                let items: Vec<String> = list.iter().map(|item| item.to_json()).collect();
-                format!("[{}]", items.join(", "))
-            }
-            AllayData::Object(obj) => {
-                let pairs: Vec<String> = obj
-                    .iter()
-                    .map(|(k, v)| format!("\"{}\": {}", k.replace('\"', "\\\""), v.to_json()))
-                    .collect();
-                format!("{{{}}}", pairs.join(", "))
-            }
-            AllayData::Null => "null".to_string(),
         }
     }
 
@@ -298,5 +295,25 @@ impl From<AllayObject> for AllayData {
 impl From<()> for AllayData {
     fn from(_: ()) -> Self {
         AllayData::Null
+    }
+}
+
+impl Serialize for AllayData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let raw: RawAllayData = self.clone().into();
+        raw.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for AllayData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = RawAllayData::deserialize(deserializer)?;
+        Ok(raw.into())
     }
 }

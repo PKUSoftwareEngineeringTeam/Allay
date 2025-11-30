@@ -69,7 +69,6 @@ impl Interpretable for Template {
     type Output = ();
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
-        PagesVar::get_instance().update();
         self.0.iter().try_for_each(|c| c.interpret(ctx, page))
     }
 }

@@ -14,6 +14,7 @@ use allay_base::file;
 use env::{Compiled, Page};
 pub use error::*;
 use interpret::Interpreter;
+pub use meta::get_meta;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;

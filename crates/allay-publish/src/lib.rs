@@ -17,7 +17,7 @@ pub fn start() {
     CONTENT_WORKER.get_or_init(ContentGeneratorWorker::create).start();
 
     static SITEMAP_WORKER: OnceLock<SiteMapWorker> = OnceLock::new();
-    SITEMAP_WORKER.get_or_init(|| SiteMapWorker).start_listening();
+    SITEMAP_WORKER.get_or_init(SiteMapWorker::create).start_listening();
 
     #[cfg(feature = "plugin")]
     static PLUGIN_WORKER: OnceLock<PluginListener> = OnceLock::new();

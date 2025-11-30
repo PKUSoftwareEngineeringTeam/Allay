@@ -1,10 +1,8 @@
 use crate::ast::GetField;
 use crate::interpret::traits::{DataProvider, Variable};
-use crate::meta::get_meta;
 use crate::{InterpretResult, magic};
-use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_site_config};
+use allay_base::config::{CLICommand, get_cli_config, get_site_config};
 use allay_base::data::{AllayData, AllayList};
-use allay_base::file;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
 #[cfg(feature = "plugin")]
@@ -101,10 +99,12 @@ impl PagesVar {
         let mut plugin = plugin.lock().expect_("poisoned lock");
 
         if let AllayData::List(list) = data {
-            let mut list: Vec<_> =
-                list.iter().cloned().map(|item| (item.clone(), item.to_json())).collect();
+            let mut list: Vec<_> = list
+                .iter()
+                .map(|item| (item.clone(), serde_json::to_string(item.as_ref()).unwrap()))
+                .collect();
             list.sort_by(|(_, json1), (_, json2)| plugin.get_sort_order(json1, json2).unwrap());
-            AllayData::List(Arc::new(list.into_iter().map(|(item, _)| item).collect()))
+            list.into_iter().map(|(item, _)| item).collect::<AllayList>().into()
         } else {
             eprintln!("Error: sort plugin enabled but data is not a list");
             exit(1);
@@ -117,25 +117,23 @@ impl PagesVar {
         if self.cache_version.load(atomic::Ordering::SeqCst) == version {
             return;
         }
+
         self.cache_version.store(version, atomic::Ordering::SeqCst);
 
-        let dir = file::workspace(&get_allay_config().content_dir);
-        // walk through the content directory and get all markdown/html files
-        if let Ok(entries) = file::read_dir_all_files(&dir) {
-            let data = entries
-                .into_iter()
-                .filter_map(|e| get_meta(e).ok())
-                .filter(|meta| meta.get(magic::HIDDEN) != Some(&Arc::new(true.into())))
-                .map(AllayData::from)
-                .map(Arc::new)
-                .collect::<AllayList>()
-                .into();
+        let data = SiteMap::read()
+            .urlset
+            .values()
+            .filter_map(|entry| entry.meta.as_obj().ok())
+            .filter(|meta| meta.get(magic::HIDDEN) != Some(&Arc::new(true.into())))
+            .map(AllayData::Object)
+            .map(Arc::new)
+            .collect::<AllayList>()
+            .into();
 
-            #[cfg(feature = "plugin")]
-            let data = Self::sort_page_var(data);
+        #[cfg(feature = "plugin")]
+        let data = Self::sort_page_var(data);
 
-            *self.data.write().unwrap() = Arc::new(data);
-        }
+        *self.data.write().unwrap() = Arc::new(data);
     }
 }
 

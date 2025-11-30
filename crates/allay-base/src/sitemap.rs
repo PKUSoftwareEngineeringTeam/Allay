@@ -1,9 +1,11 @@
 use crate::config::get_allay_config;
+use crate::data::AllayData;
 use crate::file;
+use crate::log::NoPanicUnwrap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::warn;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -16,17 +18,22 @@ pub struct SiteMap {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UrlEntry {
     pub lastmod: u64,
+    pub meta: AllayData,
 }
 
-static SITE_MAP: LazyLock<RwLock<SiteMap>> = LazyLock::new(|| RwLock::new(SiteMap::default()));
+static SITE_MAP: OnceLock<RwLock<SiteMap>> = OnceLock::new();
 
 impl SiteMap {
+    pub fn set_instance(instance: SiteMap) {
+        SITE_MAP.set(RwLock::new(instance)).expect_("Site map instance is already set");
+    }
+
     pub fn read() -> RwLockReadGuard<'static, Self> {
-        SITE_MAP.read().expect("Failed to acquire site map lock")
+        SITE_MAP.wait().read().expect("Failed to acquire site map lock")
     }
 
     pub fn write() -> RwLockWriteGuard<'static, Self> {
-        let mut write = SITE_MAP.write().expect("Failed to acquire site map lock");
+        let mut write = SITE_MAP.wait().write().expect("Failed to acquire site map lock");
         write.version += 1;
         write
     }
@@ -42,7 +49,7 @@ impl SiteMap {
 
     pub fn dump(&self) {
         let path = Self::filepath();
-        if let Ok(content) = serde_json::to_string_pretty(&self)
+        if let Ok(content) = serde_json::to_string(&self)
             && file::write_file(&path, &content).is_ok()
         {
         } else {
