@@ -11,8 +11,8 @@ macro_rules! link_handler {
 
         element!($selector, move |el| {
             let link = el.get_attribute($attr).expect("attribute was required");
-            if link.starts_with("/") {
-                let link = PathBuf::from(&base_url).join(&link[1..]).to_string_lossy().to_string();
+            if let Some(stripped) = link.strip_prefix("/") {
+                let link = PathBuf::from(&base_url).join(stripped).to_string_lossy().to_string();
                 el.set_attribute($attr, &link)?;
             }
             Ok(())
