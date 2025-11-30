@@ -1,4 +1,5 @@
 use crate::config::get_allay_config;
+use crate::data::AllayData;
 use crate::file;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,6 +17,7 @@ pub struct SiteMap {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UrlEntry {
     pub lastmod: u64,
+    pub meta: AllayData,
 }
 
 static SITE_MAP: LazyLock<RwLock<SiteMap>> = LazyLock::new(|| RwLock::new(SiteMap::default()));
@@ -42,7 +44,7 @@ impl SiteMap {
 
     pub fn dump(&self) {
         let path = Self::filepath();
-        if let Ok(content) = serde_json::to_string_pretty(&self)
+        if let Ok(content) = serde_json::to_string(&self)
             && file::write_file(&path, &content).is_ok()
         {
         } else {

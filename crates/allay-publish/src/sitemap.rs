@@ -2,6 +2,7 @@ use crate::generator::FileListener;
 use allay_base::config::get_allay_config;
 use allay_base::file::{self, FileResult};
 use allay_base::sitemap::{SiteMap, UrlEntry};
+use allay_compiler::get_meta;
 use std::path::PathBuf;
 
 /// A worker that manages the site map
@@ -14,9 +15,10 @@ impl FileListener for SiteMapWorker {
 
     fn on_create(&self, path: PathBuf) -> FileResult<()> {
         let real_path = file::workspace(self.root().join(&path));
-        let lastmod = file::last_modified(real_path)?;
+        let lastmod = file::last_modified(&real_path)?;
+        let meta = get_meta(real_path).unwrap_or_default().into();
         let mut map = SiteMap::write();
-        let entry = UrlEntry { lastmod };
+        let entry = UrlEntry { lastmod, meta };
         map.urlset.insert(path, entry);
         map.dump();
         Ok(())
