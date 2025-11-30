@@ -4,6 +4,7 @@ world plugin {
     import route;
     import compiler;
     import listen;
+    import sort-page;
 
     export name: func() -> string;
     export version: func() -> string;
@@ -11,5 +12,6 @@ world plugin {
     export route;
     export compiler;
     export listen;
+    export sort-page;
     export init-plugin: func();
 }

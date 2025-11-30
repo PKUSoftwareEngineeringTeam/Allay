@@ -23,4 +23,4 @@ path = "src/main.rs"
 
 [features]
 default = ["plugin"]
-plugin = ["allay-web/plugin", "allay-publish/plugin", "allay-plugin"]
+plugin = ["allay-web/plugin", "allay-publish/plugin", "dep:allay-plugin"]

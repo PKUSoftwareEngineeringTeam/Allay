@@ -30,7 +30,7 @@ use std::sync::OnceLock;
 ///
 /// allay::register_plugin!(MyPlugin);
 /// ```
-#[plugin_macro::components(CompilerComponent, RouteComponent, ListenComponent)]
+#[plugin_macro::components(CompilerComponent, RouteComponent, ListenComponent, SortPageComponent)]
 pub trait Plugin: Sync + Send {
     /// Name of the plugin.
     fn name() -> &'static str

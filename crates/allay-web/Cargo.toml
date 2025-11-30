@@ -11,11 +11,10 @@ tokio-util.workspace = true
 axum = { workspace = true, default-features = true }
 thiserror.workspace = true
 serde.workspace = true
-walkdir.workspace = true
 mime_guess.workspace = true
 cfg-if.workspace = true
 rayon.workspace = true
 
 [features]
 default = ["plugin"]
-plugin = ["allay-plugin"]
+plugin = ["dep:allay-plugin"]

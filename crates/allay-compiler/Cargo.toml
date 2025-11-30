@@ -18,4 +18,4 @@ tempfile.workspace = true
 
 [features]
 default = ["plugin"]
-plugin = ["allay-plugin"]
+plugin = ["dep:allay-plugin"]

@@ -7,7 +7,13 @@ use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
-use std::sync::atomic::{AtomicU32, Ordering};
+use allay_plugin::Plugin;
+#[cfg(feature = "plugin")]
+use allay_plugin::PluginManager;
+use std::cmp;
+use std::process::exit;
+use std::rc::Rc;
+use std::sync::atomic::{self, AtomicU32};
 use std::sync::{Arc, OnceLock, RwLock};
 
 /// The global site variable, usually from site config
@@ -75,13 +81,79 @@ impl PagesVar {
         instance
     }
 
+    #[cfg(feature = "plugin")]
+    fn sort_page_var(data: AllayData) -> AllayData {
+        let plugin_manager = PluginManager::instance();
+        let plugins = plugin_manager.plugins();
+        let enabled_plugin: Vec<_> = plugins
+            .iter()
+            .filter(|plugin| {
+                let mut plugin = plugin.lock().expect_("poisoned lock");
+                plugin.sort_enabled().unwrap_or(false)
+            })
+            .collect();
+
+        if enabled_plugin.len() > 1 {
+            eprintln!("Error: multiple sort plugins enabled, only one is allowed");
+            exit(1);
+        }
+
+        if enabled_plugin.is_empty() {
+            return data;
+        }
+
+        let plugin = enabled_plugin[0].clone();
+
+        struct SortKey {
+            json: Rc<String>,
+            plugin: Plugin,
+        }
+
+        impl PartialEq for SortKey {
+            fn eq(&self, other: &Self) -> bool {
+                self.json == other.json
+            }
+        }
+
+        impl Eq for SortKey {}
+
+        impl Ord for SortKey {
+            fn cmp(&self, other: &Self) -> cmp::Ordering {
+                let mut plugin = self.plugin.lock().expect_("poisoned lock");
+                plugin.get_sort_order(&self.json, &other.json).unwrap()
+            }
+        }
+
+        impl PartialOrd for SortKey {
+            fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        if let AllayData::List(list) = data {
+            let mut list: Vec<_> = list
+                .iter()
+                .cloned()
+                .map(|item| (item.clone(), Rc::new(item.to_json())))
+                .collect();
+            list.sort_by_key(|(_, json)| SortKey {
+                json: json.clone(),
+                plugin: plugin.clone(),
+            });
+            AllayData::List(Arc::new(list.into_iter().map(|(item, _)| item).collect()))
+        } else {
+            eprintln!("Error: sort plugin enabled but data is not a list");
+            exit(1);
+        }
+    }
+
     pub fn update(&self) {
         // see the site map version to decide whether to update
         let version = SiteMap::read().version();
-        if self.cache_version.load(Ordering::SeqCst) == version {
+        if self.cache_version.load(atomic::Ordering::SeqCst) == version {
             return;
         }
-        self.cache_version.store(version, Ordering::SeqCst);
+        self.cache_version.store(version, atomic::Ordering::SeqCst);
 
         let dir = file::workspace(&get_allay_config().content_dir);
         // walk through the content directory and get all markdown/html files
@@ -94,6 +166,10 @@ impl PagesVar {
                 .map(Arc::new)
                 .collect::<AllayList>()
                 .into();
+
+            #[cfg(feature = "plugin")]
+            let data = Self::sort_page_var(data);
+
             *self.data.write().unwrap() = Arc::new(data);
         }
     }

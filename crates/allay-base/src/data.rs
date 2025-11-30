@@ -121,6 +121,26 @@ impl AllayData {
         }
     }
 
+    pub fn to_json(&self) -> String {
+        match self {
+            AllayData::String(s) => format!("\"{}\"", s.replace('\"', "\\\"")),
+            AllayData::Int(i) => i.to_string(),
+            AllayData::Bool(b) => b.to_string(),
+            AllayData::List(list) => {
+                let items: Vec<String> = list.iter().map(|item| item.to_json()).collect();
+                format!("[{}]", items.join(", "))
+            }
+            AllayData::Object(obj) => {
+                let pairs: Vec<String> = obj
+                    .iter()
+                    .map(|(k, v)| format!("\"{}\": {}", k.replace('\"', "\\\""), v.to_json()))
+                    .collect();
+                format!("{{{}}}", pairs.join(", "))
+            }
+            AllayData::Null => "null".to_string(),
+        }
+    }
+
     pub fn is_str(&self) -> bool {
         matches!(self, AllayData::String(_))
     }

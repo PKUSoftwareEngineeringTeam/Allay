@@ -2,12 +2,14 @@ pub mod compiler;
 pub(crate) mod export;
 pub mod listen;
 pub mod route;
+pub mod sort_page;
 
 use crate::plugin_info;
 pub use compiler::CompilerComponent;
 use export::exports::allay::plugin as wit;
 pub use listen::ListenComponent;
 pub use route::RouteComponent;
+pub use sort_page::SortPageComponent;
 
 struct PluginGuest;
 
