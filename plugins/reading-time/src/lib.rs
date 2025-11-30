@@ -73,10 +73,6 @@ impl ListenComponent for ReadingTimeGenerator {
         self.dump();
     }
 
-    fn on_remove(&self, source: String) {
-        self.write().entries.remove(&PathBuf::from(&source));
-    }
-
     fn on_modify(&self, source: String) {
         let path = Self::path_of(&source);
         if path.extension().and_then(|s| s.to_str()) != Some("md") {
@@ -87,6 +83,10 @@ impl ListenComponent for ReadingTimeGenerator {
         let minutes = self.estimate_reading_time(&content);
         self.write().entries.insert(source.into(), minutes);
         self.dump();
+    }
+
+    fn on_remove(&self, source: String) {
+        self.write().entries.remove(&PathBuf::from(&source));
     }
 }
 

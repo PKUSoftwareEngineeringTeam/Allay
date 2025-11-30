@@ -1,0 +1,4 @@
+interface sort-page {
+    sort-enabled: func() -> bool;
+    get-sort-order: func(page-meta1: string, page-meta2: string) -> s8;
+}

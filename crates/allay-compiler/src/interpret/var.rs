@@ -7,7 +7,11 @@ use allay_base::data::{AllayData, AllayList};
 use allay_base::file;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::SiteMap;
-use std::sync::atomic::{AtomicU32, Ordering};
+#[cfg(feature = "plugin")]
+use allay_plugin::PluginManager;
+#[cfg(feature = "plugin")]
+use std::process::exit;
+use std::sync::atomic::{self, AtomicU32};
 use std::sync::{Arc, OnceLock, RwLock};
 
 /// The global site variable, usually from site config
@@ -75,13 +79,45 @@ impl PagesVar {
         instance
     }
 
+    #[cfg(feature = "plugin")]
+    fn sort_page_var(data: AllayData) -> AllayData {
+        let plugin_manager = PluginManager::instance();
+        let plugins = plugin_manager.plugins();
+        let mut enabled_plugin = plugins.iter().filter(|plugin| {
+            let mut plugin = plugin.lock().expect_("poisoned lock");
+            plugin.sort_enabled().unwrap_or(false)
+        });
+
+        let plugin = match enabled_plugin.next().cloned() {
+            Some(plugin) => plugin,
+            None => return data,
+        };
+
+        if enabled_plugin.next().is_some() {
+            eprintln!("Error: multiple sort plugins enabled, only one is allowed");
+            exit(1);
+        }
+
+        let mut plugin = plugin.lock().expect_("poisoned lock");
+
+        if let AllayData::List(list) = data {
+            let mut list: Vec<_> =
+                list.iter().cloned().map(|item| (item.clone(), item.to_json())).collect();
+            list.sort_by(|(_, json1), (_, json2)| plugin.get_sort_order(json1, json2).unwrap());
+            AllayData::List(Arc::new(list.into_iter().map(|(item, _)| item).collect()))
+        } else {
+            eprintln!("Error: sort plugin enabled but data is not a list");
+            exit(1);
+        }
+    }
+
     pub fn update(&self) {
         // see the site map version to decide whether to update
         let version = SiteMap::read().version();
-        if self.cache_version.load(Ordering::SeqCst) == version {
+        if self.cache_version.load(atomic::Ordering::SeqCst) == version {
             return;
         }
-        self.cache_version.store(version, Ordering::SeqCst);
+        self.cache_version.store(version, atomic::Ordering::SeqCst);
 
         let dir = file::workspace(&get_allay_config().content_dir);
         // walk through the content directory and get all markdown/html files
@@ -94,6 +130,10 @@ impl PagesVar {
                 .map(Arc::new)
                 .collect::<AllayList>()
                 .into();
+
+            #[cfg(feature = "plugin")]
+            let data = Self::sort_page_var(data);
+
             *self.data.write().unwrap() = Arc::new(data);
         }
     }

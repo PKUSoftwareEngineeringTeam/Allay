@@ -1,0 +1,11 @@
+[package]
+name = "plugin-sort-page"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+allay-plugin-api = { path = "../../crates/allay-plugin-api" }
+serde_json = "1.0"

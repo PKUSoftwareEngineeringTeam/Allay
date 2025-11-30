@@ -14,4 +14,4 @@ allay-plugin = { workspace = true, optional = true }
 
 [features]
 default = ["plugin"]
-plugin = ["allay-compiler/plugin", "allay-plugin"]
+plugin = ["allay-compiler/plugin", "dep:allay-plugin"]
