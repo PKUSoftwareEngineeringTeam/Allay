@@ -1,9 +1,9 @@
 //! Miscellaneous utility functions for the Allay compiler.
 //! These functions provide implementation for compiling source files (such as Markdown or HTML) into HTML strings.
 
-use crate::env::{Compiled, Page, convert_to_html};
+use crate::env::{Compiled, Page};
+use crate::extract::{convert_to_html, get_meta, match_raw_content};
 use crate::interpret::Interpreter;
-use crate::meta::{get_meta, get_raw_content};
 use crate::{CompileOutput, CompileResult, Compiler, magic};
 use allay_base::config::{get_theme_config, get_theme_path};
 use allay_base::file;
@@ -103,9 +103,12 @@ impl Compiler<String> {
         let front_matter = get_meta(&article)?;
 
         // replace the "content" key with the article page
-        let content = if front_matter.get(magic::RAW) == Some(&Arc::new(true.into())) {
+        let content = if front_matter
+            .get(magic::RAW)
+            .is_some_and(|value| value.as_bool().unwrap_or(false))
+        {
             // raw content, do not compile the markdown
-            convert_to_html(&get_raw_content(&article)?)?
+            convert_to_html(&match_raw_content(&article)?)
         } else {
             let key = Self::default_key(&article);
             let article_page =

@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 serde = "1.0"
 allay-plugin-api = { path = "../../crates/allay-plugin-api" }
-uuid = { version = "1.18", features = ["v4"] }
+uuid = { version = "1.19", features = ["v4"] }
 bcrypt = "0.17"
 chrono = "0.4"
 serde_json = "1.0"

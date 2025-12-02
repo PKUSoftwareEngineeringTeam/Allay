@@ -1,11 +1,11 @@
 use crate::config::get_allay_config;
-use crate::data::AllayData;
+use crate::data::{AllayData, AllayObject};
 use crate::file;
 use crate::log::NoPanicUnwrap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tracing::warn;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -20,6 +20,12 @@ pub struct SiteMap {
 pub struct UrlEntry {
     pub lastmod: u64,
     pub meta: AllayData,
+}
+
+impl UrlEntry {
+    pub fn meta(&self) -> Arc<AllayObject> {
+        self.meta.as_obj().expect_("Meta should be an object")
+    }
 }
 
 static SITE_MAP: OnceLock<RwLock<SiteMap>> = OnceLock::new();

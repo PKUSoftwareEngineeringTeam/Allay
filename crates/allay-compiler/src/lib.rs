@@ -3,8 +3,8 @@
 mod ast;
 mod env;
 mod error;
+mod extract;
 mod interpret;
-mod meta;
 mod misc;
 mod parse;
 
@@ -13,8 +13,8 @@ use allay_base::data::AllayObject;
 use allay_base::file;
 use env::{Compiled, Page};
 pub use error::*;
+pub use extract::{get_meta, match_meta};
 use interpret::Interpreter;
-pub use meta::get_meta;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;

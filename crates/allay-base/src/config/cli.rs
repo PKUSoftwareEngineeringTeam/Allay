@@ -42,6 +42,9 @@ pub enum CLICommand {
     Build(BuildArgs),
     /// Start the embedded server to preview the site
     Serve(ServeArgs),
+    /// Manage Allay plugins
+    #[command(subcommand)]
+    Plugin(PluginCommand),
 }
 
 #[derive(Args, Debug)]
@@ -73,11 +76,20 @@ pub struct ServeArgs {
     #[arg(short, long, default_value = "127.0.0.1")]
     pub address: String,
 
-    /// Use the baseUrl from the config file
-    #[arg(short, long)]
-    pub base_url: bool,
-
     /// Open the site in the browser
     #[arg(long)]
     pub open: bool,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum PluginCommand {
+    /// Update installed plugins
+    Update(PluginUpdateArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct PluginUpdateArgs {
+    /// Name of the plugin to update (if empty, update all plugins)
+    #[arg(short, long)]
+    pub name: Option<String>,
 }

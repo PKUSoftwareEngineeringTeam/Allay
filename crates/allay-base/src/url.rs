@@ -53,7 +53,10 @@ impl AllayUrlPath {
             && let Some(ext) = ext.to_str()
             && TemplateKind::from_extension(ext).is_html()
         {
-            if path.file_name() == Some(get_theme_config().config.templates.index.as_ref()) {
+            if path
+                .file_name()
+                .is_some_and(|a| *a == *get_theme_config().config.templates.index)
+            {
                 AllayUrlPath::Index(path.parent().map(Self::to_dir).unwrap_or(PathBuf::from("/")))
             } else {
                 AllayUrlPath::Html(path.with_extension(""))

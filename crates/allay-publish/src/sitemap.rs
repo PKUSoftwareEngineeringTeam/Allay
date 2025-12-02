@@ -3,7 +3,7 @@ use allay_base::config::{CLICommand, get_allay_config, get_cli_config, get_site_
 use allay_base::file::{self, FileResult};
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::{SiteMap, UrlEntry};
-use allay_compiler::get_meta;
+use allay_compiler::match_meta;
 use std::ops::DerefMut;
 use std::path::PathBuf;
 use tracing::{info, warn};
@@ -52,7 +52,7 @@ impl SiteMapWorker {
     fn create_on(&self, path: PathBuf, map: &mut SiteMap) -> FileResult<()> {
         let real_path = file::workspace(self.root().join(&path));
         let lastmod = file::last_modified(&real_path)?;
-        let meta = get_meta(real_path).unwrap_or_default().into();
+        let meta = match_meta(real_path).unwrap_or_default().into();
         let entry = UrlEntry { lastmod, meta };
         map.urlset.insert(path, entry);
         Ok(())

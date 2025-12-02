@@ -1,11 +1,10 @@
 use crate::ast::Template;
+use crate::extract::{convert_to_html, get_meta_and_content};
 use crate::interpret::{Interpretable, Interpreter, PageScope};
-use crate::meta::get_meta_and_content;
 use crate::{CompileOutput, CompileResult};
 use allay_base::template::TemplateKind;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
-use pulldown_cmark::{Options, Parser, html};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -130,21 +129,6 @@ impl Page {
     }
 }
 
-pub fn convert_to_html(text: &str) -> CompileResult<String> {
-    let mut html_output = String::new();
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_FOOTNOTES);
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_GFM);
-    options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
-    options.insert(Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS);
-
-    let parser = Parser::new_ext(text, options);
-    html::push_html(&mut html_output, parser);
-    Ok(html_output)
-}
-
 pub(crate) trait TokenInserter: Sized {
     /// Insert text to the output
     fn insert_text(&self, text: String);
@@ -250,7 +234,7 @@ impl Compiled for Arc<Mutex<Page>> {
 
         let kind = { TemplateKind::from_filename(&get_lock!(self).path) };
         if kind.is_md() {
-            result = convert_to_html(&result)?;
+            result = convert_to_html(&result);
         }
 
         Ok(result)

@@ -63,7 +63,7 @@ impl ReadingTimeGenerator {
 impl ListenComponent for ReadingTimeGenerator {
     fn on_create(&self, source: String) {
         let path = Self::path_of(&source);
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+        if path.extension().is_none_or(|s| s != "md") {
             return;
         }
 
@@ -75,7 +75,7 @@ impl ListenComponent for ReadingTimeGenerator {
 
     fn on_modify(&self, source: String) {
         let path = Self::path_of(&source);
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+        if path.extension().is_none_or(|s| s != "md") {
             return;
         }
 

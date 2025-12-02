@@ -178,7 +178,7 @@ mod file_finder {
     use allay_base::template::TemplateKind;
     use std::path::{Path, PathBuf};
 
-    pub(super) fn find_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+    pub fn find_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
         for ext in [
             TemplateKind::Markdown.extension(),
             TemplateKind::Html.extension(),
@@ -191,7 +191,7 @@ mod file_finder {
         None
     }
 
-    pub(super) fn try_find_file<P: AsRef<Path>>(path: P) -> InterpretResult<PathBuf> {
+    pub fn try_find_file<P: AsRef<Path>>(path: P) -> InterpretResult<PathBuf> {
         let path = path.as_ref();
         find_file(path).ok_or(InterpretError::IncludePathNotFound(
             path.to_path_buf().to_string_lossy().to_string(),
