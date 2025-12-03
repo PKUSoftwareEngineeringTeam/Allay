@@ -6,7 +6,7 @@
  */
 class LiveReloadClient {
     constructor() {
-        this.pollingInterval = 50; // 50 ms
+        this.pollingInterval = 500; // 500 ms
         this.lastTimestamp = 0;
         this.init().then();
     }
