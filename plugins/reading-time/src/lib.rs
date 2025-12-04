@@ -73,7 +73,7 @@ impl ListenComponent for ReadingTimeGenerator {
 
         let content = fs::read_to_string(Self::path_of(&source)).expect("Unable to read file");
         let minutes = self.estimate_reading_time(&content);
-        let key = Self::linux_like_path(path);
+        let key = Self::linux_like_path(source);
         self.write().entries.insert(key, minutes);
         self.dump();
     }
@@ -86,7 +86,7 @@ impl ListenComponent for ReadingTimeGenerator {
 
         let content = fs::read_to_string(Self::path_of(&source)).expect("Unable to read file");
         let minutes = self.estimate_reading_time(&content);
-        let key = Self::linux_like_path(path);
+        let key = Self::linux_like_path(source);
         self.write().entries.insert(key, minutes);
         self.dump();
     }
