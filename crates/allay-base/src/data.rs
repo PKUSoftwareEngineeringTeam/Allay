@@ -162,7 +162,7 @@ impl AllayData {
         matches!(self, AllayData::Null)
     }
 
-    pub fn as_str(&self) -> DataResult<&String> {
+    pub fn as_str(&self) -> DataResult<&str> {
         if let AllayData::String(s) = self {
             Ok(s)
         } else {

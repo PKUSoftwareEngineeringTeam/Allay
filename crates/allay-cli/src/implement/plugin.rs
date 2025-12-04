@@ -1,4 +1,8 @@
-use allay_base::{config::*, data::AllayData, file};
+use allay_base::{
+    config::*,
+    data::{AllayData, AllayObject},
+    file,
+};
 use reqwest::blocking::get;
 use std::sync::Arc;
 
@@ -10,7 +14,9 @@ pub fn plugin(command: &PluginCommand) -> anyhow::Result<()> {
 
 const PLUGIN: &str = "plugins";
 const PATH: &str = "path";
-const URL: &str = "url";
+const GIT: &str = "git";
+const TAG: &str = "tag";
+const FILE: &str = "file";
 
 fn update(args: &PluginUpdateArgs) -> anyhow::Result<()> {
     let Some(meta) = get_site_config().get(PLUGIN).cloned() else {
@@ -38,6 +44,10 @@ fn update(args: &PluginUpdateArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn get_str<'a>(data: &'a Arc<AllayObject>, key: &str) -> Option<&'a str> {
+    data.get(key).and_then(|v| v.as_str().ok())
+}
+
 fn update_on(name: &str, info: &Arc<AllayData>) -> anyhow::Result<()> {
     let Ok(info) = info.as_obj() else {
         eprintln!("Plugin '{}' configuration must be an object.", name);
@@ -46,16 +56,17 @@ fn update_on(name: &str, info: &Arc<AllayData>) -> anyhow::Result<()> {
 
     let dir = file::workspace(&get_allay_config().plugin_dir);
 
-    if let Some(path) = info.get(PATH)
-        && let Ok(path) = path.as_str()
-    {
+    if let Some(path) = get_str(&info, PATH) {
         println!("Updating plugins in path: {}", path);
         file::copy(path.into(), dir)?;
-    } else if let Some(url) = info.get(URL)
-        && let Ok(url) = url.as_str()
+    } else if let Some(git) = get_str(&info, GIT)
+        && let Some(tag) = get_str(&info, TAG)
+        && let Some(file) = get_str(&info, FILE)
     {
-        println!("Downloading plugin '{}' from URL: {}", name, url);
-        let response = get(url)?;
+        let release = format!("{}/releases/download/{}/{}", git, tag, file);
+
+        println!("Downloading plugin '{}' from URL: {}", name, release);
+        let response = get(&release)?;
         let status = response.status();
         if status.is_success() {
             let bytes = response.bytes()?;
@@ -68,11 +79,11 @@ fn update_on(name: &str, info: &Arc<AllayData>) -> anyhow::Result<()> {
         } else {
             eprintln!(
                 "Failed to download plugin '{}' from URL: {}. Status: {}",
-                name, url, status
+                name, release, status
             );
         }
     } else {
-        eprintln!("No plugin source (path or url) found in configuration.");
+        eprintln!("No plugin source (path or git) found in configuration.");
     }
     Ok(())
 }

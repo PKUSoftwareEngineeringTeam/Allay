@@ -23,7 +23,7 @@ impl SiteMapWorker {
                 .expect_("base_url not found in online mode")
                 .as_str()
                 .expect_("base_url should be a string")
-                .clone()
+                .to_string()
         } else if let CLICommand::Serve(args) = &get_cli_config().command {
             // In serve mode, use the local address and port
             format!("http://{}:{}/", args.address, args.port)

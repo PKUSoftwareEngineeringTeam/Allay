@@ -403,7 +403,7 @@ impl Interpretable for AddSub {
         }
 
         if self.left.interpret(ctx, page)?.is_str() {
-            let mut res = self.left.interpret(ctx, page)?.as_str()?.clone();
+            let mut res = self.left.interpret(ctx, page)?.as_str()?.to_string();
             for (op, right) in &self.rights {
                 if !matches!(op, AddSubOp::Add) {
                     return Err(converse_error("cannot subtract strings".to_string()));
