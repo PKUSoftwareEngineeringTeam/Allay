@@ -7,7 +7,7 @@ use std::sync::{RwLock, RwLockWriteGuard};
 
 #[derive(Serialize, Deserialize, Default)]
 struct ReadingTime {
-    entries: HashMap<PathBuf, u32>,
+    entries: HashMap<String, u32>,
 }
 
 struct ReadingTimeGenerator {
@@ -58,6 +58,10 @@ impl ReadingTimeGenerator {
         };
         fs::write(self.file(), json).expect("Unable to write reading time file");
     }
+
+    fn linux_like_path(path: impl AsRef<Path>) -> String {
+        path.as_ref().to_string_lossy().replace("\\", "/")
+    }
 }
 
 impl ListenComponent for ReadingTimeGenerator {
@@ -69,7 +73,8 @@ impl ListenComponent for ReadingTimeGenerator {
 
         let content = fs::read_to_string(Self::path_of(&source)).expect("Unable to read file");
         let minutes = self.estimate_reading_time(&content);
-        self.write().entries.insert(source.into(), minutes);
+        let key = Self::linux_like_path(path);
+        self.write().entries.insert(key, minutes);
         self.dump();
     }
 
@@ -81,12 +86,14 @@ impl ListenComponent for ReadingTimeGenerator {
 
         let content = fs::read_to_string(Self::path_of(&source)).expect("Unable to read file");
         let minutes = self.estimate_reading_time(&content);
-        self.write().entries.insert(source.into(), minutes);
+        let key = Self::linux_like_path(path);
+        self.write().entries.insert(key, minutes);
         self.dump();
     }
 
     fn on_remove(&self, source: String) {
-        self.write().entries.remove(&PathBuf::from(&source));
+        let key = Self::linux_like_path(Self::path_of(&source));
+        self.write().entries.remove(&key);
     }
 }
 
