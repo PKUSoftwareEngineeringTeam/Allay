@@ -208,7 +208,7 @@ pub fn create_file_recursively<P: AsRef<Path>>(file_path: P) -> FileResult<()> {
 }
 
 /// Write content to a file, creating parent directories if necessary
-pub fn write_file<P: AsRef<Path>>(file_path: P, content: &str) -> FileResult<()> {
+pub fn write_file<P: AsRef<Path>>(file_path: P, content: impl AsRef<[u8]>) -> FileResult<()> {
     let file_path = file_path.as_ref();
     if let Some(parent) = file_path.parent() {
         create_dir_recursively(parent)?;

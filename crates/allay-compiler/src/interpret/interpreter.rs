@@ -178,7 +178,7 @@ mod file_finder {
     use allay_base::template::TemplateKind;
     use std::path::{Path, PathBuf};
 
-    pub(super) fn find_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+    pub fn find_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
         for ext in [
             TemplateKind::Markdown.extension(),
             TemplateKind::Html.extension(),
@@ -191,7 +191,7 @@ mod file_finder {
         None
     }
 
-    pub(super) fn try_find_file<P: AsRef<Path>>(path: P) -> InterpretResult<PathBuf> {
+    pub fn try_find_file<P: AsRef<Path>>(path: P) -> InterpretResult<PathBuf> {
         let path = path.as_ref();
         find_file(path).ok_or(InterpretError::IncludePathNotFound(
             path.to_path_buf().to_string_lossy().to_string(),
@@ -403,7 +403,7 @@ impl Interpretable for AddSub {
         }
 
         if self.left.interpret(ctx, page)?.is_str() {
-            let mut res = self.left.interpret(ctx, page)?.as_str()?.clone();
+            let mut res = self.left.interpret(ctx, page)?.as_str()?.to_string();
             for (op, right) in &self.rights {
                 if !matches!(op, AddSubOp::Add) {
                     return Err(converse_error("cannot subtract strings".to_string()));

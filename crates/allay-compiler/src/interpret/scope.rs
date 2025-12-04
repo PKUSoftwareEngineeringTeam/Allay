@@ -75,13 +75,11 @@ impl PageScope {
     }
 
     pub fn get_local(&self, id: &str) -> Option<&LocalVar> {
-        // find the variable in local scopes first
-        for scope in self.sub_stack.iter().rev() {
-            if let Some(var) = scope.locals.get(id) {
-                return Some(var);
-            }
-        }
-        self.locals.get(id)
+        self.sub_stack
+            .iter()
+            .rev()
+            .find_map(|scope| scope.locals.get(id))
+            .or_else(|| self.locals.get(id))
     }
 
     pub fn get_param(&self) -> &ParamVar {

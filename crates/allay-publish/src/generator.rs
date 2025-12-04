@@ -254,7 +254,7 @@ impl FileGenerator {
     }
 
     fn write_with_wrapper(dest: &PathBuf, html: &str) -> FileResult<()> {
-        file::write_file(dest, &postprocess(html))
+        file::write_file(dest, postprocess(html))
     }
 
     /// handling the recompilation of all affected files

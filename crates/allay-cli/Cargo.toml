@@ -16,6 +16,7 @@ tracing-appender.workspace = true
 git2.workspace = true
 dialoguer.workspace = true
 webbrowser.workspace = true
+reqwest.workspace = true
 
 [[bin]]
 name = "allay"

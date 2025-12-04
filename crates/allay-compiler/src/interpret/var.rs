@@ -4,7 +4,7 @@ use crate::{InterpretResult, magic};
 use allay_base::config::get_site_config;
 use allay_base::data::{AllayData, AllayList};
 use allay_base::log::NoPanicUnwrap;
-use allay_base::sitemap::SiteMap;
+use allay_base::sitemap::{SiteMap, UrlEntry};
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 #[cfg(feature = "plugin")]
@@ -72,9 +72,8 @@ impl PagesVar {
             plugin.sort_enabled().unwrap_or(false)
         });
 
-        let plugin = match enabled_plugin.next().cloned() {
-            Some(plugin) => plugin,
-            None => return data,
+        let Some(plugin) = enabled_plugin.next().cloned() else {
+            return data;
         };
 
         if enabled_plugin.next().is_some() {
@@ -109,8 +108,10 @@ impl PagesVar {
         let data = SiteMap::read()
             .urlset
             .values()
-            .filter_map(|entry| entry.meta.as_obj().ok())
-            .filter(|meta| meta.get(magic::HIDDEN) != Some(&Arc::new(true.into())))
+            .map(UrlEntry::meta)
+            .filter(|meta| {
+                meta.get(magic::HIDDEN).is_none_or(|data| !data.as_bool().unwrap_or(false))
+            })
             .map(AllayData::Object)
             .map(Arc::new)
             .collect::<AllayList>()

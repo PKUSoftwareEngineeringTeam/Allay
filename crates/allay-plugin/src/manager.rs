@@ -47,13 +47,12 @@ impl PluginManager {
     pub fn version_match(&self, name: &str, req_version: &str) -> anyhow::Result<bool> {
         let req = VersionReq::parse(req_version)?;
         let plugins = self.plugins.read().expect_("failed to acquire read lock on plugins");
-        if let Some(plugin) = plugins.get(name) {
-            let mut plugin = plugin.lock().expect_("failed to acquire lock on plugin");
-            let version = plugin.plugin_version()?;
-            let version = Version::parse(&version)?;
-            Ok(req.matches(&version))
-        } else {
-            Ok(false)
-        }
+        let Some(plugin) = plugins.get(name) else {
+            return Ok(false);
+        };
+        let mut plugin = plugin.lock().expect_("failed to acquire lock on plugin");
+        let version = plugin.plugin_version()?;
+        let version = Version::parse(&version)?;
+        Ok(req.matches(&version))
     }
 }
