@@ -14,7 +14,9 @@ use std::sync::Arc;
 pub fn before_compile(content: String, kind: TemplateKind) -> String {
     let plugin_manager = PluginManager::instance();
     plugin_manager.plugins().iter().fold(content, |content, plugin| {
-        let mut plugin = plugin.lock().expect("Plugin lock poisoned!");
+        use allay_base::lock;
+
+        let mut plugin = lock!(plugin);
         plugin.before_compile(content, kind.clone())
     })
 }

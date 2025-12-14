@@ -1,4 +1,5 @@
 use allay_base::log::NoPanicUnwrap;
+use allay_base::{lock, read};
 use allay_plugin_host::PluginHost;
 use semver::{Version, VersionReq};
 use std::collections::HashMap;
@@ -30,27 +31,27 @@ impl PluginManager {
     }
 
     pub fn get_plugin(&self, name: &str) -> Option<Plugin> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = read!(self.plugins);
         plugins.get(name).cloned()
     }
 
     pub fn plugins(&self) -> Vec<Plugin> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = read!(self.plugins);
         plugins.values().cloned().collect()
     }
 
     pub fn plugin_names(&self) -> Vec<String> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = read!(self.plugins);
         plugins.keys().cloned().collect()
     }
 
     pub fn version_match(&self, name: &str, req_version: &str) -> anyhow::Result<bool> {
         let req = VersionReq::parse(req_version)?;
-        let plugins = self.plugins.read().expect_("failed to acquire read lock on plugins");
+        let plugins = read!(self.plugins);
         let Some(plugin) = plugins.get(name) else {
             return Ok(false);
         };
-        let mut plugin = plugin.lock().expect_("failed to acquire lock on plugin");
+        let mut plugin = lock!(plugin);
         let version = plugin.plugin_version()?;
         let version = Version::parse(&version)?;
         Ok(req.matches(&version))

@@ -6,26 +6,13 @@ use crate::{InterpretError, InterpretResult};
 use crate::{ast::*, magic};
 use allay_base::data::AllayData;
 use allay_base::data::{AllayDataError, AllayList};
+use allay_base::lock;
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 fn converse_error(err: String) -> InterpretError {
     InterpretError::DataError(AllayDataError::TypeConversion(err))
-}
-
-macro_rules! interpret_unreachable {
-    () => {
-        unreachable!(
-            "This is a bug of interpreter, please report it to the developers on https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."
-        )
-    }
-}
-
-macro_rules! interpret_unwrap {
-    ($expr: expr) => {
-        $expr.unwrap_or_else(|_| interpret_unreachable!())
-    };
 }
 
 /// The global Allay interpreter context
@@ -109,10 +96,7 @@ impl Interpretable for SetCommand {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let value = self.value.interpret(ctx, page)?;
-        interpret_unwrap!(page.lock())
-            .scope_mut()
-            .cur_scope_mut()
-            .create_local(self.name.clone(), value);
+        lock!(page).scope_mut().cur_scope_mut().create_local(self.name.clone(), value);
         Ok(())
     }
 }
@@ -124,16 +108,13 @@ impl Interpretable for ForCommand {
         let list = self.list.interpret(ctx, page)?;
         let list = list.as_list()?;
         for (index, item) in list.iter().enumerate() {
-            interpret_unwrap!(page.lock())
+            lock!(page)
                 .scope_mut()
                 .cur_scope_mut()
                 .create_local(self.item_name.clone(), item.clone());
             if let Some(index_name) = &self.index_name {
                 let index = Arc::new((index as i32).into());
-                interpret_unwrap!(page.lock())
-                    .scope_mut()
-                    .cur_scope_mut()
-                    .create_local(index_name.clone(), index);
+                lock!(page).scope_mut().cur_scope_mut().create_local(index_name.clone(), index);
             }
             self.inner.interpret(ctx, page)?;
         }
@@ -151,9 +132,9 @@ impl Interpretable for WithCommand {
         }
 
         let var = LocalVar::create(scope_data);
-        interpret_unwrap!(page.lock()).scope_mut().create_sub_scope(var);
+        lock!(page).scope_mut().create_sub_scope(var);
         self.inner.interpret(ctx, page)?;
-        interpret_unwrap!(page.lock()).scope_mut().exit_sub_scope();
+        lock!(page).scope_mut().exit_sub_scope();
         Ok(())
     }
 }
@@ -205,7 +186,7 @@ impl Interpretable for IncludeCommand {
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let inherited = match self.parameters.first() {
             Some(exp) => exp.interpret(ctx, page)?,
-            None => interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data(),
+            None => lock!(page).scope().cur_scope().create_this().get_data(),
         };
 
         // from 1...n are params
@@ -238,7 +219,7 @@ impl Interpretable for SingleShortcode {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
-        let inherited = interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data();
+        let inherited = lock!(page).scope().cur_scope().create_this().get_data();
 
         let scope = PageScope::new_from(inherited.as_obj()?, params);
         let path = file_finder::try_find_file(ctx.shortcode_dir.join(&self.name))?;
@@ -253,7 +234,7 @@ impl Interpretable for BlockShortcode {
 
     fn interpret(&self, ctx: &mut Interpreter, page: &Arc<Mutex<Page>>) -> InterpretResult<()> {
         let params = self.parameters.iter().map(|e| e.interpret(ctx, page)).try_collect()?;
-        let inherited = interpret_unwrap!(page.lock()).scope().cur_scope().create_this().get_data();
+        let inherited = lock!(page).scope().cur_scope().create_this().get_data();
 
         let mut scope = PageScope::new_from(inherited.as_obj()?, params);
 
@@ -261,7 +242,7 @@ impl Interpretable for BlockShortcode {
         // Do not use the lazy evaluation here, because the inner text may be modified later
         // FIXME: If the inner text of the shortcode is modified after this point (e.g., during hot reload), those changes will not be reflected,
         // because the "inner" key is set to the current compiled value. This may cause stale content to appear after hot reloads.
-        let inner_page = interpret_unwrap!(page.lock()).clone_detached();
+        let inner_page = lock!(page).clone_detached();
         let inner_page = Arc::new(Mutex::new(inner_page));
         let inner = inner_page
             .compile_on(&self.inner, ctx)
@@ -524,7 +505,7 @@ impl Interpretable for Field {
         _: &mut Interpreter,
         page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output> {
-        let mut page = interpret_unwrap!(page.lock());
+        let mut page = lock!(page);
         let scope = page.scope();
         let var: &dyn Variable = match self.top_level.as_ref().unwrap_or(&TopLevel::This) {
             TopLevel::This => &scope.cur_scope().create_this(),
@@ -550,7 +531,7 @@ impl Interpretable for TopLevel {
         _: &mut Interpreter,
         page: &Arc<Mutex<Page>>,
     ) -> InterpretResult<Self::Output> {
-        let mut page = interpret_unwrap!(page.lock());
+        let mut page = lock!(page);
         let scope = page.scope();
         let var: &dyn Variable = match self {
             TopLevel::This => &scope.cur_scope().create_this(),
