@@ -3,9 +3,11 @@ use crate::interpret::traits::{DataProvider, Variable};
 use crate::{InterpretResult, magic};
 use allay_base::config::get_site_config;
 use allay_base::data::{AllayData, AllayList};
+#[cfg(feature = "plugin")]
+use allay_base::lock;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::{SiteMap, UrlEntry};
-use allay_base::{lock, read, write};
+use allay_base::{read, write};
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 #[cfg(feature = "plugin")]
