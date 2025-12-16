@@ -10,7 +10,7 @@ mod parse;
 
 use allay_base::config::{get_allay_config, get_theme_config, get_theme_path};
 use allay_base::data::AllayObject;
-use allay_base::file;
+use allay_base::{file, lock};
 use env::{Compiled, Page};
 pub use error::*;
 pub use extract::{get_meta, match_meta};
@@ -98,7 +98,7 @@ where
 
         for (path, k) in self.published.iter() {
             if let Some(page) = self.cache(k)
-                && page.lock().unwrap().changed()
+                && lock!(page).changed()
             {
                 let res = page.compile(&mut Self::default_interpreter());
                 results.insert(path.clone(), res);
@@ -122,7 +122,7 @@ where
         if let Some(deps) = self.influenced.get(source.as_ref()) {
             for dep in deps {
                 if let Some(page) = self.cache(dep) {
-                    let mut page = page.lock().unwrap();
+                    let mut page = lock!(page);
                     page.clear();
                 }
             }

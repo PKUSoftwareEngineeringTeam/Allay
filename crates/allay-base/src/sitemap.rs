@@ -1,7 +1,7 @@
 use crate::config::get_allay_config;
 use crate::data::{AllayData, AllayObject};
-use crate::file;
 use crate::log::NoPanicUnwrap;
+use crate::{file, read, write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,11 +36,11 @@ impl SiteMap {
     }
 
     pub fn read() -> RwLockReadGuard<'static, Self> {
-        SITE_MAP.wait().read().expect("Failed to acquire site map lock")
+        read!(SITE_MAP.wait())
     }
 
     pub fn write() -> RwLockWriteGuard<'static, Self> {
-        let mut write = SITE_MAP.wait().write().expect("Failed to acquire site map lock");
+        let mut write = write!(SITE_MAP.wait());
         write.version += 1;
         write
     }

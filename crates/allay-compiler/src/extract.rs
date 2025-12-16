@@ -5,8 +5,8 @@ mod process;
 use crate::CompileResult;
 use crate::ast::Template;
 use allay_base::data::AllayObject;
-use allay_base::file;
 use allay_base::sitemap::SiteMap;
+use allay_base::{file, read, write};
 use cache::FileCacher;
 pub use matching::*;
 use pulldown_cmark::{Options, Parser, html};
@@ -22,13 +22,13 @@ pub fn get_meta_and_content<P: AsRef<Path>>(
 ) -> CompileResult<(AllayObject, Arc<Template>)> {
     let last_modified = file::last_modified(&source)?;
 
-    if let Some(ast) = AST_CACHER.read().unwrap().get(&source, last_modified) {
+    if let Some(ast) = read!(AST_CACHER).get(&source, last_modified) {
         let meta = get_meta(source)?;
         return Ok((meta, ast.clone()));
     }
 
     let (meta, template) = match_meta_and_content(&source)?;
-    AST_CACHER.write().unwrap().insert(&source, last_modified, template.clone());
+    write!(AST_CACHER).insert(&source, last_modified, template.clone());
 
     Ok((meta, template))
 }

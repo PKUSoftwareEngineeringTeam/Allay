@@ -2,17 +2,12 @@ use crate::ast::Template;
 use crate::extract::{convert_to_html, get_meta_and_content};
 use crate::interpret::{Interpretable, Interpreter, PageScope};
 use crate::{CompileOutput, CompileResult};
+use allay_base::lock;
 use allay_base::template::TemplateKind;
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
-
-macro_rules! get_lock {
-    ($e:expr) => {
-        $e.lock().unwrap_or_else(|_| panic!("Lock poisoned! This is a bug of Allay, please report it to the developers on https://github.com/PKUSoftwareEngineeringTeam/Allay/issues with the stack trace."))
-    };
-}
 
 #[derive(Debug)]
 /// The page environment to record the state of a page during compiling
@@ -75,7 +70,7 @@ impl Page {
             && let Some(parent) = &self.parent
             && let Some(parent) = parent.upgrade()
         {
-            let mut parent = get_lock!(parent);
+            let mut parent = lock!(parent);
             if parent.cachable {
                 parent.set_cachable(false);
             }
@@ -116,7 +111,7 @@ impl Page {
         if let Some(parent) = &self.parent
             && let Some(parent) = parent.upgrade()
         {
-            let mut parent = get_lock!(parent);
+            let mut parent = lock!(parent);
             if !parent.dirty {
                 parent.spread_dirty();
             }
@@ -141,7 +136,7 @@ pub(crate) trait TokenInserter: Sized {
 
 impl TokenInserter for Arc<Mutex<Page>> {
     fn insert_text(&self, text: String) {
-        get_lock!(self).output.push(Token::Text(text));
+        lock!(self).output.push(Token::Text(text));
     }
 
     fn insert_subpage(&self, path: PathBuf, scope: PageScope) -> Self {
@@ -152,7 +147,7 @@ impl TokenInserter for Arc<Mutex<Page>> {
             ..page
         };
         let page = page.into();
-        get_lock!(self).output.push(Token::Page(page.clone()));
+        lock!(self).output.push(Token::Page(page.clone()));
         page
     }
 }
@@ -181,14 +176,14 @@ fn after_compile(html: String, ty: TemplateKind) -> String {
 impl Compiled for Arc<Mutex<Page>> {
     // The optimized version for compiling a page (by caching the result)
     fn compile(&self, interpreter: &mut Interpreter) -> CompileResult<CompileOutput> {
-        let mut page = get_lock!(self);
+        let mut page = lock!(self);
         let meta = if !page.cachable || !page.ready {
             let (meta, template) = get_meta_and_content(&page.path)?;
             page.scope.merge_data(meta.clone());
             page.output.clear();
             drop(page);
             self.compile_on(&template, interpreter)?;
-            get_lock!(self).ready = true;
+            lock!(self).ready = true;
             meta
         } else {
             let meta = page.cache.meta.clone();
@@ -196,7 +191,7 @@ impl Compiled for Arc<Mutex<Page>> {
             meta
         };
 
-        let page = get_lock!(self);
+        let page = lock!(self);
         if !page.dirty {
             // use cached result
             return Ok(page.cache.clone());
@@ -206,10 +201,10 @@ impl Compiled for Arc<Mutex<Page>> {
         let html = self.gen_result_str(interpreter)?;
 
         #[cfg(feature = "plugin")]
-        let html = after_compile(html, TemplateKind::from_filename(&get_lock!(self).path));
+        let html = after_compile(html, TemplateKind::from_filename(&lock!(self).path));
 
         let output = CompileOutput { html, meta };
-        let mut page = get_lock!(self);
+        let mut page = lock!(self);
         page.dirty = false;
         page.cache = output.clone();
         Ok(output)
@@ -222,7 +217,7 @@ impl Compiled for Arc<Mutex<Page>> {
 
     fn gen_result_str(&self, interpreter: &mut Interpreter) -> CompileResult<String> {
         let mut result = String::new();
-        let page = get_lock!(self);
+        let page = lock!(self);
         for token in page.output.iter() {
             result.push(' ');
             match token {
@@ -232,7 +227,7 @@ impl Compiled for Arc<Mutex<Page>> {
         }
         drop(page);
 
-        let kind = { TemplateKind::from_filename(&get_lock!(self).path) };
+        let kind = { TemplateKind::from_filename(&lock!(self).path) };
         if kind.is_md() {
             result = convert_to_html(&result);
         }

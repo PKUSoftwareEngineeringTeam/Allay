@@ -1,5 +1,6 @@
 use crate::process::postprocess;
 use allay_base::file::{self, FileResult};
+use allay_base::lock;
 use allay_base::template::{FileKind, TemplateKind};
 use allay_compiler::Compiler;
 use notify::event::{EventKind, ModifyKind, RenameMode};
@@ -212,9 +213,9 @@ impl FileGenerator {
             return file::copy(src, dest);
         }
 
-        FILE_MAP.lock().unwrap().insert(src.clone(), dest.clone());
+        lock!(FILE_MAP).insert(src.clone(), dest.clone());
 
-        match COMPILER.lock().unwrap().compile_file(&src, &self.options.kind) {
+        match lock!(COMPILER).compile_file(&src, &self.options.kind) {
             Ok(output) => Self::write_with_wrapper(&dest, &output.html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
@@ -227,12 +228,12 @@ impl FileGenerator {
             return file::remove(dest);
         }
 
-        COMPILER.lock().unwrap().remove(&src);
+        lock!(COMPILER).remove(&src);
         if matches!(&self.options.kind, FileKind::Wrapper) {
             return Self::refresh();
         }
 
-        FILE_MAP.lock().unwrap().remove(&src);
+        lock!(FILE_MAP).remove(&src);
         Self::refresh()?;
         file::remove(dest)
     }
@@ -242,11 +243,11 @@ impl FileGenerator {
         if self.no_compile(&src) {
             return file::copy(src, dest);
         }
-        COMPILER.lock().unwrap().modify(&src);
+        lock!(COMPILER).modify(&src);
         if matches!(self.options.kind, FileKind::Wrapper) {
             return Self::refresh();
         }
-        match COMPILER.lock().unwrap().compile_file(&src, &self.options.kind) {
+        match lock!(COMPILER).compile_file(&src, &self.options.kind) {
             Ok(output) => Self::write_with_wrapper(&dest, &output.html)?,
             Err(e) => warn!("Failed to compile {:?}: {}", src, e),
         }
@@ -259,9 +260,9 @@ impl FileGenerator {
 
     /// handling the recompilation of all affected files
     fn refresh() -> FileResult<()> {
-        let pages = COMPILER.lock().unwrap().refresh_pages();
+        let pages = lock!(COMPILER).refresh_pages();
         for (path, res) in pages {
-            if let Some(dest) = FILE_MAP.lock().unwrap().get(&path) {
+            if let Some(dest) = lock!(FILE_MAP).get(&path) {
                 match res {
                     Ok(output) => Self::write_with_wrapper(dest, &output.html)?,
                     Err(e) => warn!("Failed to recompile {:?}: {}", path, e),

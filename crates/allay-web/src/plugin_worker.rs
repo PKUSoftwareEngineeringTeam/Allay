@@ -1,3 +1,4 @@
+use allay_base::lock;
 use allay_plugin::Plugin;
 use allay_plugin::types::{Request, Response, response_internal_error};
 
@@ -16,7 +17,7 @@ impl PluginWorker {
 
     pub fn handle_request(&self, plugin: Plugin, request: Request) -> Response {
         self.pool.install(move || {
-            let mut plugin = plugin.lock().expect("Failed to lock plugin");
+            let mut plugin = lock!(plugin);
             plugin.handle_request(request).unwrap_or(response_internal_error())
         })
     }

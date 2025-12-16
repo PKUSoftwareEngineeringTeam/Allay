@@ -3,8 +3,11 @@ use crate::interpret::traits::{DataProvider, Variable};
 use crate::{InterpretResult, magic};
 use allay_base::config::get_site_config;
 use allay_base::data::{AllayData, AllayList};
+#[cfg(feature = "plugin")]
+use allay_base::lock;
 use allay_base::log::NoPanicUnwrap;
 use allay_base::sitemap::{SiteMap, UrlEntry};
+use allay_base::{read, write};
 #[cfg(feature = "plugin")]
 use allay_plugin::PluginManager;
 #[cfg(feature = "plugin")]
@@ -67,10 +70,8 @@ impl PagesVar {
     fn sort_page_var(data: AllayData) -> AllayData {
         let plugin_manager = PluginManager::instance();
         let plugins = plugin_manager.plugins();
-        let mut enabled_plugin = plugins.iter().filter(|plugin| {
-            let mut plugin = plugin.lock().expect_("poisoned lock");
-            plugin.sort_enabled().unwrap_or(false)
-        });
+        let mut enabled_plugin =
+            plugins.iter().filter(|plugin| lock!(plugin).sort_enabled().unwrap_or(false));
 
         let Some(plugin) = enabled_plugin.next().cloned() else {
             return data;
@@ -81,14 +82,14 @@ impl PagesVar {
             exit(1);
         }
 
-        let mut plugin = plugin.lock().expect_("poisoned lock");
-
         if let AllayData::List(list) = data {
             let mut list: Vec<_> = list
                 .iter()
                 .map(|item| (item.clone(), serde_json::to_string(item.as_ref()).unwrap()))
                 .collect();
-            list.sort_by(|(_, json1), (_, json2)| plugin.get_sort_order(json1, json2).unwrap());
+            list.sort_by(|(_, json1), (_, json2)| {
+                lock!(plugin).get_sort_order(json1, json2).unwrap()
+            });
             list.into_iter().map(|(item, _)| item).collect::<AllayList>().into()
         } else {
             eprintln!("Error: sort plugin enabled but data is not a list");
@@ -120,13 +121,13 @@ impl PagesVar {
         #[cfg(feature = "plugin")]
         let data = Self::sort_page_var(data);
 
-        *self.data.write().unwrap() = Arc::new(data);
+        *write!(self.data) = Arc::new(data);
     }
 }
 
 impl DataProvider for PagesVar {
     fn get_data(&self) -> Arc<AllayData> {
-        self.data.read().unwrap().clone()
+        read!(self.data).clone()
     }
 }
 
