@@ -27,18 +27,14 @@ pub fn postprocess(html: &str) -> String {
 
     let html = format!(include_str!("assets/wrapper.html"), html, hot_reload);
 
-    let settings = RewriteStrSettings {
-        element_content_handlers: vec![
-            link_handler!("a[href]", "href"),
-            link_handler!("link[href]", "href"),
-            link_handler!("script[src]", "src"),
-            link_handler!("img[src]", "src"),
-            link_handler!("source[src]", "src"),
-            link_handler!("video[src]", "src"),
-            link_handler!("audio[src]", "src"),
-        ],
-        ..RewriteStrSettings::new()
-    };
+    let settings = RewriteStrSettings::new()
+        .append_element_content_handler(link_handler!("a[href]", "href"))
+        .append_element_content_handler(link_handler!("link[href]", "href"))
+        .append_element_content_handler(link_handler!("script[src]", "src"))
+        .append_element_content_handler(link_handler!("img[src]", "src"))
+        .append_element_content_handler(link_handler!("source[src]", "src"))
+        .append_element_content_handler(link_handler!("video[src]", "src"))
+        .append_element_content_handler(link_handler!("audio[src]", "src"));
 
     match rewrite_str(&html, settings) {
         Ok(output) => output,
