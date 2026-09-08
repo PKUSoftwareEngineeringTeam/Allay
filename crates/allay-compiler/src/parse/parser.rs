@@ -408,7 +408,7 @@ impl ASTBuilder for Comparison {
 
         Ok(Comparison {
             left: parser_unwrap!(left),
-            right: operator.and_then(|op| right.map(|r| (op, r))),
+            right: operator.zip(right),
         })
     }
 }
