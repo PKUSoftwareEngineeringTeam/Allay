@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tracing::warn;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::{Config, Engine, Store};
-use wasmtime_wasi::{DirPerms, FilePerms, WasiCtx, WasiCtxView, WasiView};
+use wasmtime_wasi::{FsPerms, WasiCtx, WasiCtxView, WasiView};
 
 mod component;
 
@@ -17,10 +17,7 @@ struct PluginState {
 
 impl PluginState {
     fn with_dir(dir: &Path) -> Self {
-        let ctx = WasiCtx::builder()
-            .preopened_dir(dir, ".", DirPerms::all(), FilePerms::all())
-            .unwrap()
-            .build();
+        let ctx = WasiCtx::builder().preopened_dir(dir, ".", FsPerms::ReadWrite).unwrap().build();
         Self {
             table: ResourceTable::new(),
             ctx,
